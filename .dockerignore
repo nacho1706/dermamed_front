@@ -1,0 +1,35 @@
+# --- Control de Versiones y Sistema ---
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+
+# --- Configuración de Entorno ---
+.env
+.env.*
+.env.local
+.env.production
+
+# --- Dependencias (Crucial para evitar error de arquitectura M4 vs Linux) ---
+node_modules
+npm-debug.log
+yarn-error.log
+
+# --- IDEs y Editores ---
+.idea
+.vscode
+.fleet
+.zed
+
+# --- Next.js Build Artifacts ---
+# Queremos que el build se haga DENTRO de Docker, no copiar el de tu Mac
+.next
+out
+build
+dist
+coverage
+
+# --- Docker ---
+Dockerfile
+docker-compose*
+README.md
