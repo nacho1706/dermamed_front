@@ -62,7 +62,6 @@ export interface User {
   email: string;
   cuit: string | null;
   specialty: string | null;
-  is_active: boolean;
   role: Role;
   created_at: string;
   updated_at: string;
