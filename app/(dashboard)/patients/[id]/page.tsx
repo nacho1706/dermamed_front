@@ -44,7 +44,7 @@ export default function PatientDetailPage() {
     return (
       <div className="p-6 text-center">
         <p className="text-medical-600 font-medium">Paciente no encontrado</p>
-        <Link href="/pacientes" className="mt-4 inline-block">
+        <Link href="/patients" className="mt-4 inline-block">
           <Button variant="outline">Volver al listado</Button>
         </Link>
       </div>
@@ -56,14 +56,14 @@ export default function PatientDetailPage() {
       {/* Header / Breadcrumbs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/pacientes">
+          <Link href="/patients">
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div className="flex flex-col">
             <div className="flex items-center gap-2 text-sm text-medical-500">
-              <Link href="/pacientes" className="hover:text-medical-700">
+              <Link href="/patients" className="hover:text-medical-700">
                 Pacientes
               </Link>
               <span>/</span>
@@ -77,7 +77,7 @@ export default function PatientDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/pacientes/${id}/editar`}>
+          <Link href={`/patients/${id}/edit`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               Editar Datos
@@ -165,7 +165,9 @@ export default function PatientDetailPage() {
                     <p className="text-xs text-medical-400 font-medium">
                       Dirección
                     </p>
-                    <p className="font-semibold">{patient.address || "—"}</p>
+                    <p className="font-semibold">
+                      {patient.full_address || "—"}
+                    </p>
                   </div>
                 </div>
               </div>

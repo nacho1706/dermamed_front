@@ -27,7 +27,7 @@ export default function EditPatientPage() {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
       queryClient.invalidateQueries({ queryKey: ["patient", id] });
       toast.success("Paciente actualizado correctamente");
-      router.push(`/pacientes/${id}`);
+      router.push(`/patients/${id}`);
     },
     onError: (error: any) => {
       const message =
@@ -48,7 +48,7 @@ export default function EditPatientPage() {
     return (
       <div className="p-6 text-center">
         <p className="text-medical-600 font-medium">Paciente no encontrado</p>
-        <Link href="/pacientes" className="mt-4 inline-block">
+        <Link href="/patients" className="mt-4 inline-block">
           <Button variant="outline">Volver al listado</Button>
         </Link>
       </div>
@@ -58,7 +58,7 @@ export default function EditPatientPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/pacientes/${id}`}>
+        <Link href={`/patients/${id}`}>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>

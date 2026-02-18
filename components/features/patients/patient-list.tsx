@@ -64,7 +64,7 @@ export function PatientList({
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          <Link href="/pacientes/nuevo" className="flex-1 md:flex-none">
+          <Link href="/patients/new" className="flex-1 md:flex-none">
             <Button className="w-full">
               <UserPlus className="h-4 w-4 mr-2" />
               Nuevo Paciente
@@ -159,7 +159,7 @@ export function PatientList({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <Link href={`/pacientes/${patient.id}`}>
+                        <Link href={`/patients/${patient.id}`}>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -168,7 +168,7 @@ export function PatientList({
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/pacientes/${patient.id}/editar`}>
+                        <Link href={`/patients/${patient.id}/edit`}>
                           <Button
                             variant="ghost"
                             size="sm"

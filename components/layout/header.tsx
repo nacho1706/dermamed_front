@@ -91,7 +91,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           <div className="absolute right-0 top-full mt-1 w-48 bg-surface rounded-[var(--radius-lg)] border border-border shadow-[var(--shadow-lg)] py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
             <div className="px-3 py-2 border-b border-border sm:hidden">
               <p className="text-sm font-medium text-foreground">
-                {user?.name}
+                {user?.name || "Usuario"}
               </p>
               <p className="text-xs text-muted">
                 {user?.role?.name

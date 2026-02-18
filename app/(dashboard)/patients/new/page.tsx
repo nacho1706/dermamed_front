@@ -18,7 +18,7 @@ export default function NewPatientPage() {
     onSuccess: (newPatient) => {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
       toast.success("Paciente creado correctamente");
-      router.push(`/pacientes/${newPatient.id}`);
+      router.push(`/patients/${newPatient.id}`);
     },
     onError: (error: any) => {
       const message =
@@ -30,7 +30,7 @@ export default function NewPatientPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/pacientes">
+        <Link href="/patients">
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>

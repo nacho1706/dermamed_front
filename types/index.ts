@@ -63,6 +63,7 @@ export interface User {
   cuit: string | null;
   specialty: string | null;
   role: Role;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -71,15 +72,22 @@ export interface Patient {
   id: number;
   first_name: string;
   last_name: string;
-  full_name: string;
+  full_name: string; // Calculated in backend resource
   cuit: string | null;
-  birth_date: string | null;
-  phone: string | null;
   email: string | null;
-  address: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  street: string | null;
+  street_number: string | null;
+  floor: string | null;
+  apartment: string | null;
+  city: string | null;
+  province: string | null;
+  zip_code: string | null;
+  country: string | null;
+  full_address: string | null; // Computed by backend
   insurance_provider: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
 }
 
 export type AppointmentStatus =
@@ -90,17 +98,20 @@ export type AppointmentStatus =
 
 export interface Appointment {
   id: number;
+  patient_id: number;
+  doctor_id: number;
+  service_id: number;
   start_time: string;
   end_time: string;
   status: AppointmentStatus;
-  reserve_channel: string | null;
+  reserve_channel: "whatsapp" | "manual" | "web" | null;
   notes: string | null;
   patient?: Patient;
   doctor?: User;
   service?: Service;
   medical_record?: MedicalRecord;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Service {
