@@ -2,7 +2,19 @@
 
 > Lee `../AGENTS.md` primero para contexto general del proyecto.
 
----
+> Lee `../AGENTS.md` primero para contexto general del proyecto.
+
+> **⚠️ REGLA CRÍTICA DE ENTORNO**:
+> **NO DEBES USAR NPM NI NINGÚN COMANDO DE NODE.JS DIRECTAMENTE EN EL HOST (MAC).**
+> Toda instalación de dependencias, scripts de build o testeo **DEBE** hacerse usando Docker, de la siguiente manera:
+> `docker exec frontend-dermamed npm <comando>`
+>
+> **Ejemplos obligatorios:**
+>
+> - `docker exec frontend-dermamed npm install`
+> - `docker exec frontend-dermamed npm run build`
+>
+> **Las dependencias de este proyecto usan un volumen anónimo persistente en Docker (`/app/node_modules`). Si instalas en tu host, crearás un `node_modules` en tu sistema Mac que Docker va a ignorar, generando un desperdicio de espacio y posibles conflictos de binarios.**
 
 ## Entorno
 
