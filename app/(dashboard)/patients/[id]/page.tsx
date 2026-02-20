@@ -1,8 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getPatient } from "@/services/patients";
+import { getMedicalRecords } from "@/services/medical-records";
+import { getAppointments } from "@/services/appointments";
+import {
+  formatLocalDate,
+  formatLocalTime,
+  formatLocalDateTime,
+} from "@/lib/timezone";
+import { useAuth } from "@/contexts/auth-context";
 import {
   ArrowLeft,
   Edit,
@@ -10,26 +19,45 @@ import {
   Mail,
   MapPin,
   Calendar,
-  CreditCard,
+  Building,
   MessageSquare,
   ClipboardList,
   Clock,
   Plus,
+  Stethoscope,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
 export default function PatientDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { hasRole } = useAuth();
+  const isDoctor = hasRole("doctor");
   const id = Number(params.id);
+  const [activeTab, setActiveTab] = useState<"historial" | "turnos">(
+    isDoctor ? "historial" : "turnos",
+  );
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => getPatient(id),
+  });
+
+  const { data: recordsData, isLoading: loadingRecords } = useQuery({
+    queryKey: ["medical-records", id],
+    queryFn: () => getMedicalRecords({ patient_id: id, cantidad: 50 }),
+    enabled: !!patient && isDoctor,
+  });
+
+  const { data: appointmentsData, isLoading: loadingAppointments } = useQuery({
+    queryKey: ["appointments", id],
+    queryFn: () => getAppointments({ patient_id: id, cantidad: 50 }),
+    enabled: !!patient,
   });
 
   if (isLoading) {
@@ -83,10 +111,15 @@ export default function PatientDetailPage() {
               Editar Datos
             </Button>
           </Link>
-          <Button variant="primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Iniciar Consulta
-          </Button>
+          {isDoctor && (
+            <Button
+              variant="primary"
+              onClick={() => router.push(`/patients/${id}/medical-records/new`)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Iniciar Consulta
+            </Button>
+          )}
         </div>
       </div>
 
@@ -170,6 +203,19 @@ export default function PatientDetailPage() {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 text-sm text-medical-600">
+                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                    <Building className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-medical-400 font-medium">
+                      Obra Social
+                    </p>
+                    <p className="font-semibold">
+                      {patient.insurance_provider || "Particular"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="w-full mt-6 pt-6 border-t border-medical-100">
@@ -183,42 +229,6 @@ export default function PatientDetailPage() {
               </div>
             </CardBody>
           </Card>
-
-          {/* Admin Info Card */}
-          <Card className="border-medical-200/60 shadow-sm">
-            <CardHeader className="p-4 border-b border-medical-100 flex justify-between items-center bg-medical-50/30">
-              <h3 className="text-sm font-bold text-medical-800">
-                Resumen Administrativo
-              </h3>
-            </CardHeader>
-            <CardBody className="p-4 space-y-4">
-              <div className="flex justify-between items-center bg-medical-900 text-white p-4 rounded-xl">
-                <div>
-                  <p className="text-[10px] text-medical-300 font-bold uppercase tracking-wider">
-                    Saldo Pendiente
-                  </p>
-                  <p className="text-xl font-bold">$ 0,00</p>
-                </div>
-                <Button
-                  size="sm"
-                  className="bg-medical-700 hover:bg-medical-600 text-xs"
-                >
-                  Pagar
-                </Button>
-              </div>
-              <div>
-                <p className="text-xs text-medical-500 mb-2">Obra Social</p>
-                <div className="bg-medical-50 p-3 rounded-lg border border-medical-100">
-                  <p className="text-sm font-bold text-medical-700">
-                    {patient.insurance_provider || "Particular"}
-                  </p>
-                  <p className="text-[10px] text-medical-500">
-                    Plan: Sin especificar
-                  </p>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
         </div>
 
         {/* Main Content (History & Appointments) */}
@@ -226,84 +236,218 @@ export default function PatientDetailPage() {
           <Card className="border-medical-200/60 shadow-sm">
             <CardHeader className="p-1 border-b border-medical-100 bg-white">
               <div className="flex">
-                <button className="px-6 py-4 text-sm font-bold border-b-2 border-medical-600 text-medical-900 bg-medical-50/50">
-                  Historial Clínico
-                </button>
-                <button className="px-6 py-4 text-sm font-medium text-medical-400 hover:text-medical-600 transition-colors">
+                {isDoctor && (
+                  <button
+                    onClick={() => setActiveTab("historial")}
+                    className={`px-6 py-4 text-sm font-bold transition-colors ${
+                      activeTab === "historial"
+                        ? "border-b-2 border-medical-600 text-medical-900 bg-medical-50/50"
+                        : "text-medical-400 hover:text-medical-600"
+                    }`}
+                  >
+                    Historial Clínico
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTab("turnos")}
+                  className={`px-6 py-4 text-sm font-bold transition-colors ${
+                    activeTab === "turnos"
+                      ? "border-b-2 border-medical-600 text-medical-900 bg-medical-50/50"
+                      : "text-medical-400 hover:text-medical-600"
+                  }`}
+                >
                   Turnos
-                </button>
-                <button className="px-6 py-4 text-sm font-medium text-medical-400 hover:text-medical-600 transition-colors">
-                  Facturación
                 </button>
               </div>
             </CardHeader>
             <CardBody className="p-6">
-              {/* History Placeholder (Phase 1.3) */}
-              <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-medical-800 flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5 text-medical-500" />
-                    Registros Médicos
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      toast.info("Funcionalidad disponible en Fase 1.3")
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Registro
-                  </Button>
-                </div>
-
-                <div className="relative pl-8 space-y-12 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-medical-100">
-                  <div className="relative">
-                    <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-medical-100 border-4 border-white flex items-center justify-center">
-                      <Clock className="h-3 w-3 text-medical-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-medical-500 uppercase">
-                        Sin registros aún
-                      </p>
-                      <h4 className="text-md font-bold text-medical-900 mt-1">
-                        El historial del paciente está vacío
-                      </h4>
-                      <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-dashed border-medical-200">
-                        Comienza registrando la primera consulta o estudio
-                        realizado por el paciente.
-                      </p>
-                    </div>
+              {isDoctor && activeTab === "historial" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-medical-800 flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5 text-medical-500" />
+                      Registros Médicos
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        router.push(`/patients/${id}/medical-records/new`)
+                      }
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nuevo Registro
+                    </Button>
                   </div>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
 
-          {/* Appointments Placeholder (Phase 1.2) */}
-          <Card className="border-medical-200/60 shadow-sm">
-            <CardHeader className="p-4 border-b border-medical-100 bg-medical-50/30">
-              <h3 className="text-sm font-bold text-medical-800">
-                Próximos Turnos
-              </h3>
-            </CardHeader>
-            <CardBody className="p-8 text-center bg-medical-50/10">
-              <div className="bg-medical-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Calendar className="h-6 w-6 text-medical-300" />
-              </div>
-              <p className="text-sm font-medium text-medical-600">
-                No hay turnos programados
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 text-medical-500 hover:text-medical-700"
-                onClick={() =>
-                  toast.info("Funcionalidad disponible en Fase 1.2")
-                }
-              >
-                Agendar ahora
-              </Button>
+                  {loadingRecords ? (
+                    <div className="flex justify-center py-8">
+                      <Spinner />
+                    </div>
+                  ) : !recordsData?.data?.length ? (
+                    <div className="relative pl-8 space-y-12 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-medical-100">
+                      <div className="relative">
+                        <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-medical-100 border-4 border-white flex items-center justify-center">
+                          <Clock className="h-3 w-3 text-medical-600" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-medical-500 uppercase">
+                            Sin registros aún
+                          </p>
+                          <h4 className="text-md font-bold text-medical-900 mt-1">
+                            El historial del paciente está vacío
+                          </h4>
+                          <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-dashed border-medical-200">
+                            Comienza registrando la primera consulta o estudio
+                            realizado por el paciente.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative pl-8 space-y-8 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-medical-100">
+                      {recordsData.data.map((record) => (
+                        <div key={record.id} className="relative">
+                          <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-medical-100 border-4 border-white flex items-center justify-center">
+                            <Stethoscope className="h-3 w-3 text-medical-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-medical-500 uppercase">
+                              {formatLocalDate(
+                                record.date || record.created_at,
+                              )}
+                            </p>
+                            <h4 className="text-md font-bold text-medical-900 mt-1">
+                              Consulta
+                              {record.doctor
+                                ? ` — Dr. ${record.doctor.name}`
+                                : ""}
+                            </h4>
+                            <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-medical-100">
+                              {record.content}
+                            </p>
+                            {record.appointment?.service && (
+                              <p className="text-xs text-medical-400 mt-2">
+                                Servicio: {record.appointment.service.name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "turnos" && (
+                <div className="space-y-4">
+                  {loadingAppointments ? (
+                    <div className="flex justify-center py-8">
+                      <Spinner />
+                    </div>
+                  ) : !appointmentsData?.data?.length ? (
+                    <div className="text-center py-8">
+                      <div className="bg-medical-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Calendar className="h-6 w-6 text-medical-300" />
+                      </div>
+                      <p className="text-sm font-medium text-medical-600">
+                        No hay turnos programados
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-medical-500 hover:text-medical-700"
+                        onClick={() => router.push("/calendar")}
+                      >
+                        Agendar ahora
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {appointmentsData.data.map((apt) => {
+                        const statusMap: Record<
+                          string,
+                          { label: string; color: string }
+                        > = {
+                          scheduled: {
+                            label: "Programado",
+                            color: "text-blue-700 bg-blue-50 border-blue-200",
+                          },
+                          in_waiting_room: {
+                            label: "En Espera",
+                            color:
+                              "text-amber-700 bg-amber-50 border-amber-200",
+                          },
+                          in_progress: {
+                            label: "En Consulta",
+                            color:
+                              "text-brand-700 bg-brand-50 border-brand-200",
+                          },
+                          completed: {
+                            label: "Finalizado",
+                            color:
+                              "text-emerald-700 bg-emerald-50 border-emerald-200",
+                          },
+                          cancelled: {
+                            label: "Cancelado",
+                            color: "text-red-700 bg-red-50 border-red-200",
+                          },
+                          no_show: {
+                            label: "Ausente",
+                            color: "text-gray-700 bg-gray-50 border-gray-200",
+                          },
+                          // Legacy
+                          confirmed: {
+                            label: "Confirmado",
+                            color:
+                              "text-green-700 bg-green-50 border-green-200",
+                          },
+                          pending: {
+                            label: "Pendiente",
+                            color:
+                              "text-amber-700 bg-amber-50 border-amber-200",
+                          },
+                        };
+                        const status = statusMap[apt.status] || {
+                          label: apt.status,
+                          color: "text-muted",
+                        };
+
+                        return (
+                          <div
+                            key={apt.id}
+                            className="flex items-center justify-between p-4 rounded-xl border border-medical-100 hover:bg-medical-50/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="bg-medical-50 p-2.5 rounded-lg">
+                                <Calendar className="h-4 w-4 text-medical-500" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-medical-900">
+                                  {formatLocalDate(apt.start_time)}{" "}
+                                  <span className="text-medical-500 font-normal">
+                                    {formatLocalTime(apt.start_time)} –{" "}
+                                    {formatLocalTime(apt.end_time)}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-medical-500 mt-0.5">
+                                  {apt.doctor ? `Dr. ${apt.doctor.name}` : ""}
+                                  {apt.service ? ` · ${apt.service.name}` : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${status.color}`}
+                            >
+                              {status.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardBody>
           </Card>
         </div>

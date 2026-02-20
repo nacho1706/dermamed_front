@@ -16,7 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ARGENTINE_PROVINCES } from "@/constants/provinces";
+import { INSURANCE_PROVIDERS } from "@/constants/insurance-providers";
 import type { Patient } from "@/types";
+import { useState } from "react";
 import { Loader2, MapPin, User, Phone, Building } from "lucide-react";
 
 /**
@@ -329,12 +331,67 @@ export function PatientForm({
                 Obra Social
               </h4>
             </div>
-            <Input
-              label="Obra Social / Prepaga"
-              placeholder="Ej: OSDE 310"
-              {...register("insurance_provider")}
-              error={errors.insurance_provider?.message}
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Obra Social / Prepaga
+              </label>
+              <Controller
+                name="insurance_provider"
+                control={control}
+                render={({ field }) => {
+                  const isCustom =
+                    field.value === "Otra" ||
+                    (field.value &&
+                      !INSURANCE_PROVIDERS.some(
+                        (p) => p.value === field.value,
+                      ));
+                  return (
+                    <div className="space-y-2">
+                      <Select
+                        value={isCustom ? "Otra" : field.value || ""}
+                        onValueChange={(val) => {
+                          if (val === "Otra") {
+                            field.onChange("Otra");
+                          } else {
+                            field.onChange(val);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full border-border hover:border-[var(--border-hover)] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                          <SelectValue placeholder="Seleccionar obra social" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {INSURANCE_PROVIDERS.map((provider) => (
+                            <SelectItem
+                              key={provider.value}
+                              value={provider.value}
+                            >
+                              {provider.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {isCustom && (
+                        <Input
+                          placeholder="Ingrese el nombre de la obra social"
+                          value={
+                            field.value === "Otra" ? "" : field.value || ""
+                          }
+                          onChange={(e) =>
+                            field.onChange(e.target.value || "Otra")
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              {errors.insurance_provider?.message && (
+                <p className="text-xs text-danger font-medium">
+                  {errors.insurance_provider.message}
+                </p>
+              )}
+            </div>
           </div>
         </CardBody>
 

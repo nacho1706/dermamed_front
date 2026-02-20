@@ -4,8 +4,17 @@ import type { Patient, PatientFilters, PaginatedResponse } from "@/types";
 export async function getPatients(
   filters?: PatientFilters,
 ): Promise<PaginatedResponse<Patient>> {
+  // Remove empty/null/undefined values so they aren't sent as empty query params
+  const cleanParams = filters
+    ? Object.fromEntries(
+        Object.entries(filters).filter(
+          ([, v]) => v !== undefined && v !== null && v !== "",
+        ),
+      )
+    : undefined;
+
   const response = await api.get<PaginatedResponse<Patient>>("/patients", {
-    params: filters,
+    params: cleanParams,
   });
   return response.data;
 }
