@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addMinutes, parseISO } from "date-fns";
+import { localToUTC, extractLocalDate, extractLocalTime } from "@/lib/timezone";
 import {
   Dialog,
   DialogContent,
@@ -28,12 +29,18 @@ import { useQuery } from "@tanstack/react-query";
 import { getPatients } from "@/services/patients";
 import { getUsers } from "@/services/users";
 import { getServices } from "@/services/services";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  getDoctorAvailabilities,
+  DoctorAvailability,
+} from "@/services/doctor-availability";
 import {
   Calendar as CalendarIcon,
   Clock,
   User as UserIcon,
   Stethoscope,
   FileText,
+  Info,
 } from "lucide-react";
 
 // Schema
@@ -65,6 +72,8 @@ export function AppointmentModal({
   initialData,
   isLoading,
 }: AppointmentModalProps) {
+  const { user, hasRole } = useAuth();
+  const isDoctor = hasRole("doctor");
   const [endTime, setEndTime] = useState<string | null>(null);
 
   const {
@@ -79,7 +88,7 @@ export function AppointmentModal({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       patient_id: "",
-      doctor_id: "",
+      doctor_id: isDoctor ? String(user?.id) : "",
       service_id: "",
       date: initialDate
         ? format(initialDate, "yyyy-MM-dd")
@@ -89,9 +98,36 @@ export function AppointmentModal({
     },
   });
 
-  // Watch fields for end time calculation
+  // Watch fields for end time calculation and working hours
   const selectedServiceId = watch("service_id");
   const selectedTime = watch("time");
+  const selectedDoctorId = watch("doctor_id");
+  const selectedDate = watch("date");
+
+  // Fetch doctor availabilities
+  const { data: availabilityData } = useQuery({
+    queryKey: ["doctor-availability", selectedDoctorId],
+    queryFn: () =>
+      getDoctorAvailabilities({
+        doctor_id: Number(selectedDoctorId),
+        cantidad: 100,
+      }),
+    enabled: !!selectedDoctorId,
+  });
+
+  // Determine working hours for the selected date and doctor
+  const workingHours = useMemo(() => {
+    if (!selectedDate || !availabilityData?.data) return null;
+    const dayOfWeek = new Date(selectedDate + "T12:00:00").getDay();
+    const avail = availabilityData.data.find(
+      (a: DoctorAvailability) => a.day_of_week === dayOfWeek,
+    );
+    if (!avail) return null;
+    return {
+      start: avail.start_time.slice(0, 5), // "08:00"
+      end: avail.end_time.slice(0, 5), // "18:00"
+    };
+  }, [selectedDate, availabilityData]);
 
   // Queries
   const { data: patientsData } = useQuery({
@@ -112,19 +148,18 @@ export function AppointmentModal({
   // Update form when initialData changes
   useEffect(() => {
     if (initialData) {
-      const start = parseISO(initialData.start_time);
       reset({
         patient_id: String(initialData.patient_id),
         doctor_id: String(initialData.doctor_id),
         service_id: String(initialData.service_id),
-        date: format(start, "yyyy-MM-dd"),
-        time: format(start, "HH:mm"),
+        date: extractLocalDate(initialData.start_time),
+        time: extractLocalTime(initialData.start_time),
         notes: initialData.notes || "",
       });
     } else if (initialDate) {
       reset({
         patient_id: "",
-        doctor_id: "",
+        doctor_id: isDoctor ? String(user?.id) : "",
         service_id: "",
         date: format(initialDate, "yyyy-MM-dd"),
         time: format(initialDate, "HH:mm"),
@@ -152,7 +187,8 @@ export function AppointmentModal({
   }, [selectedServiceId, selectedTime, servicesData]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
-    const start_time = `${data.date} ${data.time}:00`;
+    // Convert selected local time to UTC for the API
+    const start_time = localToUTC(data.date, data.time);
 
     onSubmit({
       patient_id: Number(data.patient_id),
@@ -160,7 +196,7 @@ export function AppointmentModal({
       service_id: Number(data.service_id),
       start_time,
       notes: data.notes,
-      status: initialData ? initialData.status : "pending",
+      status: initialData ? initialData.status : "scheduled",
     });
   };
 
@@ -224,7 +260,11 @@ export function AppointmentModal({
                 name="doctor_id"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isDoctor}
+                  >
                     <SelectTrigger>
                       <Stethoscope className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
                       <SelectValue placeholder="Seleccionar médico" />
@@ -310,8 +350,29 @@ export function AppointmentModal({
               </Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
-                <Input type="time" className="pl-9" {...register("time")} />
+                <Input
+                  type="time"
+                  className="pl-9"
+                  min={workingHours?.start}
+                  max={workingHours?.end}
+                  {...register("time")}
+                />
               </div>
+              {workingHours && (
+                <p className="text-xs text-muted flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Horario disponible: {workingHours.start} – {workingHours.end}
+                </p>
+              )}
+              {selectedDoctorId &&
+                selectedDate &&
+                !workingHours &&
+                availabilityData && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    El médico no tiene horario configurado para este día
+                  </p>
+                )}
               {errors.time && (
                 <p className="text-xs text-danger font-medium">
                   {errors.time.message}

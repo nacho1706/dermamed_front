@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar } from "@/components/features/appointments/calendar";
 import { AppointmentModal } from "@/components/features/appointments/appointment-modal";
@@ -78,13 +80,26 @@ export default function AppointmentsPage() {
     },
   });
 
+  const { user, hasRole } = useAuth();
+  const router = useRouter();
+
+  // ... (keeping other states)
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Appointment> }) =>
       updateAppointment(id, data),
-    onSuccess: () => {
+    onSuccess: (response, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Turno actualizado correctamente");
       handleCloseModal();
+
+      // Redirection logic: if starting consultation, go to patient record
+      if (
+        (variables.data.status as string) === "in_progress" &&
+        hasRole("doctor")
+      ) {
+        router.push(`/patients/${response.patient_id}`);
+      }
     },
     onError: (error: any) => {
       const message =
