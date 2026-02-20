@@ -13,6 +13,34 @@
 - **Icons**: lucide-react
 - **Notifications**: sonner
 
+---
+
+## Seguridad y Arquitectura (Healthcare Standard)
+
+### 1. Renderizado Condicional Estricto
+
+- **Regla**: NUNCA ocultes información sensible usando CSS (`display: none`, `opacity: 0`).
+- **Acción**: Si el usuario no tiene permiso, el componente NO se renderiza.
+  - Ejemplo: `{hasRole('doctor') && <MedicalRecordSection />}`.
+
+### 2. Soporte para Roles Múltiples
+
+- **Regla**: El usuario puede tener un array de roles.
+- **Acción**: NUNCA valides con `user.role === 'admin'`. Usá `user.roles.includes('admin')`.
+- Adaptá los componentes de Sidebar y Route Guards para manejar arrays de roles.
+
+### 3. Inmutabilidad (No Hard Deletes en UI)
+
+- **Regla**: Las acciones de "Borrar" en la UI deben disparar borrados lógicos (Soft Deletes) en el backend.
+- Asegurate de que la UI refleje que un registro fue "eliminado" pero permanece en el historial si es necesario (ej. auditoría).
+
+### 4. Default Deny (Frontend logic)
+
+- Toda nueva vista o componente de acción debe estar bloqueado por defecto.
+- Solo renderizá elementos si se verifica explícitamente el permiso en el array de roles.
+
+---
+
 > **Antes de modificar componentes UI**, leé el skill `interface-design` en `.agent/skills/interface-design/SKILL.md`.
 > **Antes de escribir lógica React/Next.js**, leé el skill `vercel-react-best-practices` en `.agent/skills/vercel-react-best-practices/SKILL.md`.
 

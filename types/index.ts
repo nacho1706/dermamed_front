@@ -40,6 +40,13 @@ export interface RegisterRequest {
   role_id?: number;
 }
 
+export interface InviteUserRequest {
+  name: string;
+  email: string;
+  role_ids: number[];
+  specialty?: string;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -53,7 +60,7 @@ export interface TokenResponse {
 
 export interface Role {
   id: number;
-  name: "admin" | "doctor" | "receptionist";
+  name: "system_admin" | "clinic_manager" | "doctor" | "receptionist";
 }
 
 export interface User {
@@ -62,8 +69,9 @@ export interface User {
   email: string;
   cuit: string | null;
   specialty: string | null;
-  role: Role;
+  roles: Role[];
   is_active: boolean;
+  status: "active" | "pending_activation";
   created_at: string;
   updated_at: string;
 }
@@ -91,10 +99,14 @@ export interface Patient {
 }
 
 export type AppointmentStatus =
-  | "pending"
-  | "confirmed"
+  | "scheduled"
+  | "in_waiting_room"
+  | "in_progress"
+  | "completed"
   | "cancelled"
-  | "attended";
+  | "no_show"
+  | "pending"
+  | "confirmed";
 
 export interface Appointment {
   id: number;
@@ -104,6 +116,9 @@ export interface Appointment {
   start_time: string;
   end_time: string;
   status: AppointmentStatus;
+  check_in_at?: string;
+  real_start_at?: string;
+  real_end_at?: string;
   reserve_channel: "whatsapp" | "manual" | "web" | null;
   notes: string | null;
   patient?: Patient;
@@ -216,6 +231,7 @@ export interface PatientFilters extends PaginationParams {
   first_name?: string;
   last_name?: string;
   cuit?: string;
+  search?: string;
 }
 
 export interface AppointmentFilters extends PaginationParams {
