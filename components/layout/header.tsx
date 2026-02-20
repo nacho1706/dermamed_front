@@ -3,14 +3,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { getInitials } from "@/lib/utils";
-import { Menu, LogOut, User, ChevronDown } from "lucide-react";
+import { Menu, LogOut, User, ChevronDown, Check } from "lucide-react";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
 export function Header({ onToggleSidebar }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const { user, activeRole, setActiveRole, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -78,8 +78,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               {user?.name || "Usuario"}
             </span>
             <span className="text-xs text-muted leading-tight">
-              {user?.role?.name
-                ? roleLabel[user.role.name] || user.role.name
+              {activeRole?.name
+                ? roleLabel[activeRole.name] || activeRole.name
                 : ""}
             </span>
           </div>
@@ -94,11 +94,38 @@ export function Header({ onToggleSidebar }: HeaderProps) {
                 {user?.name || "Usuario"}
               </p>
               <p className="text-xs text-muted">
-                {user?.role?.name
-                  ? roleLabel[user.role.name] || user.role.name
+                {activeRole?.name
+                  ? roleLabel[activeRole.name] || activeRole.name
                   : ""}
               </p>
             </div>
+
+            {user?.roles && user.roles.length > 1 && (
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                  Modo de vista
+                </p>
+                <div className="flex flex-col gap-1">
+                  {user.roles.map((role) => (
+                    <button
+                      key={role.id}
+                      onClick={() => {
+                        setActiveRole(role);
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-sm transition-colors cursor-pointer data-[active=true]:bg-brand-50 data-[active=true]:text-brand-700 data-[active=true]:font-medium hover:bg-surface-secondary text-foreground"
+                      data-active={activeRole?.id === role.id}
+                    >
+                      <span>{roleLabel[role.name] || role.name}</span>
+                      {activeRole?.id === role.id && (
+                        <Check className="w-4 h-4 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => setDropdownOpen(false)}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-secondary transition-colors cursor-pointer"

@@ -29,49 +29,49 @@ const navItems: NavItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["admin", "doctor", "receptionist"],
+    roles: ["clinic_manager", "doctor", "receptionist"],
   },
   {
     label: "Pacientes",
     href: "/patients",
     icon: Users,
-    roles: ["admin", "receptionist", "doctor"],
+    roles: ["clinic_manager", "receptionist", "doctor"],
   },
   {
     label: "Turnos",
     href: "/appointments",
     icon: CalendarDays,
-    roles: ["admin", "receptionist", "doctor"],
+    roles: ["clinic_manager", "receptionist", "doctor"],
   },
   {
     label: "Servicios",
     href: "/services",
     icon: Stethoscope,
-    roles: ["admin"],
+    roles: ["clinic_manager"],
   },
   {
     label: "Productos",
     href: "/products",
     icon: Package,
-    roles: ["admin", "receptionist"],
+    roles: ["clinic_manager", "receptionist"],
   },
   {
     label: "Facturación",
     href: "/invoices",
     icon: FileText,
-    roles: ["admin", "receptionist"],
+    roles: ["clinic_manager", "receptionist"],
   },
   {
     label: "Historia Clínica",
     href: "/medical-records",
     icon: ClipboardList,
-    roles: ["admin", "doctor"],
+    roles: ["doctor"],
   },
   {
     label: "Usuarios",
     href: "/users",
     icon: UserCog,
-    roles: ["admin"],
+    roles: ["clinic_manager"],
   },
 ];
 
@@ -82,12 +82,9 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const userRole = user?.role?.name || "";
+  const { hasAnyRole } = useAuth();
 
-  const filteredItems = navItems.filter((item) =>
-    item.roles.includes(userRole),
-  );
+  const filteredItems = navItems.filter((item) => hasAnyRole(item.roles));
 
   return (
     <>

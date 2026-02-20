@@ -38,3 +38,21 @@ export async function refreshToken(): Promise<string> {
   setToken(response.data.token);
   return response.data.token;
 }
+
+export async function verifyToken(token: string): Promise<boolean> {
+  try {
+    await api.get(`/users/verify-token/${token}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function activateAccount(data: {
+  token: string;
+  password: string;
+}): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>("/users/activate", data);
+  setToken(response.data.token);
+  return response.data;
+}
