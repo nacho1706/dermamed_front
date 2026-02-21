@@ -190,9 +190,13 @@ export function AppointmentModal({
     // Convert selected local time to UTC for the API
     const start_time = localToUTC(data.date, data.time);
 
+    // If doctor_id is disabled, it won't be in data. Use the watched value or fallback to user id
+    const finalDoctorId =
+      data.doctor_id || selectedDoctorId || (isDoctor ? String(user?.id) : "");
+
     onSubmit({
       patient_id: Number(data.patient_id),
-      doctor_id: Number(data.doctor_id),
+      doctor_id: Number(finalDoctorId),
       service_id: Number(data.service_id),
       start_time,
       notes: data.notes,
@@ -225,7 +229,11 @@ export function AppointmentModal({
               name="patient_id"
               control={control}
               render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={!!initialData}
+                >
                   <SelectTrigger>
                     <UserIcon className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
                     <SelectValue placeholder="Seleccionar paciente" />
@@ -407,17 +415,46 @@ export function AppointmentModal({
             />
           </div>
 
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading
-                ? "Guardando..."
-                : initialData
-                  ? "Actualizar Turno"
-                  : "Agendar Turno"}
-            </Button>
+          <DialogFooter className="pt-2 sm:justify-between items-center w-full">
+            <div className="flex gap-2 w-full justify-start">
+              {initialData &&
+                initialData.status !== "cancelled" &&
+                initialData.status !== "completed" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "¿Está seguro que desea cancelar este turno? Esta acción no se puede deshacer.",
+                        )
+                      ) {
+                        onSubmit({ status: "cancelled" });
+                      }
+                    }}
+                    disabled={isLoading}
+                  >
+                    Cancelar Turno
+                  </Button>
+                )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cerrar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className={initialData ? "bg-brand-600 hover:bg-brand-700" : ""}
+              >
+                {isLoading
+                  ? "Guardando..."
+                  : initialData
+                    ? "Actualizar Turno"
+                    : "Agendar Turno"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

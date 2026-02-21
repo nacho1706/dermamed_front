@@ -43,7 +43,8 @@ const existingPatientSchema = z.object({
 const newPatientSchema = z.object({
   first_name: z.string().min(2, "Mínimo 2 caracteres"),
   last_name: z.string().min(2, "Mínimo 2 caracteres"),
-  cuit: z.string().min(6, "DNI/CUIT inválido"),
+  dni: z.string().min(1, "El DNI es requerido"),
+  cuit: z.string().optional().nullable().or(z.literal("")),
   service_id: z.string().min(1, "Seleccione un servicio"),
 });
 
@@ -91,10 +92,20 @@ export function ImmediateAttentionModal({
     register: registerNew,
     control: controlNew,
     handleSubmit: handleSubmitNew,
+    setValue: setNewPatientValue,
+    getValues: getNewValues,
+    setError: setNewError,
+    clearErrors: clearNewErrors,
     formState: { errors: errorsNew },
   } = useForm<NewPatientForm>({
     resolver: zodResolver(newPatientSchema),
-    defaultValues: { first_name: "", last_name: "", cuit: "", service_id: "" },
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      dni: "",
+      cuit: "",
+      service_id: "",
+    },
   });
 
   const selectedPatientId = watchExisting("patient_id");
@@ -117,7 +128,7 @@ export function ImmediateAttentionModal({
     },
     onSuccess: (appointment) => {
       router.push(
-        `/patients/${appointment.patient_id}/medical-record/edit?appointment_id=${appointment.id}`,
+        `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
       );
     },
   });
@@ -140,6 +151,7 @@ export function ImmediateAttentionModal({
       const newPatient = await createPatientMutation.mutateAsync({
         first_name: data.first_name,
         last_name: data.last_name,
+        dni: data.dni,
         cuit: data.cuit,
       });
 
@@ -149,6 +161,30 @@ export function ImmediateAttentionModal({
       });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleDniBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const dni = e.target.value;
+    if (dni && dni.length > 5) {
+      try {
+        const response = await getPatients({ dni });
+        if (response.data && response.data.length > 0) {
+          const exists = response.data.some((p) => p.dni === dni);
+          if (exists) {
+            setNewError("dni", {
+              type: "manual",
+              message: "Este DNI ya está registrado",
+            });
+          } else {
+            clearNewErrors("dni");
+          }
+        } else {
+          clearNewErrors("dni");
+        }
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
@@ -322,17 +358,57 @@ export function ImmediateAttentionModal({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>DNI / CUIT</Label>
-                  <Input
-                    {...registerNew("cuit")}
-                    placeholder="Sin puntos ni guiones"
-                  />
-                  {errorsNew.cuit && (
-                    <p className="text-xs text-danger">
-                      {errorsNew.cuit.message}
-                    </p>
-                  )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>DNI</Label>
+                    <Input
+                      {...registerNew("dni")}
+                      onBlur={(e) => {
+                        registerNew("dni").onBlur(e);
+                        handleDniBlur(e);
+                      }}
+                      placeholder="Ej: 30452758"
+                    />
+                    {errorsNew.dni && (
+                      <p className="text-xs text-danger">
+                        {errorsNew.dni.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CUIT (Opcional)</Label>
+                    <Controller
+                      name="cuit"
+                      control={controlNew}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 11);
+                            field.onChange(value);
+                            if (value.length === 11) {
+                              const extractedDni = value.substring(2, 10);
+                              const currentDni = getNewValues("dni");
+                              if (!currentDni) {
+                                setNewPatientValue("dni", extractedDni, {
+                                  shouldValidate: true,
+                                });
+                              }
+                            }
+                          }}
+                          placeholder="Sin puntos ni guiones"
+                        />
+                      )}
+                    />
+                    {errorsNew.cuit && (
+                      <p className="text-xs text-danger">
+                        {errorsNew.cuit.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">

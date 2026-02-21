@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { getAppointments } from "@/services/appointments";
@@ -11,6 +11,7 @@ import { updateAppointment } from "@/services/appointments";
 import { getPatients } from "@/services/patients";
 import { getProducts } from "@/services/products";
 import { ImmediateAttentionModal } from "@/components/features/appointments/immediate-attention-modal";
+import { AppointmentModal } from "@/components/features/appointments/appointment-modal";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
@@ -27,7 +28,9 @@ import {
   Search,
   Play,
   ArrowRight,
+  Edit,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { Appointment } from "@/types";
 
 // ─── Status Badge ───────────────────────────────────────────────────────────
@@ -206,6 +209,11 @@ function QuickAction({
 export default function DashboardPage() {
   const { user, activeRole, hasRole } = useAuth();
   const [isImmediateModalOpen, setIsImmediateModalOpen] = React.useState(false);
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] =
+    React.useState(false);
+  const [selectedAppointment, setSelectedAppointment] = React.useState<
+    Appointment | undefined
+  >();
   const today = format(new Date(), "yyyy-MM-dd");
   const todayDisplay = format(new Date(), "d 'de' MMMM, yyyy", { locale: es });
 
@@ -213,6 +221,7 @@ export default function DashboardPage() {
   const canViewFinancials = hasRole("clinic_manager");
   const isReceptionist = activeRole?.name === "receptionist";
   const isClinicManager = activeRole?.name === "clinic_manager";
+  const queryClient = useQueryClient();
 
   // ─── Queries ──────────────────────────────────────────────────────────────
 
@@ -234,13 +243,6 @@ export default function DashboardPage() {
     },
   );
 
-  // 2. Patients Count
-  const { data: patientsData, isLoading: isLoadingPatients } = useQuery({
-    queryKey: ["patients", "count"],
-    queryFn: () => getPatients({ cantidad: 1 }),
-    enabled: !!user,
-  });
-
   // 3. Products/Stock (Low stock alerts)
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products", "low-stock"],
@@ -249,7 +251,6 @@ export default function DashboardPage() {
   });
 
   const appointments = appointmentsData?.data || [];
-  const totalPatients = patientsData?.meta?.total ?? "—";
   const totalAppointmentsToday = appointments.length;
 
   // Calculate low stock (only if fetched)
@@ -292,7 +293,6 @@ export default function DashboardPage() {
 
   const isLoading =
     isLoadingAppointments ||
-    isLoadingPatients ||
     (isLoadingProducts && (isClinicManager || isReceptionist));
 
   // ─── Render: Clinic & Doctor Views ─────────────────────────────────────────
@@ -378,20 +378,6 @@ export default function DashboardPage() {
             />
           </>
         )}
-
-        {/* Patients: Not for Doctor (keep focused) - Actually spec says Doc accesses records.
-            But for "Consultorio Mode", let's keep it clean.
-            Maybe show for all non-sysadmin?
-            Let's show for all to allow quick access to patient search.
-         */}
-        <KpiCard
-          label="Total Pacientes"
-          value={isLoading ? "…" : totalPatients}
-          icon={Users}
-          iconBg="bg-brand-50"
-          iconColor="text-brand-600"
-          href="/patients"
-        />
 
         {/* Stock: ONLY Manager & Receptionist */}
         {(isClinicManager || isReceptionist) && (
@@ -487,6 +473,10 @@ export default function DashboardPage() {
                       <AppointmentRow
                         key={appointment.id}
                         appointment={appointment}
+                        onEdit={() => {
+                          setSelectedAppointment(appointment);
+                          setIsAppointmentModalOpen(true);
+                        }}
                       />
                     ))}
                   </tbody>
@@ -588,13 +578,46 @@ export default function DashboardPage() {
         isOpen={isImmediateModalOpen}
         onClose={() => setIsImmediateModalOpen(false)}
       />
+
+      <AppointmentModal
+        isOpen={isAppointmentModalOpen}
+        onClose={() => {
+          setIsAppointmentModalOpen(false);
+          setSelectedAppointment(undefined);
+        }}
+        initialData={selectedAppointment}
+        onSubmit={async (data) => {
+          try {
+            if (selectedAppointment) {
+              await updateAppointment(selectedAppointment.id, data);
+            }
+            queryClient.invalidateQueries({ queryKey: ["appointments"] });
+            setIsAppointmentModalOpen(false);
+            setSelectedAppointment(undefined);
+            toast.success(
+              selectedAppointment
+                ? "Turno actualizado correctamente"
+                : "Turno agendado correctamente",
+            );
+          } catch (error) {
+            console.error(error);
+            toast.error("Ocurrió un error al guardar el turno");
+          }
+        }}
+      />
     </div>
   );
 }
 
 // ─── Appointment Row ────────────────────────────────────────────────────────
 
-function AppointmentRow({ appointment }: { appointment: Appointment }) {
+function AppointmentRow({
+  appointment,
+  onEdit,
+}: {
+  appointment: Appointment;
+  onEdit?: () => void;
+}) {
   const router = useRouter();
   const time = format(new Date(appointment.start_time), "HH:mm");
   const patientName = appointment.patient
@@ -612,7 +635,7 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
     try {
       await updateAppointment(appointment.id, { status: "in_progress" });
       router.push(
-        `/patients/${appointment.patient_id}/medical-record/edit?appointment_id=${appointment.id}`,
+        `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
       );
     } catch (error) {
       console.error(error);
@@ -626,13 +649,13 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
       case "pending":
       case "confirmed":
         return (
-          <Link
-            href={`/patients/${appointment.patient_id}`}
+          <button
+            onClick={onEdit}
             className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-brand-600 hover:bg-brand-50 transition-all"
-            title="Ver Ficha"
+            title="Editar Turno"
           >
-            <Search className="w-4 h-4" />
-          </Link>
+            <Edit className="w-4 h-4" />
+          </button>
         );
       case "in_waiting_room":
         return (
@@ -652,7 +675,7 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
       case "in_progress":
         return (
           <Link
-            href={`/patients/${appointment.patient_id}/medical-record/edit?appointment_id=${appointment.id}`}
+            href={`/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`}
             className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 hover:text-white hover:bg-brand-500 transition-all"
             title="Ir a Consulta"
           >
@@ -662,7 +685,7 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
       case "completed":
         return (
           <Link
-            href={`/patients/${appointment.patient_id}/medical-record?appointment_id=${appointment.id}`}
+            href={`/patients/${appointment.patient_id}/medical-records`}
             className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
             title="Revisar Evolución"
           >
@@ -687,14 +710,17 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
         <span className="text-sm font-medium text-foreground">{time}</span>
       </td>
       <td className="px-6 py-3.5">
-        <div className="flex items-center gap-3">
+        <Link
+          href={`/patients/${appointment.patient_id}`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">
             {initials}
           </div>
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-sm font-medium text-brand-600 hover:text-brand-700">
             {patientName}
           </span>
-        </div>
+        </Link>
       </td>
       <td className="px-6 py-3.5 hidden md:table-cell">
         <span className="text-sm text-muted">{serviceName}</span>

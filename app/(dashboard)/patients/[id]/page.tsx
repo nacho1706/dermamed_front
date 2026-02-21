@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { getPatient } from "@/services/patients";
+import { getPatient, deletePatient } from "@/services/patients";
 import { getMedicalRecords } from "@/services/medical-records";
 import { getAppointments } from "@/services/appointments";
 import {
@@ -32,8 +32,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function PatientDetailPage() {
+  const queryClient = useQueryClient();
   const params = useParams();
   const router = useRouter();
   const { hasRole } = useAuth();
@@ -59,6 +62,28 @@ export default function PatientDetailPage() {
     queryFn: () => getAppointments({ patient_id: id, cantidad: 50 }),
     enabled: !!patient,
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: deletePatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+      toast.success("Paciente archivado correctamente");
+      router.push("/patients");
+    },
+    onError: () => {
+      toast.error("Error al archivar el paciente");
+    },
+  });
+
+  const handleArchive = () => {
+    if (
+      confirm(
+        "¿Está seguro de que desea archivar (soft delete) a este paciente? Esta acción puede afectar a los turnos futuros.",
+      )
+    ) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -105,21 +130,22 @@ export default function PatientDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {hasRole("clinic_manager") && (
+            <Button
+              variant="outline"
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              onClick={handleArchive}
+              disabled={deleteMutation.isPending}
+            >
+              Archivar Paciente
+            </Button>
+          )}
           <Link href={`/patients/${id}/edit`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               Editar Datos
             </Button>
           </Link>
-          {isDoctor && (
-            <Button
-              variant="primary"
-              onClick={() => router.push(`/patients/${id}/medical-records/new`)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Iniciar Consulta
-            </Button>
-          )}
         </div>
       </div>
 

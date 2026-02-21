@@ -62,12 +62,6 @@ const navItems: NavItem[] = [
     roles: ["clinic_manager", "receptionist"],
   },
   {
-    label: "Historia Clínica",
-    href: "/medical-records",
-    icon: ClipboardList,
-    roles: ["doctor"],
-  },
-  {
     label: "Usuarios",
     href: "/users",
     icon: UserCog,
