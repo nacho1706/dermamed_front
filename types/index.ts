@@ -81,6 +81,7 @@ export interface Patient {
   first_name: string;
   last_name: string;
   full_name: string; // Calculated in backend resource
+  dni: string;
   cuit: string | null;
   email: string | null;
   phone: string | null;
@@ -230,6 +231,7 @@ export interface PaginationParams {
 export interface PatientFilters extends PaginationParams {
   first_name?: string;
   last_name?: string;
+  dni?: string;
   cuit?: string;
   search?: string;
 }

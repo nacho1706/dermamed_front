@@ -25,7 +25,6 @@ interface PatientListProps {
   isLoading: boolean;
   onSearch: (query: string) => void;
   onPageChange: (page: number) => void;
-  onDelete: (id: number) => void;
 }
 
 export function PatientList({
@@ -33,7 +32,6 @@ export function PatientList({
   isLoading,
   onSearch,
   onPageChange,
-  onDelete,
 }: PatientListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -177,14 +175,6 @@ export function PatientList({
                             <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-400 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => onDelete(patient.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </td>
                   </tr>

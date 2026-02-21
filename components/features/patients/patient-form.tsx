@@ -18,8 +18,8 @@ import {
 import { ARGENTINE_PROVINCES } from "@/constants/provinces";
 import { INSURANCE_PROVIDERS } from "@/constants/insurance-providers";
 import type { Patient } from "@/types";
-import { useState } from "react";
 import { Loader2, MapPin, User, Phone, Building } from "lucide-react";
+import { getPatients } from "@/services/patients";
 
 /**
  * Validation schema based on StorePatientRequest.php backend rules
@@ -27,6 +27,7 @@ import { Loader2, MapPin, User, Phone, Building } from "lucide-react";
 const patientSchema = z.object({
   first_name: z.string().min(1, "El nombre es requerido").max(100),
   last_name: z.string().min(1, "El apellido es requerido").max(100),
+  dni: z.string().min(1, "El DNI es requerido").max(20),
   cuit: z
     .string()
     .regex(/^\d{11}$/, "El CUIT debe tener exactamente 11 dígitos numéricos")
@@ -79,13 +80,16 @@ export function PatientForm({
     handleSubmit,
     control,
     setValue,
-    watch,
+    getValues,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
       first_name: initialData?.first_name || "",
       last_name: initialData?.last_name || "",
+      dni: initialData?.dni || "",
       cuit: initialData?.cuit || "",
       email: initialData?.email || "",
       phone: initialData?.phone || "",
@@ -107,6 +111,32 @@ export function PatientForm({
     // Only allow digits, max 11
     const value = e.target.value.replace(/\D/g, "").slice(0, 11);
     setValue("cuit", value);
+  };
+
+  const handleDniBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const dni = e.target.value;
+    if (dni && dni.length > 5) {
+      try {
+        const response = await getPatients({ dni });
+        if (response.data && response.data.length > 0) {
+          const exists = response.data.some(
+            (p) => p.dni === dni && p.id !== initialData?.id,
+          );
+          if (exists) {
+            setError("dni", {
+              type: "manual",
+              message: "Este DNI ya está registrado",
+            });
+          } else {
+            clearErrors("dni");
+          }
+        } else {
+          clearErrors("dni");
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
   };
 
   return (
@@ -147,6 +177,17 @@ export function PatientForm({
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Input
+                label="DNI"
+                placeholder="Ej: 30452758"
+                {...register("dni")}
+                onBlur={(e) => {
+                  register("dni").onBlur(e);
+                  handleDniBlur(e);
+                }}
+                error={errors.dni?.message}
+                required
+              />
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">
                   CUIT
@@ -163,6 +204,15 @@ export function PatientForm({
                           .replace(/\D/g, "")
                           .slice(0, 11);
                         field.onChange(value);
+                        if (value.length === 11) {
+                          const extractedDni = value.substring(2, 10);
+                          const currentDni = getValues("dni");
+                          if (!currentDni) {
+                            setValue("dni", extractedDni, {
+                              shouldValidate: true,
+                            });
+                          }
+                        }
                       }}
                       placeholder="Ej: 20341234567"
                       inputMode="numeric"
