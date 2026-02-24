@@ -24,10 +24,10 @@ import { getPatients } from "@/services/patients";
 /**
  * Validation schema based on StorePatientRequest.php backend rules
  */
-const patientSchema = z.object({
+const patientSchemaBase = z.object({
   first_name: z.string().min(1, "El nombre es requerido").max(100),
   last_name: z.string().min(1, "El apellido es requerido").max(100),
-  dni: z.string().min(1, "El DNI es requerido").max(20),
+  dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
   cuit: z
     .string()
     .regex(/^\d{11}$/, "El CUIT debe tener exactamente 11 dígitos numéricos")
@@ -57,6 +57,22 @@ const patientSchema = z.object({
   zip_code: z.string().max(10).optional().nullable().or(z.literal("")),
   insurance_provider: z.string().max(100).optional().nullable(),
 });
+
+const patientSchema = patientSchemaBase.refine(
+  (data) => {
+    if (data.cuit && data.dni) {
+      // Validate that the middle of the CUIT matches the DNI (padded to 8 digits)
+      const dniPadded = data.dni.padStart(8, "0");
+      const cuitMiddle = data.cuit.substring(2, 10);
+      return cuitMiddle === dniPadded;
+    }
+    return true;
+  },
+  {
+    message: "El CUIT no coincide con el DNI ingresado",
+    path: ["cuit"],
+  },
+);
 
 type PatientFormValues = z.infer<typeof patientSchema>;
 
@@ -180,11 +196,16 @@ export function PatientForm({
               <Input
                 label="DNI"
                 placeholder="Ej: 30452758"
-                {...register("dni")}
-                onBlur={(e) => {
-                  register("dni").onBlur(e);
-                  handleDniBlur(e);
-                }}
+                {...register("dni", {
+                  onChange: (e) => {
+                    e.target.value = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 8);
+                  },
+                  onBlur: (e) => handleDniBlur(e),
+                })}
+                maxLength={8}
+                inputMode="numeric"
                 error={errors.dni?.message}
                 required
               />
@@ -270,6 +291,7 @@ export function PatientForm({
                       onChange={(value) => field.onChange(value || "")}
                       defaultCountry="AR"
                       international
+                      limitMaxLength
                       countryCallingCodeEditable={false}
                       placeholder="Ej: 381 123 4567"
                       className="phone-input-custom"

@@ -200,7 +200,9 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           <Calendar
-            appointments={appointmentsData?.data || []}
+            appointments={(appointmentsData?.data || []).filter(
+              (app: Appointment) => app.status !== "cancelled",
+            )}
             currentDate={currentDate}
             onDateChange={setCurrentDate}
             onSlotClick={handleSlotClick}

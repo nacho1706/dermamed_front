@@ -35,6 +35,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AppointmentStatusBadge } from "@/components/ui/appointment-status-badge";
 
 export default function PatientDetailPage() {
   const queryClient = useQueryClient();
@@ -409,55 +410,7 @@ export default function PatientDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {appointmentsData.data.map((apt) => {
-                        const statusMap: Record<
-                          string,
-                          { label: string; color: string }
-                        > = {
-                          scheduled: {
-                            label: "Programado",
-                            color: "text-blue-700 bg-blue-50 border-blue-200",
-                          },
-                          in_waiting_room: {
-                            label: "En Espera",
-                            color:
-                              "text-amber-700 bg-amber-50 border-amber-200",
-                          },
-                          in_progress: {
-                            label: "En Consulta",
-                            color:
-                              "text-brand-700 bg-brand-50 border-brand-200",
-                          },
-                          completed: {
-                            label: "Finalizado",
-                            color:
-                              "text-emerald-700 bg-emerald-50 border-emerald-200",
-                          },
-                          cancelled: {
-                            label: "Cancelado",
-                            color: "text-red-700 bg-red-50 border-red-200",
-                          },
-                          no_show: {
-                            label: "Ausente",
-                            color: "text-gray-700 bg-gray-50 border-gray-200",
-                          },
-                          // Legacy
-                          confirmed: {
-                            label: "Confirmado",
-                            color:
-                              "text-green-700 bg-green-50 border-green-200",
-                          },
-                          pending: {
-                            label: "Pendiente",
-                            color:
-                              "text-amber-700 bg-amber-50 border-amber-200",
-                          },
-                        };
-                        const status = statusMap[apt.status] || {
-                          label: apt.status,
-                          color: "text-muted",
-                        };
-
+                      {appointmentsData.data.map((apt: any) => {
                         return (
                           <div
                             key={apt.id}
@@ -481,11 +434,7 @@ export default function PatientDetailPage() {
                                 </p>
                               </div>
                             </div>
-                            <span
-                              className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${status.color}`}
-                            >
-                              {status.label}
-                            </span>
+                            <AppointmentStatusBadge status={apt.status} />
                           </div>
                         );
                       })}

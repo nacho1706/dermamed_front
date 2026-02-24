@@ -36,76 +36,7 @@ import {
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
 
-// ─── Status Badge ───────────────────────────────────────────────────────────
-
-const statusConfig: Record<
-  string,
-  { label: string; dot: string; bg: string; text: string }
-> = {
-  scheduled: {
-    label: "Programado",
-    dot: "bg-blue-400",
-    bg: "bg-blue-50 border-blue-200",
-    text: "text-blue-800",
-  },
-  in_waiting_room: {
-    label: "En Espera",
-    dot: "bg-emerald-500 animate-pulse",
-    bg: "bg-emerald-50 border-emerald-200",
-    text: "text-emerald-800",
-  },
-  in_progress: {
-    label: "En Consulta",
-    dot: "bg-brand-400",
-    bg: "bg-brand-50 border-brand-200",
-    text: "text-brand-800",
-  },
-  completed: {
-    label: "Finalizado",
-    dot: "bg-emerald-400",
-    bg: "bg-emerald-50 border-emerald-200",
-    text: "text-emerald-800",
-  },
-  cancelled: {
-    label: "Cancelado",
-    dot: "bg-red-400",
-    bg: "bg-red-50 border-red-200",
-    text: "text-red-700",
-  },
-  no_show: {
-    label: "Ausente",
-    dot: "bg-gray-400",
-    bg: "bg-gray-50 border-gray-200",
-    text: "text-gray-700",
-  },
-  // Compatibility with old states
-  confirmed: {
-    label: "Confirmado",
-    dot: "bg-blue-400",
-    bg: "bg-blue-50 border-blue-200",
-    text: "text-blue-800",
-  },
-  pending: {
-    label: "Pendiente",
-    dot: "bg-amber-400",
-    bg: "bg-amber-50 border-amber-200",
-    text: "text-amber-800",
-  },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const config = statusConfig[status] || statusConfig.scheduled;
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.bg} ${config.text}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
-      {config.label}
-    </span>
-  );
-}
-
-// ─── KPI Card ───────────────────────────────────────────────────────────────
+import { AppointmentStatusBadge } from "@/components/ui/appointment-status-badge";
 
 interface KpiCardProps {
   label: string;
@@ -300,10 +231,15 @@ export default function DashboardPage() {
     return waitTimeMins > 20;
   });
 
-  const sortedAppointments = [...appointments].sort(
-    (a, b) =>
-      new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
-  );
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const isABottom = a.status === "completed" || a.status === "cancelled";
+    const isBBottom = b.status === "completed" || b.status === "cancelled";
+
+    if (isABottom && !isBBottom) return 1;
+    if (!isABottom && isBBottom) return -1;
+
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -319,7 +255,7 @@ export default function DashboardPage() {
   // ─── Render: Clinic & Doctor Views ─────────────────────────────────────────
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="p-6 md:p-8 space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <div>
@@ -766,11 +702,11 @@ function AppointmentRow({
   };
 
   const opacityClass =
-    appointment.status === "completed" ||
-    appointment.status === "cancelled" ||
-    appointment.status === "no_show"
-      ? "opacity-60 hover:opacity-100"
-      : "hover:bg-surface-secondary/50";
+    appointment.status === "cancelled"
+      ? "opacity-50 bg-surface-secondary/30 hover:opacity-100"
+      : appointment.status === "completed" || appointment.status === "no_show"
+        ? "opacity-60 hover:opacity-100"
+        : "hover:bg-surface-secondary/50";
 
   return (
     <tr className={`transition-opacity transition-colors ${opacityClass}`}>
@@ -793,9 +729,7 @@ function AppointmentRow({
       <td className="px-6 py-3.5 hidden md:table-cell">
         <span className="text-sm text-muted">{serviceName}</span>
       </td>
-      <td className="px-6 py-3.5">
-        <StatusBadge status={appointment.status} />
-      </td>
+      <AppointmentStatusBadge status={appointment.status} />
       <td className="px-6 py-3.5 text-right w-20">
         <div className="flex justify-end gap-2">{renderAction()}</div>
       </td>

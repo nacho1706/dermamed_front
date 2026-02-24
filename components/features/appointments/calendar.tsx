@@ -32,6 +32,42 @@ const statusConfig: Record<
   string,
   { bg: string; border: string; text: string; dot: string }
 > = {
+  scheduled: {
+    bg: "bg-blue-500",
+    border: "border-blue-600",
+    text: "text-white",
+    dot: "bg-white",
+  },
+  in_waiting_room: {
+    bg: "bg-amber-400", // New amber/warning color
+    border: "border-amber-500",
+    text: "text-amber-900",
+    dot: "bg-white animate-pulse",
+  },
+  in_progress: {
+    bg: "bg-emerald-500", // New emerald/success color
+    border: "border-emerald-600",
+    text: "text-white",
+    dot: "bg-white",
+  },
+  completed: {
+    bg: "bg-slate-400 opacity-60", // New mute color
+    border: "border-slate-500",
+    text: "text-white",
+    dot: "bg-slate-100",
+  },
+  cancelled: {
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
+    dot: "bg-red-400",
+  },
+  no_show: {
+    bg: "bg-red-100",
+    border: "border-red-300",
+    text: "text-red-800",
+    dot: "bg-red-500",
+  },
   pending: {
     bg: "bg-amber-50",
     border: "border-amber-200",
@@ -39,22 +75,10 @@ const statusConfig: Record<
     dot: "bg-amber-400",
   },
   confirmed: {
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-800",
-    dot: "bg-blue-400",
-  },
-  attended: {
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-800",
-    dot: "bg-emerald-400",
-  },
-  cancelled: {
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-    dot: "bg-red-400",
+    bg: "bg-blue-500",
+    border: "border-blue-600",
+    text: "text-white",
+    dot: "bg-white",
   },
 };
 
@@ -247,54 +271,101 @@ export function Calendar({
                     </div>
                   )}
 
-                  {/* Appointments */}
-                  {dayAppointments.map((apt) => {
-                    const config = statusConfig[apt.status] || defaultStatus;
-                    const style = getAppointmentStyle(apt);
-                    const heightNum = parseInt(style.height);
-
-                    return (
-                      <div
-                        key={apt.id}
-                        className={cn(
-                          "absolute left-1 right-1 rounded-[var(--radius-sm)] px-2 py-1 text-xs border cursor-pointer",
-                          "transition-all hover:z-20 hover:shadow-[var(--shadow-md)] hover:scale-[1.02]",
-                          config.bg,
-                          config.border,
-                          config.text,
-                        )}
-                        style={style}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAppointmentClick(apt);
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <div
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full flex-shrink-0",
-                              config.dot,
-                            )}
-                          />
-                          <span className="font-semibold truncate">
-                            {apt.patient?.full_name || "Paciente"}
-                          </span>
-                        </div>
-                        {heightNum > 32 && (
-                          <div className="flex items-center gap-1 text-[10px] opacity-80 mt-0.5 ml-3">
-                            <Clock className="w-3 h-3 flex-shrink-0" />
-                            {format(parseISO(apt.start_time), "HH:mm")} –{" "}
-                            {format(parseISO(apt.end_time), "HH:mm")}
-                          </div>
-                        )}
-                        {heightNum > 50 && (
-                          <div className="truncate mt-0.5 text-[10px] opacity-70 ml-3">
-                            {apt.service?.name}
-                          </div>
-                        )}
-                      </div>
+                  {/* Handle overlapping appointments calculation */}
+                  {(() => {
+                    const sortedDayApts = [...dayAppointments].sort(
+                      (a, b) =>
+                        new Date(a.start_time).getTime() -
+                        new Date(b.start_time).getTime(),
                     );
-                  })}
+                    const overlappedGroups: Appointment[][] = [];
+                    for (const a of sortedDayApts) {
+                      let placed = false;
+                      for (const group of overlappedGroups) {
+                        const last = group[group.length - 1];
+                        if (new Date(last.end_time) <= new Date(a.start_time)) {
+                          group.push(a);
+                          placed = true;
+                          break;
+                        }
+                      }
+                      if (!placed) overlappedGroups.push([a]);
+                    }
+
+                    const aptColumnMap = new Map<
+                      string,
+                      { col: number; total: number }
+                    >();
+                    for (let c = 0; c < overlappedGroups.length; c++) {
+                      for (const a of overlappedGroups[c]) {
+                        aptColumnMap.set(a.id.toString(), {
+                          col: c,
+                          total: overlappedGroups.length,
+                        });
+                      }
+                    }
+
+                    return sortedDayApts.map((apt) => {
+                      const config = statusConfig[apt.status] || defaultStatus;
+                      const baseStyle = getAppointmentStyle(apt);
+                      const heightNum = parseInt(baseStyle.height);
+
+                      const colInfo = aptColumnMap.get(apt.id.toString()) || {
+                        col: 0,
+                        total: 1,
+                      };
+                      const widthPct = 100 / colInfo.total;
+                      const leftPct = colInfo.col * widthPct;
+
+                      const style = {
+                        ...baseStyle,
+                        left: `calc(${leftPct}% + 4px)`,
+                        width: `calc(${widthPct}% - 8px)`,
+                      };
+
+                      return (
+                        <div
+                          key={apt.id}
+                          className={cn(
+                            "absolute rounded-md px-2 py-1 text-xs border cursor-pointer",
+                            "transition-all hover:z-20 hover:shadow-md hover:-translate-y-0.5",
+                            config.bg,
+                            config.border,
+                            config.text,
+                          )}
+                          style={style}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAppointmentClick(apt);
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full flex-shrink-0",
+                                config.dot,
+                              )}
+                            />
+                            <span className="font-semibold truncate">
+                              {apt.patient?.full_name || "Paciente"}
+                            </span>
+                          </div>
+                          {heightNum > 32 && (
+                            <div className="flex items-center gap-1 text-[10px] opacity-80 mt-0.5 ml-3">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              {format(parseISO(apt.start_time), "HH:mm")} –{" "}
+                              {format(parseISO(apt.end_time), "HH:mm")}
+                            </div>
+                          )}
+                          {heightNum > 50 && (
+                            <div className="truncate mt-0.5 text-[10px] opacity-70 ml-3">
+                              {apt.service?.name}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             );
