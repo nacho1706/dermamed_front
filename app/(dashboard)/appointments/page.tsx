@@ -25,6 +25,7 @@ import { Appointment, User } from "@/types";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { startOfWeek, endOfWeek, format } from "date-fns";
+import { localToUTC } from "@/lib/timezone";
 
 export default function AppointmentsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,14 +50,20 @@ export default function AppointmentsPage() {
         format(startDate, "yyyy-MM-dd"),
         selectedDoctorId,
       ],
-      queryFn: () =>
-        getAppointments({
-          date_from: format(startDate, "yyyy-MM-dd"),
-          date_to: format(endDate, "yyyy-MM-dd"),
+      queryFn: () => {
+        const dateFromUTC = localToUTC(
+          format(startDate, "yyyy-MM-dd"),
+          "00:00",
+        );
+        const dateToUTC = localToUTC(format(endDate, "yyyy-MM-dd"), "23:59");
+        return getAppointments({
+          date_from: dateFromUTC,
+          date_to: dateToUTC,
           doctor_id:
             selectedDoctorId !== "all" ? Number(selectedDoctorId) : undefined,
           cantidad: 100,
-        }),
+        });
+      },
     },
   );
 

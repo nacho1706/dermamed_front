@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +20,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { AlertTriangle, Search, UserPlus, Play } from "lucide-react";
 import { AsyncCombobox } from "@/components/shared/async-combobox";
 import { FilterableSelect } from "@/components/shared/filterable-select";
+import { ActiveConsultationAlertModal } from "@/components/features/appointments/active-consultation-alert-modal";
+import type { Appointment } from "@/types";
 
 import { createPatient, getPatients } from "@/services/patients";
 import { createAppointment } from "@/services/appointments";
 import { getServices } from "@/services/services";
 import { useAuth } from "@/contexts/auth-context";
 import { localToUTC } from "@/lib/timezone";
-import { format } from "date-fns";
+import { format, addMinutes } from "date-fns";
+import { toast } from "sonner";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -49,16 +52,20 @@ type NewPatientForm = z.infer<typeof newPatientSchema>;
 interface ImmediateAttentionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  activeAppointment?: Appointment | null;
 }
 
 export function ImmediateAttentionModal({
   isOpen,
   onClose,
+  activeAppointment,
 }: ImmediateAttentionModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"search" | "new">("search");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
 
   const { data: servicesData } = useQuery({
     queryKey: ["services"],
@@ -99,32 +106,61 @@ export function ImmediateAttentionModal({
   // Mutations
   const createAppointmentMutation = useMutation({
     mutationFn: (data: { patient_id: number; service_id: number }) => {
-      const nowString = format(new Date(), "yyyy-MM-dd");
-      const timeString = format(new Date(), "HH:mm");
+      const now = new Date();
+      const nowString = format(now, "yyyy-MM-dd");
+      const timeString = format(now, "HH:mm");
       const start_time = localToUTC(nowString, timeString);
+
+      const service = servicesData?.data.find(
+        (s) => String(s.id) === String(data.service_id),
+      );
+      // Fallback to 30 mins if duration is not found
+      const duration = service?.duration_minutes || 30;
+
+      const endTimeDate = addMinutes(now, duration);
+      const endString = format(endTimeDate, "yyyy-MM-dd");
+      const endTimeString = format(endTimeDate, "HH:mm");
+      const end_time = localToUTC(endString, endTimeString);
 
       return createAppointment({
         patient_id: data.patient_id,
         doctor_id: user!.id,
         service_id: data.service_id,
         start_time,
+        end_time,
         status: "in_progress",
         notes: "Atención inmediata",
       });
     },
     onSuccess: (appointment) => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       router.push(
         `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
       );
+    },
+    onError: (error: any) => {
+      console.error("Create Appointment Error:", error.response?.data || error);
+      toast.error(error.response?.data?.message || "Error al crear el turno");
     },
   });
 
   const createPatientMutation = useMutation({
     mutationFn: createPatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+    onError: (error: any) => {
+      console.error("Create Patient Error:", error.response?.data || error);
+      toast.error(error.response?.data?.message || "Error al crear paciente");
+    },
   });
 
   const onExistingSubmit = async (data: ExistingPatientForm) => {
     if (!user) return;
+    if (activeAppointment) {
+      setIsConflictModalOpen(true);
+      return;
+    }
     await createAppointmentMutation.mutateAsync({
       patient_id: Number(data.patient_id),
       service_id: Number(data.service_id),
@@ -133,6 +169,10 @@ export function ImmediateAttentionModal({
 
   const onNewSubmit = async (data: NewPatientForm) => {
     if (!user) return;
+    if (activeAppointment) {
+      setIsConflictModalOpen(true);
+      return;
+    }
     try {
       const newPatient = await createPatientMutation.mutateAsync({
         first_name: data.first_name,
@@ -419,6 +459,11 @@ export function ImmediateAttentionModal({
           </div>
         </Tabs>
       </DialogContent>
+      <ActiveConsultationAlertModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        activeAppointment={activeAppointment || null}
+      />
     </Dialog>
   );
 }

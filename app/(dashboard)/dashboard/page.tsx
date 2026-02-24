@@ -12,8 +12,10 @@ import { getPatients } from "@/services/patients";
 import { getProducts } from "@/services/products";
 import { ImmediateAttentionModal } from "@/components/features/appointments/immediate-attention-modal";
 import { AppointmentModal } from "@/components/features/appointments/appointment-modal";
+import { ActiveConsultationAlertModal } from "@/components/features/appointments/active-consultation-alert-modal";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { localToUTC } from "@/lib/timezone";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -29,6 +31,7 @@ import {
   Play,
   ArrowRight,
   Edit,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
@@ -112,6 +115,7 @@ interface KpiCardProps {
   iconColor: string;
   badge?: { text: string; color: string };
   href?: string;
+  progress?: number;
 }
 
 function KpiCard({
@@ -122,6 +126,7 @@ function KpiCard({
   iconColor,
   badge,
   href,
+  progress,
 }: KpiCardProps) {
   const content = (
     <Card className="group hover:shadow-[var(--shadow-md)] transition-all duration-200 relative overflow-hidden">
@@ -145,6 +150,14 @@ function KpiCard({
           <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
       </CardBody>
+      {progress !== undefined && (
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-medical-100">
+          <div
+            className={`h-full ${iconBg.replace("bg-", "bg-").replace("-50", "-500")} transition-all duration-500 ease-out`}
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
+        </div>
+      )}
     </Card>
   );
 
@@ -209,6 +222,7 @@ function QuickAction({
 export default function DashboardPage() {
   const { user, activeRole, hasRole } = useAuth();
   const [isImmediateModalOpen, setIsImmediateModalOpen] = React.useState(false);
+  const [isConflictModalOpen, setIsConflictModalOpen] = React.useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] =
     React.useState(false);
   const [selectedAppointment, setSelectedAppointment] = React.useState<
@@ -232,13 +246,16 @@ export default function DashboardPage() {
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useQuery(
     {
       queryKey: ["appointments", "today", today, user?.id],
-      queryFn: () =>
-        getAppointments({
-          date_from: today,
-          date_to: today,
+      queryFn: () => {
+        const dateFromUTC = localToUTC(today, "00:00");
+        const dateToUTC = localToUTC(today, "23:59");
+        return getAppointments({
+          date_from: dateFromUTC,
+          date_to: dateToUTC,
           cantidad: 100,
           doctor_id: isDoctor ? user?.id : undefined,
-        }),
+        });
+      },
       enabled: !!user,
     },
   );
@@ -251,11 +268,14 @@ export default function DashboardPage() {
   });
 
   const appointments = appointmentsData?.data || [];
+  const activeAppointment = appointments.find(
+    (a) => a.status === "in_progress",
+  );
   const totalAppointmentsToday = appointments.length;
 
   // Calculate low stock (only if fetched)
   const lowStockProducts = (productsData?.data || []).filter(
-    (p) => p.stock <= p.min_stock,
+    (p: any) => p.stock <= p.min_stock,
   );
   const lowStockCount = lowStockProducts.length;
 
@@ -268,8 +288,9 @@ export default function DashboardPage() {
   const waitingRoomCount = appointments.filter(
     (a) => a.status === "in_waiting_room",
   ).length;
-  const remainingCount = appointments.filter((a) =>
-    ["scheduled", "in_waiting_room", "in_progress"].includes(a.status),
+
+  const completedCount = appointments.filter(
+    (a) => a.status === "completed",
   ).length;
 
   const hasLongWaitTime = appointments.some((a) => {
@@ -340,15 +361,20 @@ export default function DashboardPage() {
               }
             />
             <KpiCard
-              label="Turnos Restantes"
+              label="Turnos Finalizados"
               value={
                 isLoading
                   ? "…"
-                  : `${remainingCount} / ${totalAppointmentsToday}`
+                  : `${completedCount} / ${totalAppointmentsToday}`
               }
-              icon={CalendarDays}
+              icon={CheckCircle2}
               iconBg="bg-brand-50"
               iconColor="text-brand-600"
+              progress={
+                totalAppointmentsToday > 0
+                  ? (completedCount / totalAppointmentsToday) * 100
+                  : 0
+              }
             />
           </>
         ) : (
@@ -477,6 +503,8 @@ export default function DashboardPage() {
                           setSelectedAppointment(appointment);
                           setIsAppointmentModalOpen(true);
                         }}
+                        hasConflict={!!activeAppointment}
+                        onStartConflict={() => setIsConflictModalOpen(true)}
                       />
                     ))}
                   </tbody>
@@ -542,7 +570,7 @@ export default function DashboardPage() {
                 </h2>
               </CardHeader>
               <CardBody className="space-y-3">
-                {lowStockProducts.slice(0, 4).map((product) => (
+                {lowStockProducts.slice(0, 4).map((product: any) => (
                   <div
                     key={product.id}
                     className="flex items-center justify-between gap-3"
@@ -577,6 +605,7 @@ export default function DashboardPage() {
       <ImmediateAttentionModal
         isOpen={isImmediateModalOpen}
         onClose={() => setIsImmediateModalOpen(false)}
+        activeAppointment={activeAppointment}
       />
 
       <AppointmentModal
@@ -605,6 +634,12 @@ export default function DashboardPage() {
           }
         }}
       />
+
+      <ActiveConsultationAlertModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        activeAppointment={activeAppointment || null}
+      />
     </div>
   );
 }
@@ -614,11 +649,16 @@ export default function DashboardPage() {
 function AppointmentRow({
   appointment,
   onEdit,
+  hasConflict,
+  onStartConflict,
 }: {
   appointment: Appointment;
   onEdit?: () => void;
+  hasConflict?: boolean;
+  onStartConflict?: () => void;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const time = format(new Date(appointment.start_time), "HH:mm");
   const patientName = appointment.patient
     ? `${appointment.patient.first_name} ${appointment.patient.last_name}`
@@ -630,16 +670,33 @@ function AppointmentRow({
 
   const [isStarting, setIsStarting] = React.useState(false);
 
+  const handleCompletedClick = () => {
+    if (appointment.medical_record?.id) {
+      router.push(
+        `/patients/${appointment.patient_id}/medical-records/${appointment.medical_record.id}`,
+      );
+    } else {
+      toast.error("No se encontró el registro médico para este turno.");
+    }
+  };
+
   const handleStart = async () => {
+    if (hasConflict && onStartConflict) {
+      onStartConflict();
+      return;
+    }
+
     setIsStarting(true);
     try {
       await updateAppointment(appointment.id, { status: "in_progress" });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       router.push(
         `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
       );
     } catch (error) {
       console.error(error);
       setIsStarting(false);
+      toast.error("Error al iniciar la consulta");
     }
   };
 
@@ -683,11 +740,22 @@ function AppointmentRow({
           </Link>
         );
       case "completed":
+        if (appointment.medical_record?.id) {
+          return (
+            <Link
+              href={`/patients/${appointment.patient_id}/medical-records/${appointment.medical_record.id}`}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
+              title="Revisar Evolución"
+            >
+              <Eye className="w-4 h-4" />
+            </Link>
+          );
+        }
         return (
           <Link
-            href={`/patients/${appointment.patient_id}/medical-records`}
+            href={`/patients/${appointment.patient_id}`}
             className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
-            title="Revisar Evolución"
+            title="Perfil del Paciente"
           >
             <Eye className="w-4 h-4" />
           </Link>
