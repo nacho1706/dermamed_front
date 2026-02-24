@@ -26,6 +26,7 @@ import {
   Plus,
   Stethoscope,
   CreditCard,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -359,9 +360,17 @@ export default function PatientDetailPage() {
                                 ? ` — Dr. ${record.doctor.name}`
                                 : ""}
                             </h4>
-                            <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-medical-100">
+                            <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-medical-100 line-clamp-3 overflow-hidden">
                               {record.content}
                             </p>
+                            <Link
+                              href={`/patients/${id}/medical-records/${record.id}`}
+                              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                            >
+                              <Eye className="w-4 h-4" />
+                              Ver registro completo
+                            </Link>
+
                             {record.appointment?.service && (
                               <p className="text-xs text-medical-400 mt-2">
                                 Servicio: {record.appointment.service.name}

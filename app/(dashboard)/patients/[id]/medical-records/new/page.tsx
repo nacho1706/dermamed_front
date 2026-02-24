@@ -84,10 +84,25 @@ function MedicalRecordFormContent() {
 
   const createRecordMutation = useMutation({
     mutationFn: createMedicalRecord,
-    onSuccess: () => {
+    onSuccess: async () => {
       localStorage.removeItem(draftKey);
+
+      try {
+        if (appointmentId) {
+          await updateAppointment(appointmentId, { status: "completed" });
+        }
+      } catch (e) {
+        console.error(
+          "No se pudo marcar el turno como completado automáticamente",
+          e,
+        );
+      }
+
       queryClient.invalidateQueries({
         queryKey: ["medical-records", patientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["appointments"],
       });
       toast.success("Registro creado", {
         description: "La evolución clínica ha sido guardada exitosamente.",
@@ -159,6 +174,7 @@ function MedicalRecordFormContent() {
     try {
       await updateAppointment(appointmentId, { status: "in_waiting_room" });
       localStorage.removeItem(draftKey);
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Turno revertido a Sala de Espera");
       router.push("/dashboard");
     } catch (error) {
