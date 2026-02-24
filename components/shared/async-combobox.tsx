@@ -84,7 +84,7 @@ export function AsyncCombobox<T>({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="w-[--radix-popover-trigger-width] p-0 bg-white shadow-md z-[100]"
         align="start"
       >
         <Command shouldFilter={false}>

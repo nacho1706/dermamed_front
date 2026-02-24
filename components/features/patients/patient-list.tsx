@@ -5,7 +5,6 @@ import {
   Search,
   UserPlus,
   MoreHorizontal,
-  Eye,
   Edit,
   Trash2,
   ChevronLeft,
@@ -122,10 +121,13 @@ export function PatientList({
                           {patient.last_name[0]}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-semibold text-medical-900 group-hover:text-medical-700 transition-colors">
+                          <Link
+                            href={`/patients/${patient.id}`}
+                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors block"
+                          >
                             {patient.full_name}
-                          </div>
-                          <div className="text-xs text-medical-500">
+                          </Link>
+                          <div className="text-xs text-medical-500 mt-0.5">
                             Registrado el {formatDate(patient.created_at)}
                           </div>
                         </div>
@@ -156,20 +158,12 @@ export function PatientList({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <Link href={`/patients/${patient.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-medical-500 hover:text-medical-700 hover:bg-medical-100"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
                         <Link href={`/patients/${patient.id}/edit`}>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-medical-500 hover:text-medical-700 hover:bg-medical-100"
+                            title="Editar Datos"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>

@@ -231,6 +231,7 @@ export function PatientForm({
               <Input
                 label="Fecha de Nacimiento"
                 type="date"
+                max={new Date().toISOString().split("T")[0]}
                 {...register("birth_date")}
                 error={errors.birth_date?.message}
               />
