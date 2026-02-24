@@ -190,7 +190,7 @@ export function PatientForm({
               />
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">
-                  CUIT
+                  CUIT / CUIL (Opcional)
                 </label>
                 <Controller
                   name="cuit"

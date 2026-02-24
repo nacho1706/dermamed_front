@@ -72,7 +72,7 @@ export function PatientList({
                   Paciente
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
-                  DNI/CUIT
+                  DNI
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
                   Contacto
@@ -131,8 +131,15 @@ export function PatientList({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-medical-600 font-medium">
-                      {patient.cuit || "—"}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-medical-600 font-medium">
+                        {patient.dni || "—"}
+                      </div>
+                      {patient.cuit && (
+                        <div className="text-[11px] text-medical-400 mt-0.5">
+                          CUIL: {patient.cuit}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-medical-600">

@@ -341,7 +341,7 @@ export function ImmediateAttentionModal({
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>CUIT (Opcional)</Label>
+                    <Label>CUIT / CUIL (Opcional)</Label>
                     <Controller
                       name="cuit"
                       control={controlNew}

@@ -166,15 +166,25 @@ export default function PatientDetailPage() {
               </div>
 
               <div className="w-full mt-6 space-y-4 text-left border-t border-medical-100 pt-6">
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-start gap-3 text-sm text-medical-600">
+                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500 mt-0.5">
                     <CreditCard className="h-4 w-4" />
                   </div>
-                  <div>
-                    <p className="text-xs text-medical-400 font-medium">
-                      CUIT / DNI
-                    </p>
-                    <p className="font-semibold">{patient.cuit || "—"}</p>
+                  <div className="space-y-1">
+                    <div>
+                      <p className="text-xs text-medical-400 font-medium">
+                        DNI
+                      </p>
+                      <p className="font-semibold">{patient.dni || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-medical-400 font-medium">
+                        CUIT/CUIL
+                      </p>
+                      <p className="text-sm text-medical-600">
+                        {patient.cuit || "No registrado"}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-medical-600">
