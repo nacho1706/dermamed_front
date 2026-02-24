@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# --- IA y Skills Locales ---
+.antigravity/
+.skills/
+skills.json
+mcp.json
+.agent/
+.agents/
+skills-lock.json
+ui-ux-pro-max
+web-design-guidelines
