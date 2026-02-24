@@ -16,15 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { AlertTriangle, Search, UserPlus, Play } from "lucide-react";
+import { AsyncCombobox } from "@/components/shared/async-combobox";
+import { FilterableSelect } from "@/components/shared/filterable-select";
 
 import { createPatient, getPatients } from "@/services/patients";
 import { createAppointment } from "@/services/appointments";
@@ -70,19 +65,12 @@ export function ImmediateAttentionModal({
     queryFn: () => getServices(),
   });
 
-  const { data: patientsData, isLoading: isSearchLoading } = useQuery({
-    queryKey: ["patients", "search", searchTerm],
-    queryFn: () => getPatients({ search: searchTerm }),
-    enabled: searchTerm.length > 2,
-  });
-
   // Forms
   const {
     control: controlExisting,
     handleSubmit: handleSubmitExisting,
     formState: { errors: errorsExisting },
     setValue: setExistingPatient,
-    watch: watchExisting,
   } = useForm<ExistingPatientForm>({
     resolver: zodResolver(existingPatientSchema),
     defaultValues: { patient_id: "", service_id: "" },
@@ -107,8 +95,6 @@ export function ImmediateAttentionModal({
       service_id: "",
     },
   });
-
-  const selectedPatientId = watchExisting("patient_id");
 
   // Mutations
   const createAppointmentMutation = useMutation({
@@ -231,51 +217,37 @@ export function ImmediateAttentionModal({
               >
                 <div className="space-y-2">
                   <Label>Buscar Paciente</Label>
-                  <Input
-                    placeholder="Nombre, Apellido o DNI..."
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                  <Controller
+                    name="patient_id"
+                    control={controlExisting}
+                    render={({ field }) => (
+                      <AsyncCombobox
+                        value={field.value}
+                        onChange={(val) =>
+                          field.onChange(val ? String(val) : "")
+                        }
+                        fetchFn={async (search) => {
+                          const res = await getPatients({
+                            search,
+                            cantidad: 10,
+                          });
+                          return res.data;
+                        }}
+                        itemLabel={(p) =>
+                          `${p.full_name} | DNI: ${p.dni || "N/A"}`
+                        }
+                        itemValue={(p) => String(p.id)}
+                        placeholder="Buscar por Nombre, Apellido o DNI..."
+                        searchPlaceholder="Escribir para buscar..."
+                      />
+                    )}
                   />
+                  {errorsExisting.patient_id && (
+                    <p className="text-xs text-danger">
+                      {errorsExisting.patient_id.message}
+                    </p>
+                  )}
                 </div>
-
-                {searchTerm.length > 2 && (
-                  <div className="space-y-2">
-                    <Label>Resultados</Label>
-                    {isSearchLoading ? (
-                      <p className="text-sm text-muted">Buscando...</p>
-                    ) : patientsData?.data?.length === 0 ? (
-                      <p className="text-sm text-muted">
-                        No se encontraron pacientes. Intente en "Nuevo
-                        Paciente".
-                      </p>
-                    ) : (
-                      <div className="max-h-[150px] overflow-y-auto space-y-1 p-1 border border-border rounded-[var(--radius-md)] bg-surface-secondary">
-                        {patientsData?.data.map((patient) => (
-                          <div
-                            key={patient.id}
-                            onClick={() =>
-                              setExistingPatient(
-                                "patient_id",
-                                String(patient.id),
-                                { shouldValidate: true },
-                              )
-                            }
-                            className={`px-3 py-2 text-sm rounded cursor-pointer transition-colors ${selectedPatientId === String(patient.id) ? "bg-brand-100 text-brand-800 font-medium" : "hover:bg-black/5"}`}
-                          >
-                            {patient.full_name}{" "}
-                            <span className="text-muted text-xs ml-2">
-                              DNI: {patient.cuit || "N/A"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {errorsExisting.patient_id && (
-                      <p className="text-xs text-danger">
-                        {errorsExisting.patient_id.message}
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label>Servicio / Motivo</Label>
@@ -283,24 +255,17 @@ export function ImmediateAttentionModal({
                     name="service_id"
                     control={controlExisting}
                     render={({ field }) => (
-                      <Select
-                        onValueChange={field.onChange}
+                      <FilterableSelect
                         value={field.value}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar servicio..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {servicesData?.data.map((service) => (
-                            <SelectItem
-                              key={service.id}
-                              value={String(service.id)}
-                            >
-                              {service.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(val) =>
+                          field.onChange(val ? String(val) : "")
+                        }
+                        options={(servicesData?.data || []).map((s) => ({
+                          label: s.name,
+                          value: String(s.id),
+                        }))}
+                        placeholder="Seleccionar servicio..."
+                      />
                     )}
                   />
                   {errorsExisting.service_id && (
@@ -417,24 +382,17 @@ export function ImmediateAttentionModal({
                     name="service_id"
                     control={controlNew}
                     render={({ field }) => (
-                      <Select
-                        onValueChange={field.onChange}
+                      <FilterableSelect
                         value={field.value}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar servicio..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {servicesData?.data.map((service) => (
-                            <SelectItem
-                              key={service.id}
-                              value={String(service.id)}
-                            >
-                              {service.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(val) =>
+                          field.onChange(val ? String(val) : "")
+                        }
+                        options={(servicesData?.data || []).map((s) => ({
+                          label: s.name,
+                          value: String(s.id),
+                        }))}
+                        placeholder="Seleccionar servicio..."
+                      />
                     )}
                   />
                   {errorsNew.service_id && (

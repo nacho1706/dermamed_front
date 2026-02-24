@@ -16,14 +16,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AsyncCombobox } from "@/components/shared/async-combobox";
+import { FilterableSelect } from "@/components/shared/filterable-select";
 import { Appointment, Patient, User, Service } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import { getPatients } from "@/services/patients";
@@ -129,12 +124,6 @@ export function AppointmentModal({
     };
   }, [selectedDate, availabilityData]);
 
-  // Queries
-  const { data: patientsData } = useQuery({
-    queryKey: ["patients"],
-    queryFn: () => getPatients({ cantidad: 100 }),
-  });
-
   const { data: doctorsData } = useQuery({
     queryKey: ["users", "doctors"],
     queryFn: () => getUsers({ role: "doctor" }),
@@ -229,23 +218,24 @@ export function AppointmentModal({
               name="patient_id"
               control={control}
               render={({ field }) => (
-                <Select
-                  onValueChange={field.onChange}
+                <AsyncCombobox
                   value={field.value}
+                  onChange={(val) => field.onChange(val ? String(val) : "")}
+                  fetchFn={async (search) => {
+                    const res = await getPatients({ search, cantidad: 10 });
+                    return res.data;
+                  }}
+                  itemLabel={(p) => `${p.full_name} | DNI: ${p.dni || "N/A"}`}
+                  itemValue={(p) => String(p.id)}
+                  placeholder="Seleccionar paciente"
+                  searchPlaceholder="Buscar paciente..."
                   disabled={!!initialData}
-                >
-                  <SelectTrigger>
-                    <UserIcon className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
-                    <SelectValue placeholder="Seleccionar paciente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patientsData?.data.map((patient: Patient) => (
-                      <SelectItem key={patient.id} value={String(patient.id)}>
-                        {patient.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  selectedLabel={
+                    initialData?.patient
+                      ? `${initialData.patient.full_name} | DNI: ${initialData.patient.dni || "N/A"}`
+                      : undefined
+                  }
+                />
               )}
             />
             {errors.patient_id && (
@@ -268,23 +258,16 @@ export function AppointmentModal({
                 name="doctor_id"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    onValueChange={field.onChange}
+                  <FilterableSelect
                     value={field.value}
+                    onChange={(val) => field.onChange(val ? String(val) : "")}
+                    options={(doctorsData?.data || []).map((d) => ({
+                      label: `Dr. ${d.name}`,
+                      value: String(d.id),
+                    }))}
+                    placeholder="Seleccionar médico"
                     disabled={isDoctor}
-                  >
-                    <SelectTrigger>
-                      <Stethoscope className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
-                      <SelectValue placeholder="Seleccionar médico" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {doctorsData?.data.map((doctor: User) => (
-                        <SelectItem key={doctor.id} value={String(doctor.id)}>
-                          Dr. {doctor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 )}
               />
               {errors.doctor_id && (
@@ -306,19 +289,15 @@ export function AppointmentModal({
                 name="service_id"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <FileText className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
-                      <SelectValue placeholder="Seleccionar servicio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {servicesData?.data.map((service: Service) => (
-                        <SelectItem key={service.id} value={String(service.id)}>
-                          {service.name} ({service.duration_minutes} min)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FilterableSelect
+                    value={field.value}
+                    onChange={(val) => field.onChange(val ? String(val) : "")}
+                    options={(servicesData?.data || []).map((s) => ({
+                      label: `${s.name} (${s.duration_minutes} min)`,
+                      value: String(s.id),
+                    }))}
+                    placeholder="Seleccionar servicio"
+                  />
                 )}
               />
               {errors.service_id && (

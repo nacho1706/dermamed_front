@@ -13,8 +13,8 @@ import {
   Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { GlobalSearchInput } from "@/components/shared/global-search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/utils";
 import type { Patient, PaginatedResponse } from "@/types";
@@ -33,27 +33,19 @@ export function PatientList({
   onSearch,
   onPageChange,
 }: PatientListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    onSearch(value);
-  };
-
   const patients = data?.data || [];
   const meta = data?.meta;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-medical-400" />
-          <Input
+        <div className="w-full md:w-96">
+          <GlobalSearchInput
             placeholder="Buscar por Nombre, DNI o Teléfono..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="pl-10 border-medical-200 focus:border-medical-500 focus:ring-medical-500/20"
+            onSearch={(val) => {
+              onSearch(val);
+              onPageChange(1); // Reset page on new search
+            }}
           />
         </div>
 

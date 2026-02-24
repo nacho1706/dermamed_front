@@ -4,19 +4,17 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPatients } from "@/services/patients";
 import { PatientList } from "@/components/features/patients/patient-list";
-import { useDebounce } from "@/hooks/use-debounce"; // I'll need to create this hook
 
 export default function PatientsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const debouncedSearch = useDebounce(search, 500);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["patients", debouncedSearch, page],
+    queryKey: ["patients", search, page],
     queryFn: () =>
       getPatients({
-        first_name: debouncedSearch,
+        search: search,
         pagina: page,
         cantidad: 10,
       }),
