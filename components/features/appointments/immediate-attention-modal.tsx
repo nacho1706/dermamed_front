@@ -26,6 +26,7 @@ import type { Appointment } from "@/types";
 import { createPatient, getPatients } from "@/services/patients";
 import { createAppointment } from "@/services/appointments";
 import { getServices } from "@/services/services";
+import { getUsers } from "@/services/users";
 import { useAuth } from "@/contexts/auth-context";
 import { localToUTC } from "@/lib/timezone";
 import { format, addMinutes } from "date-fns";
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 const existingPatientSchema = z.object({
   patient_id: z.string().min(1, "Seleccione un paciente"),
   service_id: z.string().min(1, "Seleccione un servicio"),
+  doctor_id: z.string().optional(),
 });
 
 const newPatientSchema = z.object({
@@ -44,6 +46,7 @@ const newPatientSchema = z.object({
   dni: z.string().min(1, "El DNI es requerido"),
   cuit: z.string().optional().nullable().or(z.literal("")),
   service_id: z.string().min(1, "Seleccione un servicio"),
+  doctor_id: z.string().optional(),
 });
 
 type ExistingPatientForm = z.infer<typeof existingPatientSchema>;
@@ -62,7 +65,8 @@ export function ImmediateAttentionModal({
 }: ImmediateAttentionModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isDoctor = hasRole("doctor");
   const [activeTab, setActiveTab] = useState<"search" | "new">("search");
   const [searchTerm, setSearchTerm] = useState("");
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
@@ -70,6 +74,13 @@ export function ImmediateAttentionModal({
   const { data: servicesData } = useQuery({
     queryKey: ["services"],
     queryFn: () => getServices(),
+  });
+
+  // Fetch doctors for the selector (only needed for non-doctors)
+  const { data: doctorsData } = useQuery({
+    queryKey: ["users", "doctors"],
+    queryFn: () => getUsers({ role: "doctor", is_active: true, cantidad: 100 }),
+    enabled: !isDoctor,
   });
 
   // Forms
@@ -80,7 +91,7 @@ export function ImmediateAttentionModal({
     setValue: setExistingPatient,
   } = useForm<ExistingPatientForm>({
     resolver: zodResolver(existingPatientSchema),
-    defaultValues: { patient_id: "", service_id: "" },
+    defaultValues: { patient_id: "", service_id: "", doctor_id: "" },
   });
 
   const {
@@ -100,12 +111,17 @@ export function ImmediateAttentionModal({
       dni: "",
       cuit: "",
       service_id: "",
+      doctor_id: "",
     },
   });
 
   // Mutations
   const createAppointmentMutation = useMutation({
-    mutationFn: (data: { patient_id: number; service_id: number }) => {
+    mutationFn: (data: {
+      patient_id: number;
+      service_id: number;
+      doctor_id?: string;
+    }) => {
       const now = new Date();
       const nowString = format(now, "yyyy-MM-dd");
       const timeString = format(now, "HH:mm");
@@ -122,21 +138,31 @@ export function ImmediateAttentionModal({
       const endTimeString = format(endTimeDate, "HH:mm");
       const end_time = localToUTC(endString, endTimeString);
 
+      // Doctor: use own ID. Non-doctor: use selected doctor_id.
+      const resolvedDoctorId = isDoctor ? user!.id : Number(data.doctor_id);
+
       return createAppointment({
         patient_id: data.patient_id,
-        doctor_id: user!.id,
+        doctor_id: resolvedDoctorId,
         service_id: data.service_id,
         start_time,
         end_time,
-        status: "in_progress",
-        notes: "Atención inmediata",
+        status: isDoctor ? "in_progress" : "in_waiting_room",
+        notes: isDoctor ? "Atención inmediata" : "Ingreso sin turno",
       });
     },
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      router.push(
-        `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
-      );
+      if (isDoctor) {
+        // Doctor: redirect to medical records
+        router.push(
+          `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
+        );
+      } else {
+        // Receptionist/Manager: stay, show toast
+        toast.success("Paciente ingresado a sala de espera");
+        onClose();
+      }
     },
     onError: (error: any) => {
       console.error("Create Appointment Error:", error.response?.data || error);
@@ -157,6 +183,11 @@ export function ImmediateAttentionModal({
 
   const onExistingSubmit = async (data: ExistingPatientForm) => {
     if (!user) return;
+    // Non-doctor: validate doctor selection
+    if (!isDoctor && !data.doctor_id) {
+      toast.error("Debe seleccionar un médico");
+      return;
+    }
     if (activeAppointment) {
       setIsConflictModalOpen(true);
       return;
@@ -164,11 +195,17 @@ export function ImmediateAttentionModal({
     await createAppointmentMutation.mutateAsync({
       patient_id: Number(data.patient_id),
       service_id: Number(data.service_id),
+      doctor_id: data.doctor_id,
     });
   };
 
   const onNewSubmit = async (data: NewPatientForm) => {
     if (!user) return;
+    // Non-doctor: validate doctor selection
+    if (!isDoctor && !data.doctor_id) {
+      toast.error("Debe seleccionar un médico");
+      return;
+    }
     if (activeAppointment) {
       setIsConflictModalOpen(true);
       return;
@@ -184,6 +221,7 @@ export function ImmediateAttentionModal({
       await createAppointmentMutation.mutateAsync({
         patient_id: newPatient.id,
         service_id: Number(data.service_id),
+        doctor_id: data.doctor_id,
       });
     } catch (e) {
       console.error(e);
@@ -224,11 +262,13 @@ export function ImmediateAttentionModal({
           <div className="flex items-center gap-2 text-danger">
             <AlertTriangle className="w-5 h-5" />
             <DialogTitle className="text-danger">
-              Atención Inmediata
+              {isDoctor ? "Atención Inmediata" : "Ingreso sin Turno"}
             </DialogTitle>
           </div>
           <p className="text-sm text-muted">
-            Crea un turno en curso al instante.
+            {isDoctor
+              ? "Crea un turno en curso al instante."
+              : "Registra un paciente en sala de espera sin turno previo."}
           </p>
         </DialogHeader>
 
@@ -315,6 +355,32 @@ export function ImmediateAttentionModal({
                   )}
                 </div>
 
+                {/* Doctor selector: visible and required for non-doctors */}
+                {!isDoctor && (
+                  <div className="space-y-2">
+                    <Label>
+                      Médico Asignado <span className="text-danger">*</span>
+                    </Label>
+                    <Controller
+                      name="doctor_id"
+                      control={controlExisting}
+                      render={({ field }) => (
+                        <FilterableSelect
+                          value={field.value || ""}
+                          onChange={(val) =>
+                            field.onChange(val ? String(val) : "")
+                          }
+                          options={(doctorsData?.data || []).map((d) => ({
+                            label: d.name,
+                            value: String(d.id),
+                          }))}
+                          placeholder="Seleccionar médico..."
+                        />
+                      )}
+                    />
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full bg-danger hover:bg-red-700 text-white"
@@ -325,7 +391,7 @@ export function ImmediateAttentionModal({
                   ) : (
                     <Play className="w-4 h-4 mr-2 fill-current" />
                   )}
-                  Iniciar Ahora
+                  {isDoctor ? "Iniciar Ahora" : "Ingresar a Espera"}
                 </Button>
               </form>
             </TabsContent>
@@ -442,6 +508,32 @@ export function ImmediateAttentionModal({
                   )}
                 </div>
 
+                {/* Doctor selector: visible and required for non-doctors */}
+                {!isDoctor && (
+                  <div className="space-y-2">
+                    <Label>
+                      Médico Asignado <span className="text-danger">*</span>
+                    </Label>
+                    <Controller
+                      name="doctor_id"
+                      control={controlNew}
+                      render={({ field }) => (
+                        <FilterableSelect
+                          value={field.value || ""}
+                          onChange={(val) =>
+                            field.onChange(val ? String(val) : "")
+                          }
+                          options={(doctorsData?.data || []).map((d) => ({
+                            label: d.name,
+                            value: String(d.id),
+                          }))}
+                          placeholder="Seleccionar médico..."
+                        />
+                      )}
+                    />
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full bg-danger hover:bg-red-700 text-white"
@@ -452,7 +544,7 @@ export function ImmediateAttentionModal({
                   ) : (
                     <Play className="w-4 h-4 mr-2 fill-current" />
                   )}
-                  Crear y Atender
+                  {isDoctor ? "Crear y Atender" : "Crear e Ingresar a Espera"}
                 </Button>
               </form>
             </TabsContent>
