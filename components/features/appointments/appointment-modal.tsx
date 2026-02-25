@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addMinutes, parseISO } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import { localToUTC, extractLocalDate, extractLocalTime } from "@/lib/timezone";
 import {
   Dialog,
@@ -69,7 +69,16 @@ export function AppointmentModal({
 }: AppointmentModalProps) {
   const { user, hasRole } = useAuth();
   const isDoctor = hasRole("doctor");
+  const isReadOnly = useMemo(() => {
+    if (!initialData || !user) return false;
+    // If user is doctor and doesn't own the appointment, it's read-only
+    return isDoctor && initialData.doctor_id !== user.id;
+  }, [initialData, user, isDoctor]);
+
   const [endTime, setEndTime] = useState<string | null>(null);
+
+  // ─── Block past dates/times ─────────────────────────────────────────
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const {
     control,
@@ -126,7 +135,7 @@ export function AppointmentModal({
 
   const { data: doctorsData } = useQuery({
     queryKey: ["users", "doctors"],
-    queryFn: () => getUsers({ role: "doctor" }),
+    queryFn: () => getUsers({ role: "doctor", cantidad: 100 }),
   });
 
   const { data: servicesData } = useQuery({
@@ -155,7 +164,7 @@ export function AppointmentModal({
         notes: "",
       });
     }
-  }, [initialData, initialDate, reset, isOpen]);
+  }, [initialData, initialDate, reset, isOpen, isDoctor, user?.id]);
 
   // Calculate end time
   useEffect(() => {
@@ -176,6 +185,8 @@ export function AppointmentModal({
   }, [selectedServiceId, selectedTime, servicesData]);
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
+    if (isReadOnly) return;
+
     // Convert selected local time to UTC for the API
     const start_time = localToUTC(data.date, data.time);
 
@@ -229,7 +240,7 @@ export function AppointmentModal({
                   itemValue={(p) => String(p.id)}
                   placeholder="Seleccionar paciente"
                   searchPlaceholder="Buscar paciente..."
-                  disabled={!!initialData}
+                  disabled={!!initialData || isReadOnly}
                   selectedLabel={
                     initialData?.patient
                       ? `${initialData.patient.full_name} | DNI: ${initialData.patient.dni || "N/A"}`
@@ -266,7 +277,7 @@ export function AppointmentModal({
                       value: String(d.id),
                     }))}
                     placeholder="Seleccionar médico"
-                    disabled={isDoctor}
+                    disabled={isDoctor || isReadOnly}
                   />
                 )}
               />
@@ -297,6 +308,7 @@ export function AppointmentModal({
                       value: String(s.id),
                     }))}
                     placeholder="Seleccionar servicio"
+                    disabled={isReadOnly}
                   />
                 )}
               />
@@ -318,7 +330,12 @@ export function AppointmentModal({
                 Fecha
               </Label>
               <div className="relative">
-                <Input type="date" {...register("date")} />
+                <Input
+                  type="date"
+                  min={todayStr}
+                  {...register("date")}
+                  disabled={isReadOnly}
+                />
               </div>
               {errors.date && (
                 <p className="text-xs text-danger font-medium">
@@ -340,9 +357,24 @@ export function AppointmentModal({
                 <Input
                   type="time"
                   className="pl-9"
-                  min={workingHours?.start}
+                  min={
+                    selectedDate === todayStr
+                      ? (() => {
+                          const nowTime = format(new Date(), "HH:mm");
+                          // If doctor has working hours, use whichever is later
+                          if (
+                            workingHours?.start &&
+                            workingHours.start > nowTime
+                          ) {
+                            return workingHours.start;
+                          }
+                          return nowTime;
+                        })()
+                      : workingHours?.start
+                  }
                   max={workingHours?.end}
                   {...register("time")}
+                  disabled={isReadOnly}
                 />
               </div>
               {workingHours && (
@@ -391,6 +423,7 @@ export function AppointmentModal({
               {...register("notes")}
               placeholder="Detalles adicionales para el turno..."
               className="resize-none"
+              disabled={isReadOnly}
             />
           </div>
 
@@ -412,7 +445,7 @@ export function AppointmentModal({
                         onSubmit({ status: "cancelled" });
                       }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || isReadOnly}
                   >
                     Cancelar Turno
                   </Button>
@@ -422,17 +455,21 @@ export function AppointmentModal({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cerrar
               </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className={initialData ? "bg-brand-600 hover:bg-brand-700" : ""}
-              >
-                {isLoading
-                  ? "Guardando..."
-                  : initialData
-                    ? "Actualizar Turno"
-                    : "Agendar Turno"}
-              </Button>
+              {!isReadOnly && (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className={
+                    initialData ? "bg-brand-600 hover:bg-brand-700" : ""
+                  }
+                >
+                  {isLoading
+                    ? "Guardando..."
+                    : initialData
+                      ? "Actualizar Turno"
+                      : "Agendar Turno"}
+                </Button>
+              )}
             </div>
           </DialogFooter>
         </form>
