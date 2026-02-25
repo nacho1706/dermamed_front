@@ -47,12 +47,18 @@ import type { User, Role } from "@/types";
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const ROLE_IDS = {
-  CLINIC_MANAGER: 1,
-  DOCTOR: 2,
-  RECEPTIONIST: 3,
+  SYSTEM_ADMIN: 1,
+  CLINIC_MANAGER: 2,
+  DOCTOR: 3,
+  RECEPTIONIST: 4,
 };
 
 const ROLES_OPTIONS = [
+  {
+    id: ROLE_IDS.SYSTEM_ADMIN,
+    name: "System Admin",
+    value: "system_admin",
+  },
   {
     id: ROLE_IDS.CLINIC_MANAGER,
     name: "Director/a Médico/a",
@@ -164,6 +170,7 @@ function UserFormModal({
   user?: User;
 }) {
   const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
   const isEdit = !!user;
 
   const [name, setName] = useState("");
@@ -281,7 +288,9 @@ function UserFormModal({
               Roles * (Puede seleccionar varios)
             </label>
             <div className="flex flex-col gap-2 border border-border p-3 rounded-[var(--radius-md)] bg-surface-secondary/30">
-              {ROLES_OPTIONS.map((role) => (
+              {ROLES_OPTIONS.filter(
+                (r) => r.value !== "system_admin" || hasRole("system_admin"),
+              ).map((role) => (
                 <label
                   key={role.id}
                   className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
@@ -589,7 +598,9 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los roles</SelectItem>
-                {ROLES_OPTIONS.map((role) => (
+                {ROLES_OPTIONS.filter(
+                  (r) => r.value !== "system_admin" || hasRole("system_admin"),
+                ).map((role) => (
                   <SelectItem key={role.id} value={role.id.toString()}>
                     {role.name}
                   </SelectItem>
