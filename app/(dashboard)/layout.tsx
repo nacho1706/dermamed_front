@@ -6,11 +6,16 @@ import { useAuth } from "@/contexts/auth-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { FullPageSpinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 
 // Whitelist of routes accessible to system_admin.
 // Everything NOT in this list is blocked for system_admin.
 // Add shared routes (e.g. /profile, /settings) here if created in the future.
 const SYSTEM_ADMIN_ALLOWED_ROUTES = ["/admin-dashboard", "/users"];
+
+// Routes that require the doctor role (PHI / medical records).
+// Pattern: /patients/<id>/medical-records (and any sub-path).
+const DOCTOR_ONLY_ROUTE_PATTERN = /\/patients\/[^/]+\/medical-records/;
 
 export default function DashboardLayout({
   children,
@@ -48,6 +53,19 @@ export default function DashboardLayout({
     }
   }, [shouldBlockSystemAdmin, router]);
 
+  // ── Doctor-only route guard (medical records) ─────────────────────────
+  // Block receptionist / clinic_manager from accessing HC routes directly.
+  const isDoctorOnlyRoute = DOCTOR_ONLY_ROUTE_PATTERN.test(pathname);
+  const shouldBlockNonDoctor =
+    !isLoading && isAuthenticated && isDoctorOnlyRoute && !hasRole("doctor");
+
+  useEffect(() => {
+    if (shouldBlockNonDoctor) {
+      toast.error("Acceso denegado: Privacidad de datos médicos.");
+      router.replace("/dashboard");
+    }
+  }, [shouldBlockNonDoctor, router]);
+
   // ── Render guards (synchronous — blocks children before mount) ─────────
   if (isLoading) {
     return <FullPageSpinner />;
@@ -60,6 +78,11 @@ export default function DashboardLayout({
   // CRITICAL: Return spinner synchronously to prevent FOUC/PHI leak.
   // Children are NEVER mounted for a blocked route.
   if (shouldBlockSystemAdmin) {
+    return <FullPageSpinner />;
+  }
+
+  // Block non-doctors from medical records routes (synchronous).
+  if (shouldBlockNonDoctor) {
     return <FullPageSpinner />;
   }
 

@@ -32,6 +32,7 @@ import {
   ArrowRight,
   Edit,
   CheckCircle2,
+  CircleDollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
@@ -492,13 +493,13 @@ export default function DashboardPage() {
                   <AlertTriangle className="w-4 h-4 text-danger" />
                 </div>
                 <span className="text-sm font-medium flex-1 text-danger text-left">
-                  Atención Inmediata
+                  {isDoctor ? "Atención Inmediata" : "Ingreso sin Turno"}
                 </span>
                 <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-danger" />
               </button>
 
               <QuickAction
-                label="Nueva Cita"
+                label="Nuevo Turno"
                 icon={Plus}
                 onClick={() => setIsAppointmentModalOpen(true)}
                 variant="primary"
@@ -613,6 +614,8 @@ function AppointmentRow({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
+  const isDoctor = hasRole("doctor");
   const time = format(new Date(appointment.start_time), "HH:mm");
   const patientName = appointment.patient
     ? `${appointment.patient.first_name} ${appointment.patient.last_name}`
@@ -654,16 +657,29 @@ function AppointmentRow({
 
     setIsStarting(true);
     try {
-      await updateAppointment(appointment.id, { status: "in_progress" });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      toast.success("Consulta iniciada correctamente");
-      router.push(
-        `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
-      );
+      if (isDoctor) {
+        // Doctor: start consultation, redirect to medical record
+        await updateAppointment(appointment.id, { status: "in_progress" });
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        toast.success("Consulta iniciada correctamente");
+        router.push(
+          `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
+        );
+      } else {
+        // Receptionist/Manager: move to waiting room, no redirect
+        await updateAppointment(appointment.id, { status: "in_waiting_room" });
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        toast.success("Paciente ingresado a sala de espera");
+        setIsStarting(false);
+      }
     } catch (error) {
       console.error(error);
       setIsStarting(false);
-      toast.error("Error al iniciar la consulta");
+      toast.error(
+        isDoctor
+          ? "Error al iniciar la consulta"
+          : "Error al ingresar a sala de espera",
+      );
     }
   };
 
@@ -678,7 +694,7 @@ function AppointmentRow({
               onClick={handleStart}
               disabled={isStarting}
               className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
-              title="Iniciar Consulta"
+              title={isDoctor ? "Iniciar Consulta" : "Ingresar a Espera"}
             >
               {isStarting ? (
                 <Spinner size="sm" />
@@ -696,6 +712,8 @@ function AppointmentRow({
           </>
         );
       case "in_waiting_room":
+        // Non-doctors: no action button (Friction Zero — clean view)
+        if (!isDoctor) return null;
         return (
           <div className="flex justify-end gap-1.5">
             <button
@@ -713,6 +731,8 @@ function AppointmentRow({
           </div>
         );
       case "in_progress":
+        // Non-doctors: absolutely nothing in action column (Friction Zero)
+        if (!isDoctor) return null;
         return (
           <Link
             href={`/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`}
@@ -723,6 +743,19 @@ function AppointmentRow({
           </Link>
         );
       case "completed":
+        // Non-doctors: "Cobrar" button instead of medical record access
+        if (!isDoctor) {
+          return (
+            <button
+              onClick={() => toast.info("Módulo de caja en desarrollo")}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all"
+              title="Cobrar"
+            >
+              <CircleDollarSign className="w-4 h-4" />
+            </button>
+          );
+        }
+        // Doctor: access medical record
         if (appointment.medical_record?.id) {
           return (
             <Link
