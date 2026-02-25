@@ -113,11 +113,10 @@ function StatusBadge({ user }: { user: User }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-        user.is_active
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.is_active
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
           : "bg-red-50 text-red-700 border-red-200"
-      }`}
+        }`}
     >
       {user.is_active ? "Activo" : "Inactivo"}
     </span>
@@ -354,14 +353,12 @@ function UserFormModal({
                 <button
                   type="button"
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
-                    isActive ? "bg-brand-600" : "bg-gray-200"
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${isActive ? "bg-brand-600" : "bg-gray-200"
+                    }`}
                 >
                   <span
-                    className={`${
-                      isActive ? "translate-x-6" : "translate-x-1"
-                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    className={`${isActive ? "translate-x-6" : "translate-x-1"
+                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                   />
                 </button>
               </div>
@@ -507,7 +504,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

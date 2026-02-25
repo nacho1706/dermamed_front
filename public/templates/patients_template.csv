@@ -1,0 +1,4 @@
+first_name,last_name,dni,cuit,email,phone,birth_date,street,street_number,floor,apartment,city,province,zip_code,country,insurance_provider
+Juan,García,12345678,,juan.garcia@mail.com,+5491144445555,1990-05-15,Av. Corrientes,1234,,A,CABA,Buenos Aires,1043,Argentina,OSDE
+María,López,87654321,27876543219,maria.lopez@mail.com,+5491155556666,1985-11-20,Av. Santa Fe,567,3,B,CABA,Buenos Aires,1059,Argentina,Swiss Medical
+Carlos,Rodríguez,11223344,,,,,,,,,Córdoba,Córdoba,5000,Argentina,

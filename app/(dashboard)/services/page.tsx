@@ -33,8 +33,10 @@ import {
   List,
   TrendingUp,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import type { Service } from "@/types";
+import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 
 // ─── KPI Card ───────────────────────────────────────────────────────────────
 
@@ -251,6 +253,7 @@ export default function ServicesPage() {
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | undefined>();
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   React.useEffect(() => {
@@ -296,7 +299,7 @@ export default function ServicesPage() {
   const avgDuration =
     services.length > 0
       ? services.reduce((acc, s) => acc + Number(s.duration_minutes), 0) /
-        services.length
+      services.length
       : 0;
 
   const handleEdit = (service: Service) => {
@@ -316,7 +319,7 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -328,6 +331,10 @@ export default function ServicesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar CSV
+          </Button>
           <Button
             onClick={() => {
               setEditingService(undefined);
@@ -525,6 +532,14 @@ export default function ServicesPage() {
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         service={editingService}
+      />
+      <BulkImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        title="Importar Servicios"
+        endpointUrl="/services/import"
+        templateUrl="/templates/services_template.csv"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["services"] })}
       />
     </div>
   );
