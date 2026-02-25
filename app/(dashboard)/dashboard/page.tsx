@@ -167,6 +167,8 @@ function QuickAction({
 
 export default function DashboardPage() {
   const { user, activeRole, hasRole } = useAuth();
+  const isSystemAdmin = hasRole("system_admin");
+
   const [isImmediateModalOpen, setIsImmediateModalOpen] = React.useState(false);
   const [isConflictModalOpen, setIsConflictModalOpen] = React.useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] =
@@ -202,7 +204,8 @@ export default function DashboardPage() {
           doctor_id: isDoctor ? user?.id : undefined,
         });
       },
-      enabled: !!user,
+      // system_admin never fires clinical queries
+      enabled: !!user && !isSystemAdmin,
     },
   );
 
@@ -210,8 +213,13 @@ export default function DashboardPage() {
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products", "low-stock"],
     queryFn: () => getProducts({ cantidad: 100 }),
-    enabled: (isClinicManager || isReceptionist) && !!user,
+    enabled: (isClinicManager || isReceptionist) && !!user && !isSystemAdmin,
   });
+
+  // Defense-in-depth: block system_admin AFTER all hooks (React rules).
+  // The layout already prevents reaching this component, but if it ever
+  // does, we return null here. Queries above are disabled via `enabled: false`.
+  if (isSystemAdmin) return null;
 
   const appointments = appointmentsData?.data || [];
   const activeAppointment = appointments.find(

@@ -13,7 +13,7 @@ import {
   Package,
   FileText,
   UserCog,
-  ClipboardList,
+  Monitor,
   X,
 } from "lucide-react";
 
@@ -24,7 +24,8 @@ interface NavItem {
   roles: string[];
 }
 
-const navItems: NavItem[] = [
+// ─── Clinical Navigation (all roles except system_admin) ────────────────────
+const clinicalNavItems: NavItem[] = [
   {
     label: "Dashboard",
     href: "/dashboard",
@@ -69,6 +70,22 @@ const navItems: NavItem[] = [
   },
 ];
 
+// ─── System Admin Navigation (technical only) ──────────────────────────────
+const systemAdminNavItems: NavItem[] = [
+  {
+    label: "Dashboard Técnico",
+    href: "/admin-dashboard",
+    icon: Monitor,
+    roles: ["system_admin"],
+  },
+  {
+    label: "Gestión de Usuarios",
+    href: "/users",
+    icon: UserCog,
+    roles: ["system_admin"],
+  },
+];
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -76,9 +93,13 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { hasAnyRole } = useAuth();
+  const { hasRole, hasAnyRole } = useAuth();
 
+  // system_admin sees ONLY the technical menu
+  const isSystemAdmin = hasRole("system_admin");
+  const navItems = isSystemAdmin ? systemAdminNavItems : clinicalNavItems;
   const filteredItems = navItems.filter((item) => hasAnyRole(item.roles));
+  const homeHref = isSystemAdmin ? "/admin-dashboard" : "/dashboard";
 
   return (
     <>
@@ -102,7 +123,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logo/Brand */}
         <div className="flex items-center justify-between px-6 h-[var(--header-height)] border-b border-white/10 shrink-0">
           <Link
-            href="/dashboard"
+            href={homeHref}
             className="flex items-center gap-3 group"
             onClick={onClose}
           >
@@ -123,11 +144,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
+          {isSystemAdmin && (
+            <p className="px-3 mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
+              Panel Técnico
+            </p>
+          )}
           <ul className="flex flex-col gap-1">
             {filteredItems.map((item) => {
               const isActive =
                 pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                (item.href !== homeHref && pathname.startsWith(item.href));
               const Icon = item.icon;
 
               return (
