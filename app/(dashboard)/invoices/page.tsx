@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getInvoices,
@@ -10,7 +10,6 @@ import {
   addInvoicePayment,
   getPaymentMethods,
   getVoucherTypes,
-  type InvoiceFilters,
 } from "@/services/invoices";
 import { getPatients } from "@/services/patients";
 import { useAuth } from "@/contexts/auth-context";
@@ -37,28 +36,16 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  Search,
   FileText,
   DollarSign,
-  CreditCard,
   Receipt,
   Eye,
   Trash2,
-  Calendar,
-  User,
   CheckCircle2,
   Clock,
-  XCircle,
-  ChevronDown,
   MoreVertical,
 } from "lucide-react";
-import type {
-  Invoice,
-  InvoiceItem,
-  Patient,
-  PaymentMethod,
-  VoucherType,
-} from "@/types";
+import type { Invoice, Patient } from "@/types";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -520,7 +507,7 @@ function PaymentModal({
 
   const pendingAmount = invoice
     ? invoice.total -
-      (invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)
+    (invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)
     : 0;
 
   React.useEffect(() => {
@@ -528,6 +515,7 @@ function PaymentModal({
       setAmount(pendingAmount.toString());
       setMethodId("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, invoice]);
 
   const mutation = useMutation({
@@ -894,7 +882,7 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

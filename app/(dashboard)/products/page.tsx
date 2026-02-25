@@ -38,8 +38,10 @@ import {
   Trash2,
   ArrowUpDown,
   History,
+  Upload,
 } from "lucide-react";
 import type { Product } from "@/types";
+import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 
 // ─── Status helpers ─────────────────────────────────────────────────────────
 
@@ -407,9 +409,8 @@ function StockMovementModal({
               />
               {type === "out" && selectedProduct && (
                 <p
-                  className={`text-xs mt-1 ${
-                    exceedsStock ? "text-red-600 font-medium" : "text-muted"
-                  }`}
+                  className={`text-xs mt-1 ${exceedsStock ? "text-red-600 font-medium" : "text-muted"
+                    }`}
                 >
                   {exceedsStock
                     ? `Excede stock disponible (${selectedProduct.stock} un.)`
@@ -603,6 +604,7 @@ export default function ProductsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const debouncedSearch = useDebounce(search, 500);
 
@@ -674,7 +676,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -689,6 +691,10 @@ export default function ProductsPage() {
           <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
             <History className="w-4 h-4 mr-2" />
             Historial
+          </Button>
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar CSV
           </Button>
           <Button variant="outline" onClick={() => setIsStockOpen(true)}>
             <ArrowUpDown className="w-4 h-4 mr-2" />
@@ -766,11 +772,10 @@ export default function ProductsPage() {
           </div>
           <button
             onClick={() => setShowLowStock(!showLowStock)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
-              showLowStock
-                ? "bg-amber-50 border-amber-200 text-amber-800"
-                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${showLowStock
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+              }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             Stock Bajo
@@ -850,11 +855,10 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-6 py-3.5 text-center">
                         <span
-                          className={`text-sm font-semibold ${
-                            product.stock <= product.min_stock
-                              ? "text-danger"
-                              : "text-foreground"
-                          }`}
+                          className={`text-sm font-semibold ${product.stock <= product.min_stock
+                            ? "text-danger"
+                            : "text-foreground"
+                            }`}
                         >
                           {product.stock} un.
                         </span>
@@ -919,11 +923,10 @@ export default function ProductsPage() {
                   <button
                     key={pageNum}
                     onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${
-                      page === pageNum
-                        ? "bg-brand-600 text-white"
-                        : "border border-border hover:bg-surface-secondary"
-                    }`}
+                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${page === pageNum
+                      ? "bg-brand-600 text-white"
+                      : "border border-border hover:bg-surface-secondary"
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -956,6 +959,14 @@ export default function ProductsPage() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         products={products}
+      />
+      <BulkImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        title="Importar Productos"
+        endpointUrl="/products/import"
+        templateUrl="/templates/products_template.csv"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
       />
     </div>
   );
