@@ -62,29 +62,29 @@ export function PatientList({
         </div>
       </div>
 
-      <Card className="overflow-hidden border-medical-200/60 shadow-sm">
+      <Card className="overflow-hidden border-border/40 shadow-sm ring-1 ring-border/5">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-medical-50/50 border-b border-medical-100">
+            <thead className="bg-medical-50/30 border-b border-border/40">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
                   Paciente
                 </th>
-                <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
                   DNI
                 </th>
-                <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
                   Contacto
                 </th>
-                <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
                   Obra Social
                 </th>
-                <th className="px-6 py-4 text-xs font-semibold text-medical-700 uppercase tracking-wider text-right">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] text-right">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-medical-100 bg-white">
+            <tbody className="divide-y divide-border/40 bg-white">
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center">
@@ -120,14 +120,15 @@ export function PatientList({
                           {patient.first_name[0]}
                           {patient.last_name[0]}
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-4 min-w-0">
                           <Link
                             href={`/patients/${patient.id}`}
-                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors block"
+                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors block truncate max-w-[180px] md:max-w-[240px]"
+                            title={patient.full_name}
                           >
                             {patient.full_name}
                           </Link>
-                          <div className="text-xs text-medical-500 mt-0.5">
+                          <div className="text-[11px] text-medical-500/70 mt-0.5">
                             Registrado el {formatDate(patient.created_at)}
                           </div>
                         </div>

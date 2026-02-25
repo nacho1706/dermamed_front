@@ -103,7 +103,8 @@ function KpiCard({
 interface QuickActionProps {
   label: string;
   icon: React.ElementType;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   variant?: "primary" | "secondary";
 }
 
@@ -111,18 +112,12 @@ function QuickAction({
   label,
   icon: Icon,
   href,
+  onClick,
   variant = "secondary",
 }: QuickActionProps) {
   const isPrimary = variant === "primary";
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 group ${
-        isPrimary
-          ? "bg-brand-600 text-white hover:bg-brand-700 shadow-[var(--shadow-sm)]"
-          : "bg-surface border border-border hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-sm)]"
-      }`}
-    >
+  const content = (
+    <>
       <div
         className={`w-8 h-8 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 ${
           isPrimary ? "bg-white/20" : "bg-surface-secondary"
@@ -144,6 +139,26 @@ function QuickAction({
           isPrimary ? "text-white/70" : "text-muted"
         }`}
       />
+    </>
+  );
+
+  const className = `flex items-center gap-3 w-full px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-300 ease-out group ${
+    isPrimary
+      ? "bg-brand-600 text-white hover:bg-brand-700 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+      : "bg-surface border border-border/60 hover:border-brand-300 hover:shadow-[var(--shadow-sm)]"
+  }`;
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href!} className={className}>
+      {content}
     </Link>
   );
 }
@@ -413,24 +428,24 @@ export default function DashboardPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
                         Hora
                       </th>
-                      <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
                         Paciente
                       </th>
-                      <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden md:table-cell">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 hidden md:table-cell">
                         Tipo
                       </th>
-                      <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
                         Estado
                       </th>
-                      <th className="text-right text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
                         Acción
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/40">
                     {sortedAppointments.map((appointment: Appointment) => (
                       <AppointmentRow
                         key={appointment.id}
@@ -477,13 +492,8 @@ export default function DashboardPage() {
               <QuickAction
                 label="Nueva Cita"
                 icon={Plus}
-                href="/appointments"
+                onClick={() => setIsAppointmentModalOpen(true)}
                 variant="primary"
-              />
-              <QuickAction
-                label="Buscar Paciente"
-                icon={Users}
-                href="/patients"
               />
               {/* Only Manager/Receptionist see Inventory action */}
               {!isDoctor && (
@@ -603,6 +613,18 @@ function AppointmentRow({
     ? `${appointment.patient.first_name[0]}${appointment.patient.last_name[0]}`
     : "P";
   const serviceName = appointment.service?.name || "Consulta";
+  const statusColor = (status: string) => {
+    switch (status) {
+      case "in_progress":
+        return "text-brand-600 bg-brand-50 border-brand-100";
+      case "in_waiting_room":
+        return "text-amber-600 bg-amber-50 border-amber-100";
+      case "scheduled":
+        return "text-info bg-blue-50 border-blue-100";
+      default:
+        return "text-muted bg-surface-secondary border-border";
+    }
+  };
 
   const [isStarting, setIsStarting] = React.useState(false);
 
@@ -626,6 +648,7 @@ function AppointmentRow({
     try {
       await updateAppointment(appointment.id, { status: "in_progress" });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Consulta iniciada correctamente");
       router.push(
         `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
       );
@@ -642,28 +665,44 @@ function AppointmentRow({
       case "pending":
       case "confirmed":
         return (
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-brand-600 hover:bg-brand-50 transition-all"
-            title="Editar Turno"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
+          <>
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              title="Iniciar Consulta"
+            >
+              {isStarting ? (
+                <Spinner size="sm" />
+              ) : (
+                <Play className="w-4 h-4 ml-0.5 fill-current" />
+              )}
+            </button>
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-brand-600 hover:bg-brand-50 transition-all"
+              title="Editar Turno"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          </>
         );
       case "in_waiting_room":
         return (
-          <button
-            onClick={handleStart}
-            disabled={isStarting}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
-            title="Llamar / Iniciar"
-          >
-            {isStarting ? (
-              <Spinner size="sm" />
-            ) : (
-              <Play className="w-4 h-4 ml-0.5 fill-current" />
-            )}
-          </button>
+          <div className="flex justify-end gap-1.5">
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-full text-emerald-600 hover:text-white hover:bg-emerald-500 border border-emerald-100 hover:border-emerald-500 transition-all duration-200 disabled:opacity-50 group/play"
+              title="Llamar / Iniciar"
+            >
+              {isStarting ? (
+                <Spinner size="sm" />
+              ) : (
+                <Play className="w-3.5 h-3.5 ml-0.5 fill-current transition-transform group-hover/play:scale-110" />
+              )}
+            </button>
+          </div>
         );
       case "in_progress":
         return (
@@ -721,7 +760,10 @@ function AppointmentRow({
           <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">
             {initials}
           </div>
-          <span className="text-sm font-medium text-brand-600 hover:text-brand-700">
+          <span
+            className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors truncate max-w-[120px] md:max-w-[180px]"
+            title={patientName}
+          >
             {patientName}
           </span>
         </Link>
@@ -729,7 +771,9 @@ function AppointmentRow({
       <td className="px-6 py-3.5 hidden md:table-cell">
         <span className="text-sm text-muted">{serviceName}</span>
       </td>
-      <AppointmentStatusBadge status={appointment.status} />
+      <td className="px-6 py-3.5">
+        <AppointmentStatusBadge status={appointment.status} />
+      </td>
       <td className="px-6 py-3.5 text-right w-20">
         <div className="flex justify-end gap-2">{renderAction()}</div>
       </td>
