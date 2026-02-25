@@ -34,6 +34,14 @@ import { getPatient } from "@/services/patients";
 import { createMedicalRecord } from "@/services/medical-records";
 import { updateAppointment } from "@/services/appointments";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const medicalRecordSchema = z.object({
   patient_id: z.number(),
@@ -59,6 +67,7 @@ function MedicalRecordFormContent() {
   const appointmentId = appointmentIdParam ? Number(appointmentIdParam) : null;
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isDiscardAlertOpen, setIsDiscardAlertOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
 
   const draftKey = appointmentId
@@ -154,18 +163,17 @@ function MedicalRecordFormContent() {
       setIsCancelModalOpen(true);
     } else {
       if (contentValue && contentValue.length > 0) {
-        if (
-          window.confirm(
-            "Tienes cambios sin guardar. ¿Seguro que deseas descartar este registro?",
-          )
-        ) {
-          localStorage.removeItem(draftKey);
-          router.push(`/patients/${patientId}`);
-        }
+        setIsDiscardAlertOpen(true);
       } else {
         router.push(`/patients/${patientId}`);
       }
     }
+  };
+
+  const handleConfirmDiscard = () => {
+    localStorage.removeItem(draftKey);
+    setIsDiscardAlertOpen(false);
+    router.push(`/patients/${patientId}`);
   };
 
   const handleRevertTurno = async () => {
@@ -415,6 +423,34 @@ function MedicalRecordFormContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={isDiscardAlertOpen}
+        onOpenChange={setIsDiscardAlertOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-danger">
+              ⚠️ Descartar cambios
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes una nota clínica en progreso. Si sales ahora, perderás todo
+              lo que escribiste. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDiscardAlertOpen(false)}
+            >
+              Seguir editando
+            </Button>
+            <Button variant="danger" onClick={handleConfirmDiscard}>
+              Sí, descartar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
