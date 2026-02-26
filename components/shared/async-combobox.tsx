@@ -1,26 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Check, Search, X, Loader2, User } from "lucide-react";
 import { useDebounce } from "use-debounce";
 import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Spinner } from "@/components/ui/spinner";
 
 export interface AsyncComboboxProps<T> {
   value?: string | number | null;
@@ -47,9 +32,14 @@ export function AsyncCombobox<T>({
   emptyText = "Sin resultados.",
   disabled = false,
 }: AsyncComboboxProps<T>) {
-  const [open, setOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [debouncedSearch] = useDebounce(inputValue, 500);
+  const [localSelectedLabel, setLocalSelectedLabel] = useState<
+    string | React.ReactNode | null
+  >(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["async-combobox", debouncedSearch],
@@ -57,78 +47,186 @@ export function AsyncCombobox<T>({
     enabled: debouncedSearch.length >= 2,
   });
 
-  // Refresh data when modal opens if needed
+  // Close dropdown on outside click
   useEffect(() => {
-    if (open && value) {
-      setInputValue("");
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsSearching(false);
+        setInputValue("");
+      }
+    };
+    if (isSearching) {
+      document.addEventListener("mousedown", handleClickOutside);
     }
-  }, [open, value]);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isSearching]);
 
-  const selectedItem = data?.find((item) => itemValue(item) === value);
-  const displayLabel = selectedItem
-    ? itemLabel(selectedItem)
-    : selectedLabel || placeholder;
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsSearching(false);
+        setInputValue("");
+      }
+    };
+    if (isSearching) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSearching]);
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-normal bg-background"
-          disabled={disabled}
+  const displayLabel = localSelectedLabel || selectedLabel || null;
+  const hasValue = !!(value && displayLabel);
+
+  // Sync: if value is cleared externally (form reset), clear local state
+  useEffect(() => {
+    if (!value) {
+      setLocalSelectedLabel(null);
+      setIsSearching(false);
+    }
+  }, [value]);
+
+  const handleSelect = useCallback(
+    (item: T) => {
+      const newValue = itemValue(item);
+      onChange(newValue, item);
+      setLocalSelectedLabel(itemLabel(item));
+      setInputValue("");
+      setIsSearching(false);
+    },
+    [onChange, itemValue, itemLabel],
+  );
+
+  const handleSwitchToSearch = useCallback(() => {
+    if (disabled) return;
+    onChange(null);
+    setLocalSelectedLabel(null);
+    setInputValue("");
+    setIsSearching(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [disabled, onChange]);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInputValue(e.target.value);
+    },
+    [],
+  );
+
+  const showDropdown = isSearching && inputValue.length > 0;
+
+  // ─── Selected value display ──────────────────────────────────────────
+  if (hasValue && !isSearching) {
+    return (
+      <div className="relative min-w-0 w-full">
+        <div
+          onClick={handleSwitchToSearch}
+          className={cn(
+            "flex items-center gap-2 w-full px-3 py-2 text-sm rounded-[var(--radius-md)]",
+            "bg-surface border border-border",
+            "transition-all duration-150",
+            disabled
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer hover:border-[var(--border-hover)]",
+          )}
+          title="Clic para cambiar"
         >
-          <span className="truncate">{displayLabel}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 bg-white shadow-md z-[100]"
-        align="start"
+          <User className="h-4 w-4 text-brand-500 shrink-0" />
+          <span className="flex-1 min-w-0 truncate text-foreground">
+            {displayLabel}
+          </span>
+          {!disabled && <X className="h-3.5 w-3.5 shrink-0 text-muted" />}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Search mode ─────────────────────────────────────────────────────
+  return (
+    <div ref={containerRef} className="relative min-w-0 w-full">
+      {/* Search Input — wrapper handles all visual styling */}
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 rounded-[var(--radius-md)]",
+          "bg-surface border border-border",
+          "hover:border-[var(--border-hover)]",
+          "transition-all duration-150",
+          isSearching && "ring-2 ring-brand-500/20 border-brand-500",
+        )}
       >
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={inputValue}
-            onValueChange={setInputValue}
-          />
-          <CommandList>
-            {isLoading ? (
-              <div className="flex items-center justify-center p-4">
-                <Spinner size="sm" />
-              </div>
-            ) : data && data.length === 0 && debouncedSearch.length >= 2 ? (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            ) : !data && debouncedSearch.length < 2 ? (
-              <div className="p-4 text-sm text-center text-muted">
-                Escribe al menos 2 caracteres...
-              </div>
-            ) : null}
-            <CommandGroup>
-              {data?.map((item) => (
-                <CommandItem
-                  key={itemValue(item)}
-                  value={String(itemValue(item))}
-                  onSelect={() => {
-                    const newValue = itemValue(item);
-                    onChange(newValue === value ? null : newValue, item);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
+        <Search className="h-4 w-4 text-muted shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsSearching(true)}
+          placeholder={searchPlaceholder}
+          disabled={disabled}
+          className="flex-1 min-w-0 py-2 text-sm bg-transparent placeholder:text-muted-foreground disabled:cursor-not-allowed focus:outline-none focus-visible:outline-none"
+          style={{ outline: "none" }}
+          autoComplete="off"
+        />
+        {isLoading && (
+          <Loader2 className="h-4 w-4 text-muted animate-spin shrink-0" />
+        )}
+      </div>
+
+      {/* Dropdown Results */}
+      {showDropdown && (
+        <div
+          className={cn(
+            "absolute z-[100] mt-1 w-full rounded-[var(--radius-md)]",
+            "bg-surface border border-border shadow-[var(--shadow-md)]",
+            "max-h-[220px] overflow-y-auto overflow-x-hidden",
+            "animate-in fade-in-0 zoom-in-95 duration-100",
+          )}
+        >
+          {debouncedSearch.length < 2 ? (
+            <div className="p-3 text-sm text-center text-muted">
+              Escribí al menos 2 caracteres...
+            </div>
+          ) : isLoading ? (
+            <div className="flex items-center justify-center gap-2 p-3">
+              <Loader2 className="h-4 w-4 text-muted animate-spin" />
+              <span className="text-sm text-muted">Buscando...</span>
+            </div>
+          ) : data && data.length === 0 ? (
+            <div className="p-3 text-sm text-center text-muted">
+              {emptyText}
+            </div>
+          ) : (
+            <ul className="p-1">
+              {data?.map((item) => {
+                const isSelected = value === itemValue(item);
+                return (
+                  <li
+                    key={String(itemValue(item))}
+                    onClick={() => handleSelect(item)}
                     className={cn(
-                      "mr-2 h-4 w-4",
-                      value === itemValue(item) ? "opacity-100" : "opacity-0",
+                      "flex items-center gap-2 px-2.5 py-2 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors",
+                      isSelected
+                        ? "bg-brand-50 text-brand-700"
+                        : "text-foreground hover:bg-surface-secondary",
                     )}
-                  />
-                  {itemLabel(item)}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isSelected ? "opacity-100 text-brand-600" : "opacity-0",
+                      )}
+                    />
+                    <span className="truncate min-w-0">{itemLabel(item)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
