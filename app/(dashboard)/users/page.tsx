@@ -30,7 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { sileo } from "sileo";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   Search,
@@ -88,11 +89,10 @@ function StatusBadge({ user }: { user: User }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-        user.is_active
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "bg-red-50 text-red-700 border-red-200"
-      }`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.is_active
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+        : "bg-red-50 text-red-700 border-red-200"
+        }`}
     >
       {user.is_active ? "Activo" : "Inactivo"}
     </span>
@@ -187,10 +187,10 @@ function UserFormModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      toast.success("Invitación enviada correctamente");
+      sileo.success({ title: "Invitación enviada", description: "El usuario recibirá un correo con el enlace de activación." });
       onClose();
     },
-    onError: () => toast.error("Error al invitar al usuario"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo enviar la invitación." }),
   });
 
   const updateMut = useMutation({
@@ -199,10 +199,10 @@ function UserFormModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      toast.success("Usuario actualizado correctamente");
+      sileo.success({ title: "Usuario actualizado", description: "Los cambios fueron guardados correctamente." });
       onClose();
     },
-    onError: () => toast.error("Error al actualizar el usuario"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el usuario." }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -334,14 +334,12 @@ function UserFormModal({
                 <button
                   type="button"
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
-                    isActive ? "bg-brand-600" : "bg-gray-200"
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${isActive ? "bg-brand-600" : "bg-gray-200"
+                    }`}
                 >
                   <span
-                    className={`${
-                      isActive ? "translate-x-6" : "translate-x-1"
-                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    className={`${isActive ? "translate-x-6" : "translate-x-1"
+                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                   />
                 </button>
               </div>
@@ -398,14 +396,9 @@ export default function UsersPage() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>();
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
-  React.useEffect(() => {
-    if (!hasRole("clinic_manager")) {
-      router.push("/dashboard");
-    }
-  }, [hasRole, router]);
-
-  if (!hasRole("clinic_manager")) return null;
+  // ── All hooks must be declared before any conditional returns ──────────────
 
   // Fetch roles dynamically from API (no hardcoded IDs)
   const { data: roles = [] } = useQuery({
@@ -451,26 +444,34 @@ export default function UsersPage() {
     queryFn: () => getUsers({ role: "clinic_manager", cantidad: 1 }),
   });
 
-  const users = data?.data || [];
-  const totalPages = data?.meta?.last_page ?? 1;
-
   const deleteMut = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      toast.success("Usuario eliminado correctamente");
+      sileo.success({ title: "Usuario eliminado", description: "El usuario fue eliminado correctamente." });
     },
-    onError: () => toast.error("Error al eliminar el usuario"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el usuario." }),
   });
 
   const resendMut = useMutation({
     mutationFn: resendInvite,
     onSuccess: () => {
-      toast.success("Invitación reenviada correctamente");
+      sileo.success({ title: "Invitación reenviada", description: "El correo de invitación fue reenviado correctamente." });
     },
-    onError: () => toast.error("Error al reenviar la invitación"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo reenviar la invitación." }),
   });
+
+  React.useEffect(() => {
+    if (!hasRole("clinic_manager")) {
+      router.push("/dashboard");
+    }
+  }, [hasRole, router]);
+
+  if (!hasRole("clinic_manager")) return null;
+
+  const users = data?.data || [];
+  const totalPages = data?.meta?.last_page ?? 1;
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
@@ -478,9 +479,7 @@ export default function UsersPage() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este usuario?")) {
-      deleteMut.mutate(id);
-    }
+    setConfirmDelete(id);
   };
 
   const handleResend = (id: number) => {
@@ -518,7 +517,7 @@ export default function UsersPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           label="Total Usuarios"
           value={totalUsersData?.meta?.total ?? "..."}
@@ -737,6 +736,16 @@ export default function UsersPage() {
         onClose={handleCloseForm}
         user={editingUser}
         roles={roles}
+      />
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        title="Eliminar usuario"
+        description="¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        isLoading={deleteMut.isPending}
       />
     </div>
   );

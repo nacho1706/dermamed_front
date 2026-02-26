@@ -2,7 +2,9 @@
 
 import { AuthProvider } from "@/contexts/auth-context";
 import { QueryProvider } from "@/contexts/query-provider";
-import { Toaster } from "sonner";
+import { Toaster as SonnerToaster } from "sonner";
+import { Toaster as SileoToaster } from "sileo";
+import "sileo/styles.css";
 
 /**
  * Client-side providers wrapper.
@@ -16,7 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryProvider>
       <AuthProvider>
         {children}
-        <Toaster
+        <SonnerToaster
           position="top-right"
           richColors
           closeButton
@@ -24,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             duration: 4000,
           }}
         />
+        <SileoToaster position="bottom-right" />
       </AuthProvider>
     </QueryProvider>
   );

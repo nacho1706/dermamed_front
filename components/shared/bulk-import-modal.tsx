@@ -4,12 +4,13 @@ import React, { useState, useRef, useCallback } from "react";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "sonner";
+import { sileo } from "sileo";
 import api from "@/lib/api";
 import { FileDown, Upload, FileCheck, AlertCircle, CheckCircle, X } from "lucide-react";
 
@@ -80,7 +81,7 @@ export function BulkImportModal({
             setFile(dropped);
             setResult(null);
         } else if (dropped) {
-            toast.error("Solo se admiten archivos .csv");
+            sileo.error({ title: "Formato inválido", description: "Solo se admiten archivos .csv" });
         }
     }, []);
 
@@ -117,23 +118,36 @@ export function BulkImportModal({
             setResult(data);
 
             if (data.imported_count > 0) {
-                toast.success(`${data.imported_count} registro(s) importados correctamente.`);
+                sileo.success({
+                    title: "Importación exitosa",
+                    description: `${data.imported_count} registro${data.imported_count !== 1 ? "s" : ""} importado${data.imported_count !== 1 ? "s" : ""} correctamente.`,
+                });
                 onSuccess();
             }
-
-            if (data.errors.length > 0 && data.imported_count === 0) {
-                toast.error("No se importó ningún registro. Revisá los errores.");
-            }
         } catch (error: any) {
-            const msg =
-                error?.response?.data?.message ||
-                "Error al procesar el archivo. Verificá el formato.";
-            toast.error(msg);
-            setResult({
-                message: msg,
-                imported_count: 0,
-                errors: [],
-            });
+            const responseData = error?.response?.data;
+
+            // All-or-nothing backend: 422 with errors array
+            if (error?.response?.status === 422 && responseData?.errors?.length > 0) {
+                const errorResult: ImportResult = {
+                    message: responseData.message ?? "El archivo contiene errores.",
+                    imported_count: 0,
+                    errors: responseData.errors,
+                };
+                setResult(errorResult);
+                sileo.error({
+                    title: "Importación rechazada",
+                    description: `${errorResult.errors.length} error${errorResult.errors.length !== 1 ? "es" : ""} encontrado${errorResult.errors.length !== 1 ? "s" : ""}. No se importó ningún registro.`,
+                });
+            } else {
+                const msg = responseData?.message ?? "Error al procesar el archivo. Verificá el formato.";
+                sileo.error({ title: "Error de importación", description: msg });
+                setResult({
+                    message: msg,
+                    imported_count: 0,
+                    errors: [],
+                });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -147,6 +161,7 @@ export function BulkImportModal({
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[520px]">
+                <DialogDescription className="sr-only">Importar datos masivamente</DialogDescription>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
@@ -168,6 +183,14 @@ export function BulkImportModal({
                             <FileDown className="w-3.5 h-3.5" />
                             Descargar
                         </a>
+                    </div>
+
+                    {/* All-or-Nothing notice */}
+                    <div className="flex items-start gap-2 p-3 rounded-[var(--radius-md)] bg-amber-50 border border-amber-200">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800">
+                            <span className="font-semibold">Importación estricta:</span> Si alguna fila contiene errores o duplicados, no se importará ningún registro del archivo.
+                        </p>
                     </div>
 
                     {/* Drag & Drop zone */}
@@ -249,11 +272,6 @@ export function BulkImportModal({
                                             {result.imported_count} registro{result.imported_count !== 1 ? "s" : ""} importado
                                             {result.imported_count !== 1 ? "s" : ""} correctamente
                                         </p>
-                                        {hasErrors && (
-                                            <p className="text-xs text-emerald-700 mt-0.5">
-                                                {result.errors.length} fila{result.errors.length !== 1 ? "s" : ""} con errores (no se importaron)
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
                             )}
@@ -264,7 +282,7 @@ export function BulkImportModal({
                                     <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border-b border-red-200">
                                         <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                                         <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">
-                                            {result.errors.length} error{result.errors.length !== 1 ? "es" : ""} encontrado{result.errors.length !== 1 ? "s" : ""}
+                                            {result.errors.length} error{result.errors.length !== 1 ? "es" : ""} encontrado{result.errors.length !== 1 ? "s" : ""} — ningún registro fue importado
                                         </p>
                                     </div>
                                     <ul className="max-h-36 overflow-y-auto divide-y divide-red-100">

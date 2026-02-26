@@ -18,7 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { sileo } from "sileo";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
@@ -109,10 +110,10 @@ function ServiceFormModal({
     mutationFn: createService,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
-      toast.success("Servicio creado correctamente");
+      sileo.success({ title: "Servicio creado", description: "El servicio fue creado correctamente." });
       onClose();
     },
-    onError: () => toast.error("Error al crear el servicio"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo crear el servicio." }),
   });
 
   const updateMut = useMutation({
@@ -120,10 +121,10 @@ function ServiceFormModal({
       updateService(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
-      toast.success("Servicio actualizado correctamente");
+      sileo.success({ title: "Servicio actualizado", description: "Los cambios fueron guardados correctamente." });
       onClose();
     },
-    onError: () => toast.error("Error al actualizar el servicio"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el servicio." }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -254,16 +255,10 @@ export default function ServicesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | undefined>();
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 500);
 
-  React.useEffect(() => {
-    if (!hasRole("clinic_manager")) {
-      router.push("/dashboard");
-    }
-  }, [hasRole, router]);
-
-  if (!hasRole("clinic_manager")) return null;
-
+  // ── All hooks must be declared before any conditional returns ──────────────
   const { data, isLoading } = useQuery({
     queryKey: ["services", debouncedSearch, page],
     queryFn: () =>
@@ -278,10 +273,18 @@ export default function ServicesPage() {
     mutationFn: deleteService,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
-      toast.success("Servicio eliminado correctamente");
+      sileo.success({ title: "Servicio eliminado", description: "El servicio fue eliminado correctamente." });
     },
-    onError: () => toast.error("Error al eliminar el servicio"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el servicio." }),
   });
+
+  React.useEffect(() => {
+    if (!hasRole("clinic_manager")) {
+      router.push("/dashboard");
+    }
+  }, [hasRole, router]);
+
+  if (!hasRole("clinic_manager")) return null;
 
   const services = data?.data || [];
   const totalPages = data?.meta?.last_page ?? 1;
@@ -308,9 +311,7 @@ export default function ServicesPage() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este servicio?")) {
-      deleteMut.mutate(id);
-    }
+    setConfirmDelete(id);
   };
 
   const handleCloseForm = () => {
@@ -540,6 +541,16 @@ export default function ServicesPage() {
         endpointUrl="/services/import"
         templateUrl="/templates/services_template.csv"
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["services"] })}
+      />
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        title="Eliminar servicio"
+        description="¿Estás seguro de que deseas eliminar este servicio? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        isLoading={deleteMut.isPending}
       />
     </div>
   );

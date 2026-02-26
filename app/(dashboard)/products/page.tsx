@@ -24,7 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { sileo } from "sileo";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
 import {
@@ -149,10 +150,10 @@ function ProductFormModal({
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Producto creado correctamente");
+      sileo.success({ title: "Producto creado", description: "El producto fue creado correctamente." });
       onClose();
     },
-    onError: () => toast.error("Error al crear el producto"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo crear el producto." }),
   });
 
   const updateMut = useMutation({
@@ -160,10 +161,10 @@ function ProductFormModal({
       updateProduct(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Producto actualizado correctamente");
+      sileo.success({ title: "Producto actualizado", description: "Los cambios fueron guardados correctamente." });
       onClose();
     },
-    onError: () => toast.error("Error al actualizar el producto"),
+    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el producto." }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -314,13 +315,13 @@ function StockMovementModal({
     mutationFn: createStockMovement,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Movimiento de stock registrado");
+      sileo.success({ title: "Stock registrado", description: "El movimiento de stock fue registrado correctamente." });
       onClose();
     },
     onError: (error: any) => {
       const msg =
         error?.response?.data?.message || "Error al registrar el movimiento";
-      toast.error(msg);
+      sileo.error({ title: "Error de stock", description: msg });
     },
   });
 
@@ -333,9 +334,10 @@ function StockMovementModal({
     e.preventDefault();
     if (!user) return;
     if (exceedsStock) {
-      toast.error(
-        `No se pueden retirar ${qty} unidades. Stock disponible: ${selectedProduct?.stock}.`,
-      );
+      sileo.error({
+        title: "Stock insuficiente",
+        description: `No se pueden retirar ${qty} unidades. Stock disponible: ${selectedProduct?.stock}.`,
+      });
       return;
     }
     const data: StockMovementInput = {
@@ -606,7 +608,28 @@ export default function ProductsPage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 500);
+
+  // ── Hooks must all be declared before any conditional returns ──────────────
+  const { data, isLoading } = useQuery({
+    queryKey: ["products", debouncedSearch, page],
+    queryFn: () =>
+      getProducts({
+        name: debouncedSearch || undefined,
+        pagina: page,
+        cantidad: 10,
+      }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      sileo.success({ title: "Producto eliminado", description: "El producto fue eliminado correctamente." });
+    },
+    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el producto." }),
+  });
 
   React.useEffect(() => {
     if (
@@ -622,25 +645,6 @@ export default function ProductsPage() {
     !["clinic_manager", "receptionist"].includes(activeRole.name)
   )
     return null;
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["products", debouncedSearch, page],
-    queryFn: () =>
-      getProducts({
-        name: debouncedSearch || undefined,
-        pagina: page,
-        cantidad: 10,
-      }),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteProduct,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Producto eliminado correctamente");
-    },
-    onError: () => toast.error("Error al eliminar el producto"),
-  });
 
   const products = data?.data || [];
   const totalPages = data?.meta?.last_page ?? 1;
@@ -665,9 +669,7 @@ export default function ProductsPage() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este producto?")) {
-      deleteMut.mutate(id);
-    }
+    setConfirmDelete(id);
   };
 
   const handleCloseForm = () => {
@@ -967,6 +969,16 @@ export default function ProductsPage() {
         endpointUrl="/products/import"
         templateUrl="/templates/products_template.csv"
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+      />
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        title="Eliminar producto"
+        description="¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        isLoading={deleteMut.isPending}
       />
     </div>
   );
