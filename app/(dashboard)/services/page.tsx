@@ -35,6 +35,7 @@ import {
   TrendingUp,
   AlertCircle,
   Upload,
+  Download,
 } from "lucide-react";
 import type { Service } from "@/types";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
@@ -305,6 +306,30 @@ export default function ServicesPage() {
       services.length
       : 0;
 
+  const handleExportCSV = () => {
+    if (services.length === 0) {
+      sileo.warning({ title: "Sin datos", description: "No hay servicios para exportar." });
+      return;
+    }
+    const headers = ["ID", "Nombre", "Descripcion", "Precio", "Duracion (min)"];
+    const rows = services.map((s) => [
+      s.id,
+      `"${s.name.replace(/"/g, '""')}"`,
+      `"${(s.description || "").replace(/"/g, '""')}"`,
+      s.price,
+      s.duration_minutes,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "servicios_export.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    sileo.success({ title: "Exportación exitosa", description: `Se exportaron ${services.length} servicios.` });
+  };
+
   const handleEdit = (service: Service) => {
     setEditingService(service);
     setIsFormOpen(true);
@@ -332,6 +357,10 @@ export default function ServicesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
           <Button variant="outline" onClick={() => setIsImportOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Importar CSV

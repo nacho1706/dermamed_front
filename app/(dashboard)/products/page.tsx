@@ -40,6 +40,7 @@ import {
   ArrowUpDown,
   History,
   Upload,
+  Download,
 } from "lucide-react";
 import type { Product } from "@/types";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
@@ -663,6 +664,31 @@ export default function ProductsPage() {
     ? products.filter((p) => p.stock <= p.min_stock)
     : products;
 
+  const handleExportCSV = () => {
+    if (products.length === 0) {
+      sileo.warning({ title: "Sin datos", description: "No hay productos para exportar." });
+      return;
+    }
+    const headers = ["ID", "Nombre", "Descripcion", "Precio", "Stock", "Stock Minimo"];
+    const rows = products.map((p) => [
+      p.id,
+      `"${p.name.replace(/"/g, '""')}"`,
+      `"${(p.description || "").replace(/"/g, '""')}"`,
+      p.price,
+      p.stock,
+      p.min_stock,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "productos_export.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    sileo.success({ title: "Exportación exitosa", description: `Se exportaron ${products.length} productos.` });
+  };
+
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setIsFormOpen(true);
@@ -693,6 +719,10 @@ export default function ProductsPage() {
           <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
             <History className="w-4 h-4 mr-2" />
             Historial
+          </Button>
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
           </Button>
           <Button variant="outline" onClick={() => setIsImportOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
@@ -773,7 +803,10 @@ export default function ProductsPage() {
             />
           </div>
           <button
-            onClick={() => setShowLowStock(!showLowStock)}
+            onClick={() => {
+              setShowLowStock(!showLowStock);
+              setPage(1);
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${showLowStock
               ? "bg-amber-50 border-amber-200 text-amber-800"
               : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
