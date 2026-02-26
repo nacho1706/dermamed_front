@@ -8,11 +8,6 @@ import { Header } from "@/components/layout/header";
 import { FullPageSpinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
-// Whitelist of routes accessible to system_admin.
-// Everything NOT in this list is blocked for system_admin.
-// Add shared routes (e.g. /profile, /settings) here if created in the future.
-const SYSTEM_ADMIN_ALLOWED_ROUTES = ["/admin-dashboard", "/users"];
-
 // Routes that require the doctor role (PHI / medical records).
 // Pattern: /patients/<id>/medical-records (and any sub-path).
 const DOCTOR_ONLY_ROUTE_PATTERN = /\/patients\/[^/]+\/medical-records/;
@@ -34,25 +29,6 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // ── Whitelist guard for system_admin ───────────────────────────────────
-  // Whitelist approach: if the user is system_admin and the current route is
-  // NOT in the allowed list, block and redirect to /admin-dashboard.
-  // This is safer than a blacklist (PHI_ROUTES), as any new clinical route
-  // added in the future is protected by default.
-  const isSystemAdmin =
-    !isLoading && isAuthenticated && hasRole("system_admin");
-  const isAllowedForAdmin = SYSTEM_ADMIN_ALLOWED_ROUTES.some((r) =>
-    pathname.startsWith(r),
-  );
-  const shouldBlockSystemAdmin = isSystemAdmin && !isAllowedForAdmin;
-
-  // Fire redirect via effect (children are already blocked below)
-  useEffect(() => {
-    if (shouldBlockSystemAdmin) {
-      router.replace("/admin-dashboard");
-    }
-  }, [shouldBlockSystemAdmin, router]);
-
   // ── Doctor-only route guard (medical records) ─────────────────────────
   // Block receptionist / clinic_manager from accessing HC routes directly.
   const isDoctorOnlyRoute = DOCTOR_ONLY_ROUTE_PATTERN.test(pathname);
@@ -72,12 +48,6 @@ export default function DashboardLayout({
   }
 
   if (!isAuthenticated) {
-    return <FullPageSpinner />;
-  }
-
-  // CRITICAL: Return spinner synchronously to prevent FOUC/PHI leak.
-  // Children are NEVER mounted for a blocked route.
-  if (shouldBlockSystemAdmin) {
     return <FullPageSpinner />;
   }
 

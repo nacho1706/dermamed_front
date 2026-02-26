@@ -20,7 +20,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, hasRole } = useAuth();
+  const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -35,11 +35,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(data.email, data.password);
-      // Route based on role: system_admin has its own technical dashboard
-      const destination = hasRole("system_admin")
-        ? "/admin-dashboard"
-        : "/dashboard";
-      router.replace(destination);
+      router.replace("/dashboard");
     } catch (err) {
       if (err instanceof AxiosError) {
         if (err.response?.status === 401) {

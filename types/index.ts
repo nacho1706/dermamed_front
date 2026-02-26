@@ -60,7 +60,7 @@ export interface TokenResponse {
 
 export interface Role {
   id: number;
-  name: "system_admin" | "clinic_manager" | "doctor" | "receptionist";
+  name: "clinic_manager" | "doctor" | "receptionist";
 }
 
 export interface User {

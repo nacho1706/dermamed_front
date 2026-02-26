@@ -13,7 +13,6 @@ import {
   Package,
   FileText,
   UserCog,
-  Monitor,
   X,
 } from "lucide-react";
 
@@ -24,8 +23,7 @@ interface NavItem {
   roles: string[];
 }
 
-// ─── Clinical Navigation (all roles except system_admin) ────────────────────
-const clinicalNavItems: NavItem[] = [
+const navItems: NavItem[] = [
   {
     label: "Dashboard",
     href: "/dashboard",
@@ -70,22 +68,6 @@ const clinicalNavItems: NavItem[] = [
   },
 ];
 
-// ─── System Admin Navigation (technical only) ──────────────────────────────
-const systemAdminNavItems: NavItem[] = [
-  {
-    label: "Dashboard Técnico",
-    href: "/admin-dashboard",
-    icon: Monitor,
-    roles: ["system_admin"],
-  },
-  {
-    label: "Gestión de Usuarios",
-    href: "/users",
-    icon: UserCog,
-    roles: ["system_admin"],
-  },
-];
-
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -93,13 +75,10 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { hasRole, hasAnyRole } = useAuth();
+  const { hasAnyRole } = useAuth();
 
-  // system_admin sees ONLY the technical menu
-  const isSystemAdmin = hasRole("system_admin");
-  const navItems = isSystemAdmin ? systemAdminNavItems : clinicalNavItems;
   const filteredItems = navItems.filter((item) => hasAnyRole(item.roles));
-  const homeHref = isSystemAdmin ? "/admin-dashboard" : "/dashboard";
+  const homeHref = "/dashboard";
 
   return (
     <>
@@ -144,11 +123,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          {isSystemAdmin && (
-            <p className="px-3 mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
-              Panel Técnico
-            </p>
-          )}
           <ul className="flex flex-col gap-1">
             {filteredItems.map((item) => {
               const isActive =

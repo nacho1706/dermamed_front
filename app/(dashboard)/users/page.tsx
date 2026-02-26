@@ -10,6 +10,7 @@ import {
   resendInvite,
   type UserFilters,
 } from "@/services/users";
+import { getRoles } from "@/services/roles";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Card, CardBody } from "@/components/ui/card";
@@ -44,52 +45,26 @@ import {
 } from "lucide-react";
 import type { User, Role } from "@/types";
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Role Display Config ────────────────────────────────────────────────────
 
-const ROLE_IDS = {
-  SYSTEM_ADMIN: 1,
-  CLINIC_MANAGER: 2,
-  DOCTOR: 3,
-  RECEPTIONIST: 4,
+const ROLE_LABELS: Record<string, string> = {
+  clinic_manager: "Dirección",
+  doctor: "Doctor",
+  receptionist: "Recepcionista",
 };
 
-const ROLES_OPTIONS = [
-  {
-    id: ROLE_IDS.SYSTEM_ADMIN,
-    name: "System Admin",
-    value: "system_admin",
-  },
-  {
-    id: ROLE_IDS.CLINIC_MANAGER,
-    name: "Director/a Médico/a",
-    value: "clinic_manager",
-  },
-  { id: ROLE_IDS.DOCTOR, name: "Doctor/a", value: "doctor" },
-  { id: ROLE_IDS.RECEPTIONIST, name: "Recepcionista", value: "receptionist" },
-];
+const ROLE_STYLES: Record<string, string> = {
+  clinic_manager: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  doctor: "bg-blue-50 text-blue-700 border-blue-200",
+  receptionist: "bg-amber-50 text-amber-700 border-amber-200",
+};
 
 // ─── Helper Components ──────────────────────────────────────────────────────
 
 function RoleBadge({ role }: { role: Role }) {
-  // Normalize role name for display/styling matching
-  const roleName = role.name.toLowerCase();
-
-  let style = "bg-gray-50 text-gray-700 border-gray-200";
-  let label: string = role.name;
-
-  if (roleName.includes("admin")) {
-    style = "bg-purple-50 text-purple-700 border-purple-200";
-    label = "Administrador";
-  } else if (roleName.includes("manager")) {
-    style = "bg-indigo-50 text-indigo-700 border-indigo-200";
-    label = "Dirección";
-  } else if (roleName.includes("doctor")) {
-    style = "bg-blue-50 text-blue-700 border-blue-200";
-    label = "Doctor";
-  } else if (roleName.includes("recep")) {
-    style = "bg-amber-50 text-amber-700 border-amber-200";
-    label = "Recepcionista";
-  }
+  const style =
+    ROLE_STYLES[role.name] ?? "bg-gray-50 text-gray-700 border-gray-200";
+  const label = ROLE_LABELS[role.name] ?? role.name;
 
   return (
     <span
@@ -113,10 +88,11 @@ function StatusBadge({ user }: { user: User }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.is_active
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+        user.is_active
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
           : "bg-red-50 text-red-700 border-red-200"
-        }`}
+      }`}
     >
       {user.is_active ? "Activo" : "Inactivo"}
     </span>
@@ -163,13 +139,14 @@ function UserFormModal({
   isOpen,
   onClose,
   user,
+  roles,
 }: {
   isOpen: boolean;
   onClose: () => void;
   user?: User;
+  roles: Role[];
 }) {
   const queryClient = useQueryClient();
-  const { hasRole } = useAuth();
   const isEdit = !!user;
 
   const [name, setName] = useState("");
@@ -178,6 +155,12 @@ function UserFormModal({
   const [specialty, setSpecialty] = useState("");
   const [cuit, setCuit] = useState("");
   const [isActive, setIsActive] = useState(true);
+
+  // Check if the "doctor" role is selected (by name, not hardcoded ID)
+  const doctorRole = roles.find((r) => r.name === "doctor");
+  const isDoctorSelected = doctorRole
+    ? roleIds.includes(doctorRole.id.toString())
+    : false;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -231,7 +214,7 @@ function UserFormModal({
       role_ids: roleIds.map((id) => parseInt(id)),
     };
 
-    if (roleIds.includes(ROLE_IDS.DOCTOR.toString())) {
+    if (isDoctorSelected) {
       data.specialty = specialty || null;
     }
 
@@ -287,9 +270,7 @@ function UserFormModal({
               Roles * (Puede seleccionar varios)
             </label>
             <div className="flex flex-col gap-2 border border-border p-3 rounded-[var(--radius-md)] bg-surface-secondary/30">
-              {ROLES_OPTIONS.filter(
-                (r) => r.value !== "system_admin" || hasRole("system_admin"),
-              ).map((role) => (
+              {roles.map((role) => (
                 <label
                   key={role.id}
                   className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
@@ -307,13 +288,13 @@ function UserFormModal({
                     }}
                     className="rounded border-border text-brand-600 focus:ring-brand-500"
                   />
-                  <span>{role.name}</span>
+                  <span>{ROLE_LABELS[role.name] ?? role.name}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {roleIds.includes(ROLE_IDS.DOCTOR.toString()) && (
+          {isDoctorSelected && (
             <div>
               <label className="text-sm font-medium text-foreground block mb-1.5">
                 Especialidad
@@ -353,12 +334,14 @@ function UserFormModal({
                 <button
                   type="button"
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${isActive ? "bg-brand-600" : "bg-gray-200"
-                    }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    isActive ? "bg-brand-600" : "bg-gray-200"
+                  }`}
                 >
                   <span
-                    className={`${isActive ? "translate-x-6" : "translate-x-1"
-                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    className={`${
+                      isActive ? "translate-x-6" : "translate-x-1"
+                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                   />
                 </button>
               </div>
@@ -424,19 +407,25 @@ export default function UsersPage() {
 
   if (!hasRole("clinic_manager")) return null;
 
-  // Main users query
+  // Fetch roles dynamically from API (no hardcoded IDs)
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: getRoles,
+  });
+
+  // Main users query — filter by role name (string), not role_id
   const { data, isLoading } = useQuery({
     queryKey: ["users", debouncedSearch, roleFilter, page],
     queryFn: () =>
       getUsers({
         name: debouncedSearch || undefined,
-        role_id: roleFilter !== "all" ? parseInt(roleFilter) : undefined,
+        role: roleFilter !== "all" ? roleFilter : undefined,
         pagina: page,
         cantidad: 10,
       }),
   });
 
-  // KPI Queries
+  // KPI Queries — filter by role name (string)
   const { data: totalUsersData } = useQuery({
     queryKey: ["users-kpi", "total"],
     queryFn: () => getUsers({ cantidad: 1 }),
@@ -444,22 +433,22 @@ export default function UsersPage() {
 
   const { data: activeUsersData } = useQuery({
     queryKey: ["users-kpi", "active"],
-    queryFn: () => getUsers({ is_active: true, cantidad: 1 }), // Note: strictly active, not pending
+    queryFn: () => getUsers({ is_active: true, cantidad: 1 }),
   });
 
   const { data: doctorsData } = useQuery({
     queryKey: ["users-kpi", "doctors"],
-    queryFn: () => getUsers({ role_id: ROLE_IDS.DOCTOR, cantidad: 1 }),
+    queryFn: () => getUsers({ role: "doctor", cantidad: 1 }),
   });
 
   const { data: receptionistsData } = useQuery({
     queryKey: ["users-kpi", "receptionists"],
-    queryFn: () => getUsers({ role_id: ROLE_IDS.RECEPTIONIST, cantidad: 1 }),
+    queryFn: () => getUsers({ role: "receptionist", cantidad: 1 }),
   });
 
   const { data: managersData } = useQuery({
     queryKey: ["users-kpi", "managers"],
-    queryFn: () => getUsers({ role_id: ROLE_IDS.CLINIC_MANAGER, cantidad: 1 }),
+    queryFn: () => getUsers({ role: "clinic_manager", cantidad: 1 }),
   });
 
   const users = data?.data || [];
@@ -561,7 +550,7 @@ export default function UsersPage() {
         <KpiCard
           label="Usuarios Activos"
           value={activeUsersData?.meta?.total ?? "..."}
-          icon={Users} // Changed icon to avoid duplicate Shield
+          icon={Users}
           iconBg="bg-emerald-50"
           iconColor="text-emerald-600"
         />
@@ -595,11 +584,9 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los roles</SelectItem>
-                {ROLES_OPTIONS.filter(
-                  (r) => r.value !== "system_admin" || hasRole("system_admin"),
-                ).map((role) => (
-                  <SelectItem key={role.id} value={role.id.toString()}>
-                    {role.name}
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.name}>
+                    {ROLE_LABELS[role.name] ?? role.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -749,6 +736,7 @@ export default function UsersPage() {
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         user={editingUser}
+        roles={roles}
       />
     </div>
   );
