@@ -10,10 +10,18 @@ import type {
 export async function getAppointments(
   filters?: AppointmentFilters,
 ): Promise<PaginatedResponse<Appointment>> {
+  const cleanParams = filters
+    ? Object.fromEntries(
+        Object.entries(filters).filter(
+          ([, v]) => v !== undefined && v !== null && v !== "",
+        ),
+      )
+    : undefined;
+
   const response = await api.get<PaginatedResponse<Appointment>>(
     "/appointments",
     {
-      params: filters,
+      params: cleanParams,
     },
   );
   return response.data;

@@ -95,7 +95,7 @@ export function Calendar({
   onDateChange,
   onAppointmentClick,
   onSlotClick,
-  workingHours = { start: 9, end: 20 },
+  workingHours = { start: 7, end: 22 },
 }: CalendarProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({

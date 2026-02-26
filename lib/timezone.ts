@@ -14,16 +14,31 @@ export const CLINIC_TIMEZONE = "America/Argentina/Buenos_Aires";
  * Convert a local date + time string to a UTC datetime string for the API.
  * @param dateStr - "2026-02-18"
  * @param timeStr - "14:30"
- * @returns "2026-02-18 17:30:00" (UTC)
+ * @returns "2026-02-18 17:30:00" (UTC string)
  */
 export function localToUTC(dateStr: string, timeStr: string): string {
-  // Build a date object that represents the local time in the clinic timezone
-  const localDatetime = new Date(`${dateStr}T${timeStr}:00`);
-  const utcDate = fromZonedTime(localDatetime, CLINIC_TIMEZONE);
+  // fromZonedTime with string handles ISO formats or "YYYY-MM-DD HH:mm:ss"
+  const utcDate = fromZonedTime(`${dateStr} ${timeStr}:00`, CLINIC_TIMEZONE);
 
   // Format as YYYY-MM-DD HH:mm:ss (what the backend expects)
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${utcDate.getUTCFullYear()}-${pad(utcDate.getUTCMonth() + 1)}-${pad(utcDate.getUTCDate())} ${pad(utcDate.getUTCHours())}:${pad(utcDate.getUTCMinutes())}:${pad(utcDate.getUTCSeconds())}`;
+}
+
+/**
+ * Returns the current date/time in the clinic's timezone as a Date object.
+ * Useful for initializing calendars and "today" views.
+ */
+export function getClinicNow(): Date {
+  return toZonedTime(new Date(), CLINIC_TIMEZONE);
+}
+
+/**
+ * Returns the current date string in the clinic's timezone.
+ * Format: "YYYY-MM-DD"
+ */
+export function getClinicToday(): string {
+  return formatInTimeZone(new Date(), CLINIC_TIMEZONE, "yyyy-MM-dd");
 }
 
 /**

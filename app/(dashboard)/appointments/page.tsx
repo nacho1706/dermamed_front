@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,10 +25,10 @@ import { Appointment, User } from "@/types";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { startOfWeek, endOfWeek, format } from "date-fns";
-import { localToUTC } from "@/lib/timezone";
+import { localToUTC, getClinicNow } from "@/lib/timezone";
 
 export default function AppointmentsPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => getClinicNow());
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<
@@ -37,6 +37,8 @@ export default function AppointmentsPage() {
   const [selectedSlot, setSelectedSlot] = useState<Date | undefined>(undefined);
 
   const queryClient = useQueryClient();
+  const { user, hasRole, activeRole } = useAuth();
+  const router = useRouter();
 
   // Date range for current week view
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -49,6 +51,8 @@ export default function AppointmentsPage() {
         "appointments",
         format(startDate, "yyyy-MM-dd"),
         selectedDoctorId,
+        user?.id,
+        activeRole?.name,
       ],
       queryFn: () => {
         const dateFromUTC = localToUTC(
@@ -87,10 +91,13 @@ export default function AppointmentsPage() {
     },
   });
 
-  const { user, hasRole } = useAuth();
-  const router = useRouter();
-
-  // ... (keeping other states)
+  const [hasSetDefaultDoctor, setHasSetDefaultDoctor] = useState(false);
+  useEffect(() => {
+    if (user && hasRole("doctor") && !hasSetDefaultDoctor) {
+      setSelectedDoctorId(String(user.id));
+      setHasSetDefaultDoctor(true);
+    }
+  }, [user, hasRole, hasSetDefaultDoctor]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Appointment> }) =>
@@ -207,6 +214,7 @@ export default function AppointmentsPage() {
             onDateChange={setCurrentDate}
             onSlotClick={handleSlotClick}
             onAppointmentClick={handleAppointmentClick}
+            workingHours={{ start: 7, end: 22 }}
           />
         )}
       </div>

@@ -40,14 +40,35 @@ const existingPatientSchema = z.object({
   doctor_id: z.string().optional(),
 });
 
-const newPatientSchema = z.object({
-  first_name: z.string().min(2, "Mínimo 2 caracteres"),
-  last_name: z.string().min(2, "Mínimo 2 caracteres"),
-  dni: z.string().min(1, "El DNI es requerido"),
-  cuit: z.string().optional().nullable().or(z.literal("")),
+const newPatientSchemaBase = z.object({
+  first_name: z.string().min(1, "El nombre es requerido").max(100),
+  last_name: z.string().min(1, "El apellido es requerido").max(100),
+  dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
+  cuit: z
+    .string()
+    .regex(/^\d{11}$/, "El CUIT debe tener exactamente 11 dígitos numéricos")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   service_id: z.string().min(1, "Seleccione un servicio"),
   doctor_id: z.string().optional(),
 });
+
+const newPatientSchema = newPatientSchemaBase.refine(
+  (data) => {
+    if (data.cuit && data.dni) {
+      // Validate that the middle of the CUIT matches the DNI (padded to 8 digits)
+      const dniPadded = data.dni.padStart(8, "0");
+      const cuitMiddle = data.cuit.substring(2, 10);
+      return cuitMiddle === dniPadded;
+    }
+    return true;
+  },
+  {
+    message: "El CUIT no coincide con el DNI ingresado",
+    path: ["cuit"],
+  },
+);
 
 type ExistingPatientForm = z.infer<typeof existingPatientSchema>;
 type NewPatientForm = z.infer<typeof newPatientSchema>;
@@ -165,8 +186,14 @@ export function ImmediateAttentionModal({
       }
     },
     onError: (error: any) => {
-      console.error("Create Appointment Error:", error.response?.data || error);
-      toast.error(error.response?.data?.message || "Error al crear el turno");
+      console.error("Create Appointment Error details:", error.response?.data);
+      const errors = error.response?.data?.errors;
+      if (errors) {
+        const firstError = Object.values(errors)[0] as string[];
+        toast.error(firstError[0] || "Error al crear el turno");
+      } else {
+        toast.error(error.response?.data?.message || "Error al crear el turno");
+      }
     },
   });
 
@@ -176,8 +203,14 @@ export function ImmediateAttentionModal({
       queryClient.invalidateQueries({ queryKey: ["patients"] });
     },
     onError: (error: any) => {
-      console.error("Create Patient Error:", error.response?.data || error);
-      toast.error(error.response?.data?.message || "Error al crear paciente");
+      console.error("Create Patient Error details:", error.response?.data);
+      const errors = error.response?.data?.errors;
+      if (errors) {
+        const firstError = Object.values(errors)[0] as string[];
+        toast.error(firstError[0] || "Error en los datos del paciente");
+      } else {
+        toast.error(error.response?.data?.message || "Error al crear paciente");
+      }
     },
   });
 
@@ -215,7 +248,7 @@ export function ImmediateAttentionModal({
         first_name: data.first_name,
         last_name: data.last_name,
         dni: data.dni,
-        cuit: data.cuit,
+        cuit: data.cuit || null,
       });
 
       await createAppointmentMutation.mutateAsync({
@@ -433,12 +466,17 @@ export function ImmediateAttentionModal({
                   <div className="space-y-2">
                     <Label>DNI</Label>
                     <Input
-                      {...registerNew("dni")}
-                      onBlur={(e) => {
-                        registerNew("dni").onBlur(e);
-                        handleDniBlur(e);
-                      }}
+                      {...registerNew("dni", {
+                        onChange: (e) => {
+                          e.target.value = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 8);
+                        },
+                        onBlur: (e) => handleDniBlur(e),
+                      })}
                       placeholder="Ej: 30452758"
+                      maxLength={8}
+                      inputMode="numeric"
                     />
                     {errorsNew.dni && (
                       <p className="text-xs text-danger">
