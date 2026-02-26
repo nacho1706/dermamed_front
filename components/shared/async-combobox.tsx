@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Check, Search, X, Loader2, User } from "lucide-react";
-import { useDebounce } from "use-debounce";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export function AsyncCombobox<T>({
 }: AsyncComboboxProps<T>) {
   const [isSearching, setIsSearching] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [debouncedSearch] = useDebounce(inputValue, 500);
+  const debouncedSearch = useDebounce(inputValue, 500);
   const [localSelectedLabel, setLocalSelectedLabel] = useState<
     string | React.ReactNode | null
   >(null);

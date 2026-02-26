@@ -114,8 +114,8 @@ export interface Appointment {
   patient_id: number;
   doctor_id: number;
   service_id: number;
-  start_time: string;
-  end_time: string;
+  scheduled_start_at: string;
+  scheduled_end_at: string;
   status: AppointmentStatus;
   check_in_at?: string;
   real_start_at?: string;

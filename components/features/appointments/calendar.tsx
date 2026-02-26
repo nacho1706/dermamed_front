@@ -116,8 +116,8 @@ export function Calendar({
   const handleToday = () => onDateChange(new Date());
 
   const getAppointmentStyle = (appointment: Appointment) => {
-    const start = parseISO(appointment.start_time);
-    const end = parseISO(appointment.end_time);
+    const start = parseISO(appointment.scheduled_start_at);
+    const end = parseISO(appointment.scheduled_end_at);
 
     const startHour = start.getHours();
     const startMinutes = start.getMinutes();
@@ -200,7 +200,7 @@ export function Calendar({
         <div className="flex flex-1 min-w-[800px]">
           {weekDays.map((day) => {
             const dayAppointments = appointments.filter((apt) =>
-              isSameDay(parseISO(apt.start_time), day),
+              isSameDay(parseISO(apt.scheduled_start_at), day),
             );
             const isToday = isSameDay(day, new Date());
 
@@ -275,15 +275,18 @@ export function Calendar({
                   {(() => {
                     const sortedDayApts = [...dayAppointments].sort(
                       (a, b) =>
-                        new Date(a.start_time).getTime() -
-                        new Date(b.start_time).getTime(),
+                        new Date(a.scheduled_start_at).getTime() -
+                        new Date(b.scheduled_start_at).getTime(),
                     );
                     const overlappedGroups: Appointment[][] = [];
                     for (const a of sortedDayApts) {
                       let placed = false;
                       for (const group of overlappedGroups) {
                         const last = group[group.length - 1];
-                        if (new Date(last.end_time) <= new Date(a.start_time)) {
+                        if (
+                          new Date(last.scheduled_end_at) <=
+                          new Date(a.scheduled_start_at)
+                        ) {
                           group.push(a);
                           placed = true;
                           break;
@@ -353,8 +356,12 @@ export function Calendar({
                           {heightNum > 32 && (
                             <div className="flex items-center gap-1 text-[10px] opacity-80 mt-0.5 ml-3">
                               <Clock className="w-3 h-3 flex-shrink-0" />
-                              {format(parseISO(apt.start_time), "HH:mm")} –{" "}
-                              {format(parseISO(apt.end_time), "HH:mm")}
+                              {format(
+                                parseISO(apt.scheduled_start_at),
+                                "HH:mm",
+                              )}{" "}
+                              –{" "}
+                              {format(parseISO(apt.scheduled_end_at), "HH:mm")}
                             </div>
                           )}
                           {heightNum > 50 && (

@@ -150,8 +150,8 @@ export function AppointmentModal({
         patient_id: String(initialData.patient_id),
         doctor_id: String(initialData.doctor_id),
         service_id: String(initialData.service_id),
-        date: extractLocalDate(initialData.start_time),
-        time: extractLocalTime(initialData.start_time),
+        date: extractLocalDate(initialData.scheduled_start_at),
+        time: extractLocalTime(initialData.scheduled_start_at),
         notes: initialData.notes || "",
       });
     } else if (initialDate) {
@@ -188,7 +188,7 @@ export function AppointmentModal({
     if (isReadOnly) return;
 
     // Convert selected local time to UTC for the API
-    const start_time = localToUTC(data.date, data.time);
+    const scheduled_start_at = localToUTC(data.date, data.time);
 
     // If doctor_id is disabled, it won't be in data. Use the watched value or fallback to user id
     const finalDoctorId =
@@ -198,7 +198,7 @@ export function AppointmentModal({
       patient_id: Number(data.patient_id),
       doctor_id: Number(finalDoctorId),
       service_id: Number(data.service_id),
-      start_time,
+      scheduled_start_at,
       notes: data.notes,
       status: initialData ? initialData.status : "scheduled",
     });

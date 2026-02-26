@@ -255,7 +255,10 @@ export default function DashboardPage() {
     if (isABottom && !isBBottom) return 1;
     if (!isABottom && isBBottom) return -1;
 
-    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+    return (
+      new Date(a.scheduled_start_at).getTime() -
+      new Date(b.scheduled_start_at).getTime()
+    );
   });
 
   const greeting = () => {
@@ -614,7 +617,7 @@ function AppointmentRow({
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const isDoctor = hasRole("doctor");
-  const time = format(new Date(appointment.start_time), "HH:mm");
+  const time = format(new Date(appointment.scheduled_start_at), "HH:mm");
   const patientName = appointment.patient
     ? `${appointment.patient.first_name} ${appointment.patient.last_name}`
     : "Paciente";

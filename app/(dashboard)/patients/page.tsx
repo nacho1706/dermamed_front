@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
 import { getPatients } from "@/services/patients";
 import { PatientList } from "@/components/features/patients/patient-list";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 import { Button } from "@/components/ui/button";
 import { Upload, Download } from "lucide-react";
-import { useDebounce } from "@/hooks/use-debounce";
 import { sileo } from "sileo";
 import type { Patient } from "@/types";
 
@@ -35,10 +35,25 @@ export default function PatientsPage() {
   const handleExportCSV = () => {
     const patients: Patient[] = data?.data || [];
     if (patients.length === 0) {
-      sileo.warning({ title: "Sin datos", description: "No hay pacientes para exportar." });
+      sileo.warning({
+        title: "Sin datos",
+        description: "No hay pacientes para exportar.",
+      });
       return;
     }
-    const headers = ["ID", "Nombre", "Apellido", "DNI", "CUIL", "Email", "Telefono", "Obra Social", "Ciudad", "Provincia", "Fecha Nacimiento"];
+    const headers = [
+      "ID",
+      "Nombre",
+      "Apellido",
+      "DNI",
+      "CUIL",
+      "Email",
+      "Telefono",
+      "Obra Social",
+      "Ciudad",
+      "Provincia",
+      "Fecha Nacimiento",
+    ];
     const rows = patients.map((p) => [
       p.id,
       `"${(p.first_name || "").replace(/"/g, '""')}"`,
@@ -60,7 +75,10 @@ export default function PatientsPage() {
     link.download = "pacientes_export.csv";
     link.click();
     URL.revokeObjectURL(url);
-    sileo.success({ title: "Exportación exitosa", description: `Se exportaron ${patients.length} pacientes.` });
+    sileo.success({
+      title: "Exportación exitosa",
+      description: `Se exportaron ${patients.length} pacientes.`,
+    });
   };
 
   // ── Search & page reset handler ────────────────────────────────────────────
@@ -112,7 +130,9 @@ export default function PatientsPage() {
         title="Importar Pacientes"
         endpointUrl="/patients/import"
         templateUrl="/templates/patients_template.csv"
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patients"] })}
+        onSuccess={() =>
+          queryClient.invalidateQueries({ queryKey: ["patients"] })
+        }
       />
     </div>
   );

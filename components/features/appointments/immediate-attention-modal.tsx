@@ -146,7 +146,7 @@ export function ImmediateAttentionModal({
       const now = new Date();
       const nowString = format(now, "yyyy-MM-dd");
       const timeString = format(now, "HH:mm");
-      const start_time = localToUTC(nowString, timeString);
+      const scheduled_start_at = localToUTC(nowString, timeString);
 
       const service = servicesData?.data.find(
         (s) => String(s.id) === String(data.service_id),
@@ -157,7 +157,7 @@ export function ImmediateAttentionModal({
       const endTimeDate = addMinutes(now, duration);
       const endString = format(endTimeDate, "yyyy-MM-dd");
       const endTimeString = format(endTimeDate, "HH:mm");
-      const end_time = localToUTC(endString, endTimeString);
+      const scheduled_end_at = localToUTC(endString, endTimeString);
 
       // Doctor: use own ID. Non-doctor: use selected doctor_id.
       const resolvedDoctorId = isDoctor ? user!.id : Number(data.doctor_id);
@@ -166,8 +166,8 @@ export function ImmediateAttentionModal({
         patient_id: data.patient_id,
         doctor_id: resolvedDoctorId,
         service_id: data.service_id,
-        start_time,
-        end_time,
+        scheduled_start_at,
+        scheduled_end_at,
         status: isDoctor ? "in_progress" : "in_waiting_room",
         notes: isDoctor ? "Atención inmediata" : "Ingreso sin turno",
       });

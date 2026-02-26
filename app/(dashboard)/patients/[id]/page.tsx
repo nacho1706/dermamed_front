@@ -422,10 +422,10 @@ export default function PatientDetailPage() {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold text-medical-900">
-                                  {formatLocalDate(apt.start_time)}{" "}
+                                  {formatLocalDate(apt.scheduled_start_at)}{" "}
                                   <span className="text-medical-500 font-normal">
-                                    {formatLocalTime(apt.start_time)} –{" "}
-                                    {formatLocalTime(apt.end_time)}
+                                    {formatLocalTime(apt.scheduled_start_at)} –{" "}
+                                    {formatLocalTime(apt.scheduled_end_at)}
                                   </span>
                                 </p>
                                 <p className="text-xs text-medical-500 mt-0.5">

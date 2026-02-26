@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
-import { useDebounce } from "use-debounce";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -18,7 +18,7 @@ export function GlobalSearchInput({
   className,
 }: GlobalSearchInputProps) {
   const [value, setValue] = useState("");
-  const [debouncedValue] = useDebounce(value, 400);
+  const debouncedValue = useDebounce(value, 400);
 
   useEffect(() => {
     onSearch(debouncedValue);
