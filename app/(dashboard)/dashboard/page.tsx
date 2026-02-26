@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { getAppointments } from "@/services/appointments";
-import { updateAppointment } from "@/services/appointments";
+import { updateAppointment, createAppointment } from "@/services/appointments";
 import { getPatients } from "@/services/patients";
 import { getProducts } from "@/services/products";
 import { ImmediateAttentionModal } from "@/components/features/appointments/immediate-attention-modal";
@@ -15,7 +15,7 @@ import { AppointmentModal } from "@/components/features/appointments/appointment
 import { ActiveConsultationAlertModal } from "@/components/features/appointments/active-consultation-alert-modal";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { localToUTC } from "@/lib/timezone";
+import { localToUTC, getClinicToday } from "@/lib/timezone";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -33,6 +33,7 @@ import {
   Edit,
   CheckCircle2,
   CircleDollarSign,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
@@ -168,7 +169,6 @@ function QuickAction({
 
 export default function DashboardPage() {
   const { user, activeRole, hasRole } = useAuth();
-  const isSystemAdmin = hasRole("system_admin");
 
   const [isImmediateModalOpen, setIsImmediateModalOpen] = React.useState(false);
   const [isConflictModalOpen, setIsConflictModalOpen] = React.useState(false);
@@ -177,7 +177,7 @@ export default function DashboardPage() {
   const [selectedAppointment, setSelectedAppointment] = React.useState<
     Appointment | undefined
   >();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getClinicToday();
   const todayDisplay = format(new Date(), "d 'de' MMMM, yyyy", { locale: es });
 
   const isDoctor = activeRole?.name === "doctor";
@@ -189,12 +189,11 @@ export default function DashboardPage() {
   // ─── Queries ──────────────────────────────────────────────────────────────
 
   // 1. Appointments
-  // - System Admin: Disabled
   // - Doctor: Filtered by doctor_id
   // - Manager/Receptionist: All
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useQuery(
     {
-      queryKey: ["appointments", "today", today, user?.id],
+      queryKey: ["appointments", "today", today, user?.id, activeRole?.name],
       queryFn: () => {
         const dateFromUTC = localToUTC(today, "00:00");
         const dateToUTC = localToUTC(today, "23:59");
@@ -205,8 +204,7 @@ export default function DashboardPage() {
           doctor_id: isDoctor ? user?.id : undefined,
         });
       },
-      // system_admin never fires clinical queries
-      enabled: !!user && !isSystemAdmin,
+      enabled: !!user,
     },
   );
 
@@ -214,13 +212,8 @@ export default function DashboardPage() {
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products", "low-stock"],
     queryFn: () => getProducts({ cantidad: 100 }),
-    enabled: (isClinicManager || isReceptionist) && !!user && !isSystemAdmin,
+    enabled: (isClinicManager || isReceptionist) && !!user,
   });
-
-  // Defense-in-depth: block system_admin AFTER all hooks (React rules).
-  // The layout already prevents reaching this component, but if it ever
-  // does, we return null here. Queries above are disabled via `enabled: false`.
-  if (isSystemAdmin) return null;
 
   const appointments = appointmentsData?.data || [];
   const activeAppointment = appointments.find(
@@ -434,27 +427,27 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                <table className="w-full">
+                <table className="w-full table-fixed">
                   <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
+                    <tr className="border-b border-border/60">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[10%]">
                         Hora
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[27%]">
                         Paciente
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 hidden md:table-cell">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 hidden md:table-cell w-[25%]">
                         Tipo
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[24%]">
                         Estado
                       </th>
-                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3">
+                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[14%]">
                         Acción
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/40">
+                  <tbody className="divide-y divide-border/60">
                     {sortedAppointments.map((appointment: Appointment) => (
                       <AppointmentRow
                         key={appointment.id}
@@ -574,6 +567,8 @@ export default function DashboardPage() {
           try {
             if (selectedAppointment) {
               await updateAppointment(selectedAppointment.id, data);
+            } else {
+              await createAppointment(data);
             }
             queryClient.invalidateQueries({ queryKey: ["appointments"] });
             setIsAppointmentModalOpen(false);
@@ -583,9 +578,12 @@ export default function DashboardPage() {
                 ? "Turno actualizado correctamente"
                 : "Turno agendado correctamente",
             );
-          } catch (error) {
+          } catch (error: any) {
             console.error(error);
-            toast.error("Ocurrió un error al guardar el turno");
+            const message =
+              error.response?.data?.message ||
+              "Ocurrió un error al guardar el turno";
+            toast.error(message);
           }
         }}
       />
@@ -638,6 +636,7 @@ function AppointmentRow({
   };
 
   const [isStarting, setIsStarting] = React.useState(false);
+  const [isUndoing, setIsUndoing] = React.useState(false);
 
   const handleCompletedClick = () => {
     if (appointment.medical_record?.id) {
@@ -712,8 +711,37 @@ function AppointmentRow({
           </>
         );
       case "in_waiting_room":
-        // Non-doctors: no action button (Friction Zero — clean view)
-        if (!isDoctor) return null;
+        if (!isDoctor) {
+          // Receptionist/Manager: undo accidental check-in
+          return (
+            <button
+              onClick={async () => {
+                setIsUndoing(true);
+                try {
+                  await updateAppointment(appointment.id, {
+                    status: "scheduled",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                  toast.success("Ingreso deshecho correctamente");
+                } catch (error) {
+                  console.error(error);
+                  toast.error("Error al deshacer el ingreso");
+                } finally {
+                  setIsUndoing(false);
+                }
+              }}
+              disabled={isUndoing}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-amber-600 hover:text-white hover:bg-amber-500 transition-all disabled:opacity-50"
+              title="Deshacer ingreso (Volver a Programado)"
+            >
+              {isUndoing ? (
+                <Spinner size="sm" />
+              ) : (
+                <Undo2 className="w-4 h-4" />
+              )}
+            </button>
+          );
+        }
         return (
           <div className="flex justify-end gap-1.5">
             <button
@@ -793,7 +821,7 @@ function AppointmentRow({
       <td className="px-6 py-3.5">
         <span className="text-sm font-medium text-foreground">{time}</span>
       </td>
-      <td className="px-6 py-3.5">
+      <td className="px-6 py-3.5 max-w-0 w-full truncate">
         <Link
           href={`/patients/${appointment.patient_id}`}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -801,21 +829,33 @@ function AppointmentRow({
           <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">
             {initials}
           </div>
-          <span
-            className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors truncate max-w-[120px] md:max-w-[180px]"
-            title={patientName}
-          >
-            {patientName}
-          </span>
+          <div className="min-w-0">
+            <span
+              className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors truncate block"
+              title={patientName}
+            >
+              {patientName}
+            </span>
+            {appointment.doctor && (
+              <p className="text-[10px] text-muted-foreground truncate">
+                con {appointment.doctor.name}
+              </p>
+            )}
+          </div>
         </Link>
       </td>
-      <td className="px-6 py-3.5 hidden md:table-cell">
-        <span className="text-sm text-muted">{serviceName}</span>
+      <td className="px-6 py-3.5 hidden md:table-cell max-w-0 w-full">
+        <span
+          className="text-sm text-muted line-clamp-2 text-wrap"
+          title={serviceName}
+        >
+          {serviceName}
+        </span>
       </td>
       <td className="px-6 py-3.5">
         <AppointmentStatusBadge status={appointment.status} />
       </td>
-      <td className="px-6 py-3.5 text-right w-20">
+      <td className="px-6 py-3.5 text-right">
         <div className="flex justify-end gap-2">{renderAction()}</div>
       </td>
     </tr>

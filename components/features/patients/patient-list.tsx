@@ -64,27 +64,27 @@ export function PatientList({
 
       <Card className="overflow-hidden border-border/40 shadow-sm ring-1 ring-border/5">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-medical-50/30 border-b border-border/40">
+          <table className="w-full text-left border-collapse table-fixed">
+            <thead className="border-b border-border/60">
               <tr>
-                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] w-[35%]">
                   Paciente
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] w-[17%]">
                   DNI
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] w-[22%]">
                   Contacto
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em]">
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] w-[14%]">
                   Obra Social
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] text-right">
-                  Acciones
+                <th className="px-6 py-4 text-[11px] font-bold text-medical-600/80 uppercase tracking-[0.05em] text-right w-[12%]">
+                  Acción
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40 bg-white">
+            <tbody className="divide-y divide-border/60 bg-white">
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center">
@@ -114,7 +114,7 @@ export function PatientList({
                     key={patient.id}
                     className="hover:bg-medical-50/30 transition-colors group"
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 max-w-0 w-full truncate">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-medical-100 flex items-center justify-center text-medical-700 font-bold border border-medical-200">
                           {patient.first_name[0]}
@@ -123,7 +123,7 @@ export function PatientList({
                         <div className="ml-4 min-w-0">
                           <Link
                             href={`/patients/${patient.id}`}
-                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors block truncate max-w-[180px] md:max-w-[240px]"
+                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors block truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]"
                             title={patient.full_name}
                           >
                             {patient.full_name}
@@ -144,11 +144,14 @@ export function PatientList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 max-w-0 w-full truncate">
                       <div className="text-sm text-medical-600">
                         {patient.phone || "—"}
                       </div>
-                      <div className="text-xs text-medical-400">
+                      <div
+                        className="text-xs text-medical-400 truncate"
+                        title={patient.email || ""}
+                      >
                         {patient.email || "—"}
                       </div>
                     </td>
