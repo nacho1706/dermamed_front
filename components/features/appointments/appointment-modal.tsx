@@ -163,6 +163,15 @@ export function AppointmentModal({
         time: format(initialDate, "HH:mm"),
         notes: "",
       });
+    } else if (isOpen) {
+      reset({
+        patient_id: "",
+        doctor_id: isDoctor ? String(user?.id) : "",
+        service_id: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        time: "09:00",
+        notes: "",
+      });
     }
   }, [initialData, initialDate, reset, isOpen, isDoctor, user?.id]);
 

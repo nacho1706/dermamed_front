@@ -31,14 +31,22 @@ import {
   Play,
   ArrowRight,
   Edit,
-  CheckCircle2,
   CircleDollarSign,
   Undo2,
+  MoreHorizontal,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
 
 import { AppointmentStatusBadge } from "@/components/ui/appointment-status-badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface KpiCardProps {
   label: string;
@@ -249,8 +257,14 @@ export default function DashboardPage() {
   });
 
   const sortedAppointments = [...appointments].sort((a, b) => {
-    const isABottom = a.status === "completed" || a.status === "cancelled";
-    const isBBottom = b.status === "completed" || b.status === "cancelled";
+    const isABottom =
+      a.status === "completed" ||
+      a.status === "cancelled" ||
+      a.status === "no_show";
+    const isBBottom =
+      b.status === "completed" ||
+      b.status === "cancelled" ||
+      b.status === "no_show";
 
     if (isABottom && !isBBottom) return 1;
     if (!isABottom && isBBottom) return -1;
@@ -451,18 +465,28 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {sortedAppointments.map((appointment: Appointment) => (
-                      <AppointmentRow
-                        key={appointment.id}
-                        appointment={appointment}
-                        onEdit={() => {
-                          setSelectedAppointment(appointment);
-                          setIsAppointmentModalOpen(true);
-                        }}
-                        hasConflict={!!activeAppointment}
-                        onStartConflict={() => setIsConflictModalOpen(true)}
-                      />
-                    ))}
+                    {sortedAppointments.map((appointment: Appointment) => {
+                      const DELAY_THRESHOLD_MINUTES = 15;
+                      const isDelayed =
+                        appointment.status === "scheduled" &&
+                        Date.now() >
+                          new Date(appointment.scheduled_start_at).getTime() +
+                            DELAY_THRESHOLD_MINUTES * 60000;
+
+                      return (
+                        <AppointmentRow
+                          key={appointment.id}
+                          appointment={appointment}
+                          onEdit={() => {
+                            setSelectedAppointment(appointment);
+                            setIsAppointmentModalOpen(true);
+                          }}
+                          hasConflict={!!activeAppointment}
+                          onStartConflict={() => setIsConflictModalOpen(true)}
+                          isDelayed={isDelayed}
+                        />
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -607,11 +631,13 @@ function AppointmentRow({
   onEdit,
   hasConflict,
   onStartConflict,
+  isDelayed,
 }: {
   appointment: Appointment;
   onEdit?: () => void;
   hasConflict?: boolean;
   onStartConflict?: () => void;
+  isDelayed?: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -686,17 +712,21 @@ function AppointmentRow({
   };
 
   const renderAction = () => {
-    switch (appointment.status) {
-      case "scheduled":
-      case "pending":
-      case "confirmed":
-        return (
-          <>
+    let mainAction = null;
+    let kebabMenu = null;
+
+    if (!isDoctor) {
+      // Receptionist / Manager Matrix
+      switch (appointment.status) {
+        case "scheduled":
+        case "pending":
+        case "confirmed":
+          mainAction = (
             <button
               onClick={handleStart}
               disabled={isStarting}
               className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
-              title={isDoctor ? "Iniciar Consulta" : "Ingresar a Espera"}
+              title="Ingresar a Espera"
             >
               {isStarting ? (
                 <Spinner size="sm" />
@@ -704,49 +734,223 @@ function AppointmentRow({
                 <Play className="w-4 h-4 ml-0.5 fill-current" />
               )}
             </button>
+          );
+          kebabMenu = (
+            <>
+              <DropdownMenuItem onClick={onEdit}>Editar Turno</DropdownMenuItem>
+              {isDelayed && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await updateAppointment(appointment.id, {
+                        status: "no_show",
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["appointments"],
+                      });
+                      toast.success("Turno marcado como ausente");
+                    } catch (e) {
+                      toast.error("Error al marcar como ausente");
+                    }
+                  }}
+                >
+                  Marcar Ausente
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-danger focus:text-danger focus:bg-danger/10"
+                onClick={async () => {
+                  if (confirm("¿Estás seguro de cancelar este turno?")) {
+                    try {
+                      await updateAppointment(appointment.id, {
+                        status: "cancelled",
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["appointments"],
+                      });
+                      toast.success("Turno cancelado");
+                    } catch (e) {
+                      toast.error("Error al cancelar el turno");
+                    }
+                  }
+                }}
+              >
+                Cancelar Turno
+              </DropdownMenuItem>
+            </>
+          );
+          break;
+
+        case "in_waiting_room":
+          kebabMenu = (
+            <>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await updateAppointment(appointment.id, {
+                      status: "scheduled",
+                    });
+                    queryClient.invalidateQueries({
+                      queryKey: ["appointments"],
+                    });
+                    toast.success("Ingreso deshecho correctamente");
+                  } catch (error) {
+                    toast.error("Error al deshacer el ingreso");
+                  }
+                }}
+              >
+                Deshacer Ingreso
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-danger focus:text-danger focus:bg-danger/10"
+                onClick={async () => {
+                  if (confirm("¿Estás seguro de cancelar este turno?")) {
+                    try {
+                      await updateAppointment(appointment.id, {
+                        status: "cancelled",
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["appointments"],
+                      });
+                      toast.success("Turno cancelado");
+                    } catch (e) {
+                      toast.error("Error al cancelar el turno");
+                    }
+                  }
+                }}
+              >
+                Cancelar Turno
+              </DropdownMenuItem>
+            </>
+          );
+          break;
+
+        case "in_progress":
+          // Sin acciones
+          break;
+
+        case "completed":
+          mainAction = (
             <button
-              onClick={onEdit}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-brand-600 hover:bg-brand-50 transition-all"
-              title="Editar Turno"
+              onClick={() => toast.info("Módulo de caja en desarrollo")}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all"
+              title="Cobrar"
             >
-              <Edit className="w-4 h-4" />
+              <CircleDollarSign className="w-4 h-4" />
             </button>
-          </>
-        );
-      case "in_waiting_room":
-        if (!isDoctor) {
-          // Receptionist/Manager: undo accidental check-in
-          return (
+          );
+          break;
+
+        case "no_show":
+          mainAction = (
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              title="Ingresar a Espera (Llegó tarde)"
+            >
+              {isStarting ? (
+                <Spinner size="sm" />
+              ) : (
+                <Play className="w-4 h-4 ml-0.5 fill-current" />
+              )}
+            </button>
+          );
+          break;
+
+        case "cancelled":
+          mainAction = (
             <button
               onClick={async () => {
-                setIsUndoing(true);
                 try {
                   await updateAppointment(appointment.id, {
                     status: "scheduled",
                   });
                   queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                  toast.success("Ingreso deshecho correctamente");
+                  toast.success("Turno restaurado correctamente");
                 } catch (error) {
-                  console.error(error);
-                  toast.error("Error al deshacer el ingreso");
-                } finally {
-                  setIsUndoing(false);
+                  toast.error("Error al restaurar el turno");
                 }
               }}
-              disabled={isUndoing}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-amber-600 hover:text-white hover:bg-amber-500 transition-all disabled:opacity-50"
-              title="Deshacer ingreso (Volver a Programado)"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 hover:text-white hover:bg-brand-500 transition-all"
+              title="Restaurar Turno"
             >
-              {isUndoing ? (
+              <Undo2 className="w-4 h-4" />
+            </button>
+          );
+          break;
+      }
+    } else {
+      // Doctor Matrix
+      switch (appointment.status) {
+        case "scheduled":
+        case "pending":
+        case "confirmed":
+          mainAction = (
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              title="Atender Directo"
+            >
+              {isStarting ? (
                 <Spinner size="sm" />
               ) : (
-                <Undo2 className="w-4 h-4" />
+                <Play className="w-4 h-4 ml-0.5 fill-current" />
               )}
             </button>
           );
-        }
-        return (
-          <div className="flex justify-end gap-1.5">
+          kebabMenu = (
+            <>
+              <DropdownMenuItem onClick={onEdit}>Editar Turno</DropdownMenuItem>
+              {isDelayed && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await updateAppointment(appointment.id, {
+                        status: "no_show",
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["appointments"],
+                      });
+                      toast.success("Turno marcado como ausente");
+                    } catch (e) {
+                      toast.error("Error al marcar como ausente");
+                    }
+                  }}
+                >
+                  Marcar Ausente
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-danger focus:text-danger focus:bg-danger/10"
+                onClick={async () => {
+                  if (confirm("¿Estás seguro de cancelar este turno?")) {
+                    try {
+                      await updateAppointment(appointment.id, {
+                        status: "cancelled",
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["appointments"],
+                      });
+                      toast.success("Turno cancelado");
+                    } catch (e) {
+                      toast.error("Error al cancelar el turno");
+                    }
+                  }
+                }}
+              >
+                Cancelar Turno
+              </DropdownMenuItem>
+            </>
+          );
+          break;
+
+        case "in_waiting_room":
+          mainAction = (
             <button
               onClick={handleStart}
               disabled={isStarting}
@@ -759,57 +963,96 @@ function AppointmentRow({
                 <Play className="w-3.5 h-3.5 ml-0.5 fill-current transition-transform group-hover/play:scale-110" />
               )}
             </button>
-          </div>
-        );
-      case "in_progress":
-        // Non-doctors: absolutely nothing in action column (Friction Zero)
-        if (!isDoctor) return null;
-        return (
-          <Link
-            href={`/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 hover:text-white hover:bg-brand-500 transition-all"
-            title="Ir a Consulta"
-          >
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        );
-      case "completed":
-        // Non-doctors: "Cobrar" button instead of medical record access
-        if (!isDoctor) {
-          return (
-            <button
-              onClick={() => toast.info("Módulo de caja en desarrollo")}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all"
-              title="Cobrar"
-            >
-              <CircleDollarSign className="w-4 h-4" />
-            </button>
           );
-        }
-        // Doctor: access medical record
-        if (appointment.medical_record?.id) {
-          return (
-            <Link
-              href={`/patients/${appointment.patient_id}/medical-records/${appointment.medical_record.id}`}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
-              title="Revisar Evolución"
+          kebabMenu = (
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await updateAppointment(appointment.id, {
+                    status: "scheduled",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                  toast.success("Turno devuelto a recepción");
+                } catch (error) {
+                  toast.error("Error al devolver el turno a recepción");
+                }
+              }}
             >
-              <Eye className="w-4 h-4" />
+              Devolver a Recepción
+            </DropdownMenuItem>
+          );
+          break;
+
+        case "in_progress":
+          mainAction = (
+            <Link
+              href={`/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 hover:text-white hover:bg-brand-500 transition-all"
+              title="Ir a Consulta"
+            >
+              <ArrowRight className="w-4 h-4" />
             </Link>
           );
-        }
-        return (
-          <Link
-            href={`/patients/${appointment.patient_id}`}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
-            title="Perfil del Paciente"
-          >
-            <Eye className="w-4 h-4" />
-          </Link>
-        );
-      default:
-        return null;
+          kebabMenu = (
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await updateAppointment(appointment.id, {
+                    status: "in_waiting_room",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                  toast.success("Turno devuelto a sala de espera");
+                } catch (error) {
+                  toast.error("Error al devolver el turno a sala de espera");
+                }
+              }}
+            >
+              Devolver a Sala de Espera
+            </DropdownMenuItem>
+          );
+          break;
+
+        case "completed":
+          if (appointment.medical_record?.id) {
+            mainAction = (
+              <Link
+                href={`/patients/${appointment.patient_id}/medical-records/${appointment.medical_record.id}`}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
+                title="Revisar Evolución"
+              >
+                <Eye className="w-4 h-4" />
+              </Link>
+            );
+          }
+          break;
+
+        case "no_show":
+        case "cancelled":
+          // Sin acciones
+          break;
+      }
     }
+
+    return (
+      <div className="flex items-center justify-end gap-2">
+        {mainAction}
+        {kebabMenu && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all focus:outline-none"
+                title="Más opciones"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 z-50">
+              {kebabMenu}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    );
   };
 
   const opacityClass =
@@ -819,8 +1062,12 @@ function AppointmentRow({
         ? "opacity-60 hover:opacity-100"
         : "hover:bg-surface-secondary/50";
 
+  const delayedClass = isDelayed ? "bg-amber-50/60" : "";
+
   return (
-    <tr className={`transition-opacity transition-colors ${opacityClass}`}>
+    <tr
+      className={`transition-opacity transition-colors ${opacityClass} ${delayedClass}`}
+    >
       <td className="px-6 py-3.5">
         <span className="text-sm font-medium text-foreground">{time}</span>
       </td>
