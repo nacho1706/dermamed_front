@@ -157,6 +157,23 @@ export interface DoctorAvailability {
   doctor?: User;
 }
 
+export interface Brand {
+  id: number;
+  name: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  subcategories?: Subcategory[];
+}
+
+export interface Subcategory {
+  id: number;
+  name: string;
+  category_id: number;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -164,6 +181,14 @@ export interface Product {
   price: number;
   stock: number;
   min_stock: number;
+  brand_id: number | null;
+  category_id: number | null;
+  subcategory_id: number | null;
+  is_for_sale: boolean;
+  is_supply: boolean;
+  brand?: Brand | null;
+  category?: Category | null;
+  subcategory?: Subcategory | null;
   created_at: string;
   updated_at: string;
 }

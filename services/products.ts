@@ -1,6 +1,9 @@
 import api from "@/lib/api";
 import type {
   Product,
+  Brand,
+  Category,
+  Subcategory,
   StockMovement,
   PaginatedResponse,
   PaginationParams,
@@ -11,9 +14,30 @@ import type {
 export interface ProductFilters extends PaginationParams {
   name?: string;
   low_stock?: boolean;
+  category_id?: number;
+  brand_id?: number;
+  is_for_sale?: boolean;
+  is_supply?: boolean;
+  sort?: string;
 }
 
 // ─── Products CRUD ──────────────────────────────────────────────────────────
+
+export interface ProductKPIs {
+  total_products: number;
+  total_value: number;
+  low_stock_count: number;
+  active_products: number;
+}
+
+export async function getProductKPIs(
+  filters?: Omit<ProductFilters, "pagina" | "cantidad">,
+): Promise<ProductKPIs> {
+  const response = await api.get<ProductKPIs>("/products/kpis", {
+    params: filters,
+  });
+  return response.data;
+}
 
 export async function getProducts(
   filters?: ProductFilters,
@@ -44,6 +68,31 @@ export async function updateProduct(
 
 export async function deleteProduct(id: number): Promise<void> {
   await api.delete(`/products/${id}`);
+}
+
+// ─── Brands ─────────────────────────────────────────────────────────────────
+
+export async function getBrands(): Promise<Brand[]> {
+  const response = await api.get<{ data: Brand[] }>("/brands");
+  return response.data.data;
+}
+
+// ─── Categories ─────────────────────────────────────────────────────────────
+
+export async function getCategories(): Promise<Category[]> {
+  const response = await api.get<{ data: Category[] }>("/categories");
+  return response.data.data;
+}
+
+// ─── Subcategories ──────────────────────────────────────────────────────────
+
+export async function getSubcategories(
+  categoryId?: number,
+): Promise<Subcategory[]> {
+  const response = await api.get<{ data: Subcategory[] }>("/subcategories", {
+    params: categoryId ? { category_id: categoryId } : {},
+  });
+  return response.data.data;
 }
 
 // ─── Stock Movements ────────────────────────────────────────────────────────

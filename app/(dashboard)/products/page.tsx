@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getProducts,
+  getProductKPIs,
   deleteProduct,
-  createProduct,
-  updateProduct,
   createStockMovement,
   getStockMovements,
   type ProductFilters,
@@ -27,7 +26,7 @@ import {
 import { sileo } from "sileo";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -41,9 +40,14 @@ import {
   History,
   Upload,
   Download,
+  Filter,
+  ShoppingBag,
+  Stethoscope,
 } from "lucide-react";
 import type { Product } from "@/types";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
+import { ProductFormModal } from "./ProductFormModal";
+import { ProductFiltersDrawer, type FilterValues } from "./ProductFiltersDrawer";
 
 // ─── Status helpers ─────────────────────────────────────────────────────────
 
@@ -111,176 +115,6 @@ function KpiCard({
         </div>
       </CardBody>
     </Card>
-  );
-}
-
-// ─── Product Form Modal ─────────────────────────────────────────────────────
-
-function ProductFormModal({
-  isOpen,
-  onClose,
-  product,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  product?: Product;
-}) {
-  const queryClient = useQueryClient();
-  const isEdit = !!product;
-
-  const [name, setName] = useState(product?.name || "");
-  const [description, setDescription] = useState(product?.description || "");
-  const [price, setPrice] = useState(product?.price?.toString() || "");
-  const [stock, setStock] = useState(product?.stock?.toString() || "");
-  const [minStock, setMinStock] = useState(
-    product?.min_stock?.toString() || "",
-  );
-
-  // Reset form when product changes
-  React.useEffect(() => {
-    if (isOpen) {
-      setName(product?.name || "");
-      setDescription(product?.description || "");
-      setPrice(product?.price?.toString() || "");
-      setStock(product?.stock?.toString() || "");
-      setMinStock(product?.min_stock?.toString() || "");
-    }
-  }, [isOpen, product]);
-
-  const createMut = useMutation({
-    mutationFn: createProduct,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      sileo.success({ title: "Producto creado", description: "El producto fue creado correctamente." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo crear el producto." }),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Product> }) =>
-      updateProduct(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      sileo.success({ title: "Producto actualizado", description: "Los cambios fueron guardados correctamente." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el producto." }),
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = {
-      name,
-      description: description || undefined,
-      price: parseFloat(price),
-      stock: parseInt(stock, 10),
-      min_stock: parseInt(minStock, 10),
-    };
-
-    if (isEdit && product) {
-      updateMut.mutate({ id: product.id, data });
-    } else {
-      createMut.mutate(data);
-    }
-  };
-
-  const isPending = createMut.isPending || updateMut.isPending;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Editar Producto" : "Nuevo Producto"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Nombre *
-            </label>
-            <Input
-              placeholder="Ej: Protector Solar SPF 50"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Descripción
-            </label>
-            <Input
-              placeholder="Descripción del producto"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Precio *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Stock *
-              </label>
-              <Input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Stock Mín. *
-              </label>
-              <Input
-                type="number"
-                min="0"
-                placeholder="5"
-                value={minStock}
-                onChange={(e) => setMinStock(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending || !name || !price}>
-              {isPending ? (
-                <Spinner size="sm" />
-              ) : isEdit ? (
-                "Guardar Cambios"
-              ) : (
-                "Crear Producto"
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -600,27 +434,90 @@ export default function ProductsPage() {
   const queryClient = useQueryClient();
   const { activeRole } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  // ── Read filters from URL ─────────────────────────────────────────────
+  const urlSearch = searchParams.get("search") || "";
+  const urlCategoryId = searchParams.get("category_id") || "";
+  const urlBrandId = searchParams.get("brand_id") || "";
+  const urlType = searchParams.get("type") || "";
+  const urlSort = searchParams.get("sort") || "";
+  const urlPage = parseInt(searchParams.get("page") || "1", 10);
+
+  const [search, setSearch] = useState(urlSearch);
+  const [page, setPage] = useState(urlPage);
   const [showLowStock, setShowLowStock] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 500);
 
-  // ── Hooks must all be declared before any conditional returns ──────────────
+  // ── Helper: update URL search params ──────────────────────────────────
+  const updateUrl = React.useCallback(
+    (params: Record<string, string | undefined>) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      Object.entries(params).forEach(([key, val]) => {
+        if (val) {
+          sp.set(key, val);
+        } else {
+          sp.delete(key);
+        }
+      });
+      // Always reset to page 1 when filters change
+      if (!params.page) {
+        sp.delete("page");
+      }
+      router.replace(`?${sp.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // Sync debounced search to URL
+  React.useEffect(() => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) {
+      sp.set("search", debouncedSearch);
+    } else {
+      sp.delete("search");
+    }
+    sp.delete("page");
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build API filters from URL
+  const queryFilters: ProductFilters = {
+    name: urlSearch || undefined,
+    pagina: urlPage,
+    cantidad: 10,
+    category_id: urlCategoryId ? Number(urlCategoryId) : undefined,
+    brand_id: urlBrandId ? Number(urlBrandId) : undefined,
+    is_for_sale: urlType === "sale" ? true : undefined,
+    is_supply: urlType === "supply" ? true : undefined,
+    sort: urlSort || undefined,
+  };
+
+  // ── KPI filters (same as products but without pagination) ──────────────
+  const kpiFilters = {
+    name: queryFilters.name,
+    category_id: queryFilters.category_id,
+    brand_id: queryFilters.brand_id,
+    is_for_sale: queryFilters.is_for_sale,
+    is_supply: queryFilters.is_supply,
+  };
+
+  // ── Hooks (ALL before conditional returns) ────────────────────────────
   const { data, isLoading } = useQuery({
-    queryKey: ["products", debouncedSearch, page],
-    queryFn: () =>
-      getProducts({
-        name: debouncedSearch || undefined,
-        pagina: page,
-        cantidad: 10,
-      }),
+    queryKey: ["products", queryFilters],
+    queryFn: () => getProducts(queryFilters),
+  });
+
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ["products-kpis", kpiFilters],
+    queryFn: () => getProductKPIs(kpiFilters),
   });
 
   const deleteMut = useMutation({
@@ -651,25 +548,20 @@ export default function ProductsPage() {
   const totalPages = data?.meta?.last_page ?? 1;
   const totalProducts = data?.meta?.total ?? 0;
 
-  // Compute KPIs from current data
-  const allProducts = products;
-  const lowStockProducts = allProducts.filter((p) => p.stock <= p.min_stock);
-  const inventoryValue = allProducts.reduce(
-    (sum, p) => sum + p.price * p.stock,
-    0,
-  );
-
   // Filter for low stock toggle
   const displayProducts = showLowStock
     ? products.filter((p) => p.stock <= p.min_stock)
     : products;
+
+  // Count active URL filters
+  const activeFilterCount = [urlCategoryId, urlBrandId, urlType, urlSort].filter(Boolean).length;
 
   const handleExportCSV = () => {
     if (products.length === 0) {
       sileo.warning({ title: "Sin datos", description: "No hay productos para exportar." });
       return;
     }
-    const headers = ["ID", "Nombre", "Descripcion", "Precio", "Stock", "Stock Minimo"];
+    const headers = ["ID", "Nombre", "Descripcion", "Precio", "Stock", "Stock Minimo", "Marca", "Categoria", "Subcategoria", "Venta", "Insumo"];
     const rows = products.map((p) => [
       p.id,
       `"${p.name.replace(/"/g, '""')}"`,
@@ -677,6 +569,11 @@ export default function ProductsPage() {
       p.price,
       p.stock,
       p.min_stock,
+      `"${p.brand?.name || ""}"`,
+      `"${p.category?.name || ""}"`,
+      `"${p.subcategory?.name || ""}"`,
+      p.is_for_sale ? "SI" : "NO",
+      p.is_supply ? "SI" : "NO",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -703,6 +600,35 @@ export default function ProductsPage() {
     setEditingProduct(undefined);
   };
 
+  const handleApplyFilters = (filters: FilterValues) => {
+    updateUrl({
+      category_id: filters.category_id,
+      brand_id: filters.brand_id,
+      type: filters.type,
+      sort: filters.sort,
+    });
+  };
+
+  const handleClearFilters = () => {
+    updateUrl({
+      category_id: undefined,
+      brand_id: undefined,
+      type: undefined,
+      sort: undefined,
+    });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    const sp = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) {
+      sp.set("page", String(newPage));
+    } else {
+      sp.delete("page");
+    }
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
@@ -715,7 +641,7 @@ export default function ProductsPage() {
             Gestiona el stock de cremas, inyectables y otros insumos médicos.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
             <History className="w-4 h-4 mr-2" />
             Historial
@@ -748,7 +674,7 @@ export default function ProductsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total Productos"
-          value={isLoading ? "…" : totalProducts}
+          value={kpisLoading ? "…" : (kpis?.total_products ?? 0)}
           icon={Package}
           iconBg="bg-blue-50"
           iconColor="text-info"
@@ -756,9 +682,9 @@ export default function ProductsPage() {
         <KpiCard
           label="Valor Inventario"
           value={
-            isLoading
+            kpisLoading
               ? "…"
-              : `$${inventoryValue.toLocaleString("es-AR", { minimumFractionDigits: 0 })}`
+              : `$${(kpis?.total_value ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 0 })}`
           }
           icon={DollarSign}
           iconBg="bg-emerald-50"
@@ -766,34 +692,34 @@ export default function ProductsPage() {
         />
         <KpiCard
           label="Stock Bajo"
-          value={isLoading ? "…" : lowStockProducts.length}
+          value={kpisLoading ? "…" : (kpis?.low_stock_count ?? 0)}
           icon={AlertTriangle}
-          iconBg={lowStockProducts.length > 0 ? "bg-red-50" : "bg-emerald-50"}
+          iconBg={(kpis?.low_stock_count ?? 0) > 0 ? "bg-red-50" : "bg-emerald-50"}
           iconColor={
-            lowStockProducts.length > 0 ? "text-danger" : "text-success"
+            (kpis?.low_stock_count ?? 0) > 0 ? "text-danger" : "text-success"
           }
           badge={
-            lowStockProducts.length > 0
+            (kpis?.low_stock_count ?? 0) > 0
               ? { text: "Atención", color: "text-danger" }
               : undefined
           }
         />
         <KpiCard
           label="Productos Activos"
-          value={isLoading ? "…" : products.filter((p) => p.stock > 0).length}
+          value={kpisLoading ? "…" : (kpis?.active_products ?? 0)}
           icon={TrendingUp}
           iconBg="bg-brand-50"
           iconColor="text-brand-600"
         />
       </div>
 
-      {/* Filters */}
+      {/* Search + Filters */}
       <Card>
         <CardBody className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <Input
-              placeholder="Buscar por nombre, código…"
+              placeholder="Buscar por nombre…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -814,6 +740,21 @@ export default function ProductsPage() {
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             Stock Bajo
+          </button>
+          <button
+            onClick={() => setIsFiltersOpen(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${activeFilterCount > 0
+              ? "bg-brand-50 border-brand-200 text-brand-700"
+              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+              }`}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-brand-600 text-white">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
         </CardBody>
       </Card>
@@ -846,8 +787,14 @@ export default function ProductsPage() {
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
                     Producto
                   </th>
+                  <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden lg:table-cell">
+                    Categoría
+                  </th>
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden md:table-cell">
-                    Descripción
+                    Marca
+                  </th>
+                  <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                    Tipo
                   </th>
                   <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
                     Stock
@@ -871,6 +818,7 @@ export default function ProductsPage() {
                       key={product.id}
                       className="hover:bg-surface-secondary/50 transition-colors"
                     >
+                      {/* Name */}
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-surface-secondary flex items-center justify-center shrink-0">
@@ -880,14 +828,54 @@ export default function ProductsPage() {
                             <p className="text-sm font-medium text-foreground">
                               {product.name}
                             </p>
+                            {product.description && (
+                              <p className="text-xs text-muted truncate max-w-[180px]">
+                                {product.description}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
+                      {/* Category */}
+                      <td className="px-6 py-3.5 hidden lg:table-cell">
+                        <div>
+                          <p className="text-sm text-foreground">
+                            {product.category?.name || "—"}
+                          </p>
+                          {product.subcategory && (
+                            <p className="text-xs text-muted">
+                              {product.subcategory.name}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      {/* Brand */}
                       <td className="px-6 py-3.5 hidden md:table-cell">
-                        <p className="text-sm text-muted truncate max-w-[200px]">
-                          {product.description || "—"}
+                        <p className="text-sm text-foreground">
+                          {product.brand?.name || "—"}
                         </p>
                       </td>
+                      {/* Type badges */}
+                      <td className="px-6 py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                          {product.is_for_sale && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-50 border-emerald-200 text-emerald-700">
+                              <ShoppingBag className="w-3 h-3" />
+                              Venta
+                            </span>
+                          )}
+                          {product.is_supply && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">
+                              <Stethoscope className="w-3 h-3" />
+                              Insumo
+                            </span>
+                          )}
+                          {!product.is_for_sale && !product.is_supply && (
+                            <span className="text-xs text-muted">—</span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Stock */}
                       <td className="px-6 py-3.5 text-center">
                         <span
                           className={`text-sm font-semibold ${product.stock <= product.min_stock
@@ -898,6 +886,7 @@ export default function ProductsPage() {
                           {product.stock} un.
                         </span>
                       </td>
+                      {/* Price */}
                       <td className="px-6 py-3.5 text-right">
                         <span className="text-sm font-medium text-foreground font-mono">
                           $
@@ -906,6 +895,7 @@ export default function ProductsPage() {
                           })}
                         </span>
                       </td>
+                      {/* Status */}
                       <td className="px-6 py-3.5 text-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${status.bg} ${status.color}`}
@@ -913,6 +903,7 @@ export default function ProductsPage() {
                           {status.label}
                         </span>
                       </td>
+                      {/* Actions */}
                       <td className="px-6 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -941,13 +932,13 @@ export default function ProductsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-3 border-t border-border">
             <p className="text-xs text-muted">
-              Mostrando página {page} de {totalPages} ({totalProducts}{" "}
+              Mostrando página {urlPage} de {totalPages} ({totalProducts}{" "}
               resultados)
             </p>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
+                onClick={() => handlePageChange(Math.max(1, urlPage - 1))}
+                disabled={urlPage === 1}
                 className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] border border-border hover:bg-surface-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Anterior
@@ -957,8 +948,8 @@ export default function ProductsPage() {
                 return (
                   <button
                     key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${page === pageNum
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${urlPage === pageNum
                       ? "bg-brand-600 text-white"
                       : "border border-border hover:bg-surface-secondary"
                       }`}
@@ -968,8 +959,8 @@ export default function ProductsPage() {
                 );
               })}
               <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
+                onClick={() => handlePageChange(Math.min(totalPages, urlPage + 1))}
+                disabled={urlPage === totalPages}
                 className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] border border-border hover:bg-surface-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Siguiente
@@ -979,7 +970,7 @@ export default function ProductsPage() {
         )}
       </Card>
 
-      {/* Modals */}
+      {/* Modals & Drawers */}
       <ProductFormModal
         isOpen={isFormOpen}
         onClose={handleCloseForm}
@@ -994,6 +985,18 @@ export default function ProductsPage() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         products={products}
+      />
+      <ProductFiltersDrawer
+        isOpen={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        filters={{
+          category_id: urlCategoryId,
+          brand_id: urlBrandId,
+          type: urlType,
+          sort: urlSort,
+        }}
+        onApply={handleApplyFilters}
+        onClear={handleClearFilters}
       />
       <BulkImportModal
         isOpen={isImportOpen}
