@@ -14,10 +14,7 @@ import type {
 export interface ProductFilters extends PaginationParams {
   name?: string;
   low_stock?: boolean;
-  category_id?: number;
   brand_id?: number;
-  is_for_sale?: boolean;
-  is_supply?: boolean;
   sort?: string;
 }
 
@@ -124,7 +121,7 @@ export async function createStockMovement(
   data: StockMovementInput,
 ): Promise<StockMovement> {
   const response = await api.post<{ data: StockMovement }>(
-    "/stock-movements",
+    `/products/${data.product_id}/movements`,
     data,
   );
   return response.data.data;

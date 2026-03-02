@@ -66,6 +66,8 @@ export interface Role {
 export interface User {
   id: number;
   name: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
   cuit: string | null;
   specialty: string | null;
@@ -121,6 +123,7 @@ export interface Appointment {
   real_start_at?: string;
   real_end_at?: string;
   reserve_channel: "whatsapp" | "manual" | "web" | null;
+  is_overbook?: boolean;
   notes: string | null;
   patient?: Patient;
   doctor?: User;
@@ -197,8 +200,9 @@ export interface StockMovement {
   id: number;
   product_id: number;
   quantity: number;
-  type: "in" | "out";
+  type: "in" | "out" | "adjustment";
   reason: string | null;
+  notes?: string | null;
   product?: Product;
   user?: User;
   created_at: string;

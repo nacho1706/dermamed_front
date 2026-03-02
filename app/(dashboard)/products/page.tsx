@@ -6,10 +6,8 @@ import {
   getProducts,
   getProductKPIs,
   deleteProduct,
-  createStockMovement,
   getStockMovements,
   type ProductFilters,
-  type StockMovementInput,
 } from "@/services/products";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { useAuth } from "@/contexts/auth-context";
@@ -43,11 +41,24 @@ import {
   Filter,
   ShoppingBag,
   Stethoscope,
+  MoreHorizontal,
 } from "lucide-react";
 import type { Product } from "@/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 import { ProductFormModal } from "./ProductFormModal";
-import { ProductFiltersDrawer, type FilterValues } from "./ProductFiltersDrawer";
+import { MovementModal } from "./MovementModal";
+import { StockMovementHistoryModal } from "./StockMovementHistoryModal";
+import {
+  ProductFiltersDrawer,
+  type FilterValues,
+} from "./ProductFiltersDrawer";
 
 // ─── Status helpers ─────────────────────────────────────────────────────────
 
@@ -118,316 +129,6 @@ function KpiCard({
   );
 }
 
-// ─── Stock Movement Modal ───────────────────────────────────────────────────
-
-function StockMovementModal({
-  isOpen,
-  onClose,
-  products,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  products: Product[];
-}) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  const [productId, setProductId] = useState("");
-  const [type, setType] = useState<"in" | "out" | "adjustment">("in");
-  const [quantity, setQuantity] = useState("");
-  const [reason, setReason] = useState("");
-
-  React.useEffect(() => {
-    if (isOpen) {
-      setProductId("");
-      setType("in");
-      setQuantity("");
-      setReason("");
-    }
-  }, [isOpen]);
-
-  const mutation = useMutation({
-    mutationFn: createStockMovement,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      sileo.success({ title: "Stock registrado", description: "El movimiento de stock fue registrado correctamente." });
-      onClose();
-    },
-    onError: (error: any) => {
-      const msg =
-        error?.response?.data?.message || "Error al registrar el movimiento";
-      sileo.error({ title: "Error de stock", description: msg });
-    },
-  });
-
-  const selectedProduct = products.find((p) => String(p.id) === productId);
-  const qty = parseInt(quantity, 10) || 0;
-  const exceedsStock =
-    type === "out" && selectedProduct ? qty > selectedProduct.stock : false;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    if (exceedsStock) {
-      sileo.error({
-        title: "Stock insuficiente",
-        description: `No se pueden retirar ${qty} unidades. Stock disponible: ${selectedProduct?.stock}.`,
-      });
-      return;
-    }
-    const data: StockMovementInput = {
-      product_id: parseInt(productId, 10),
-      user_id: user.id,
-      type,
-      quantity: qty,
-      reason: reason || undefined,
-    };
-    mutation.mutate(data);
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Cargar Movimiento de Stock</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Producto *
-            </label>
-            <select
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-sm rounded-[var(--radius-md)] border border-border bg-surface hover:border-[var(--border-hover)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
-            >
-              <option value="">Seleccionar producto...</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (Stock: {p.stock})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Tipo *
-              </label>
-              <select
-                value={type}
-                onChange={(e) =>
-                  setType(e.target.value as "in" | "out" | "adjustment")
-                }
-                className="w-full px-3 py-2 text-sm rounded-[var(--radius-md)] border border-border bg-surface hover:border-[var(--border-hover)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
-              >
-                <option value="in">Entrada</option>
-                <option value="out">Salida</option>
-                <option value="adjustment">Ajuste</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Cantidad *
-              </label>
-              <Input
-                type="number"
-                min="1"
-                max={
-                  type === "out" && selectedProduct
-                    ? selectedProduct.stock
-                    : undefined
-                }
-                placeholder="0"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                required
-              />
-              {type === "out" && selectedProduct && (
-                <p
-                  className={`text-xs mt-1 ${exceedsStock ? "text-red-600 font-medium" : "text-muted"
-                    }`}
-                >
-                  {exceedsStock
-                    ? `Excede stock disponible (${selectedProduct.stock} un.)`
-                    : `Disponible: ${selectedProduct.stock} un.`}
-                </p>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Razón
-            </label>
-            <Input
-              placeholder="Motivo del movimiento (opcional)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={mutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                mutation.isPending || !productId || !quantity || exceedsStock
-              }
-            >
-              {mutation.isPending ? <Spinner size="sm" /> : "Registrar"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Stock Movement History Modal ──────────────────────────────────────────
-
-function StockMovementHistoryModal({
-  isOpen,
-  onClose,
-  products,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  products: Product[];
-}) {
-  const [filterProductId, setFilterProductId] = useState("");
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["stock-movements", filterProductId],
-    queryFn: () =>
-      getStockMovements({
-        cantidad: 50,
-        ...(filterProductId ? { product_id: Number(filterProductId) } : {}),
-      }),
-    enabled: isOpen,
-  });
-
-  const movements = data?.data || [];
-
-  const typeLabels: Record<string, { label: string; color: string }> = {
-    in: {
-      label: "Entrada",
-      color: "text-green-700 bg-green-50 border-green-200",
-    },
-    out: { label: "Salida", color: "text-red-700 bg-red-50 border-red-200" },
-    adjustment: {
-      label: "Ajuste",
-      color: "text-blue-700 bg-blue-50 border-blue-200",
-    },
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Historial de Movimientos de Stock</DialogTitle>
-        </DialogHeader>
-
-        <div className="mb-4">
-          <select
-            value={filterProductId}
-            onChange={(e) => setFilterProductId(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-[var(--radius-md)] border border-border bg-surface hover:border-[var(--border-hover)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
-          >
-            <option value="">Todos los productos</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="overflow-auto max-h-[50vh]">
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : movements.length === 0 ? (
-            <p className="text-sm text-muted text-center py-8">
-              No hay movimientos registrados
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase">
-                    Fecha
-                  </th>
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase">
-                    Usuario
-                  </th>
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase">
-                    Producto
-                  </th>
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase">
-                    Tipo
-                  </th>
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase text-right">
-                    Cant.
-                  </th>
-                  <th className="py-2 px-2 font-medium text-muted text-xs uppercase">
-                    Razón
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {movements.map((m) => {
-                  const typeInfo = typeLabels[m.type] || {
-                    label: m.type,
-                    color: "text-muted bg-surface-secondary",
-                  };
-                  return (
-                    <tr
-                      key={m.id}
-                      className="border-b border-border/50 hover:bg-surface-secondary/50"
-                    >
-                      <td className="py-2.5 px-2 text-xs text-muted whitespace-nowrap">
-                        {formatLocalDateTime(m.created_at)}
-                      </td>
-                      <td className="py-2.5 px-2 text-xs">
-                        {m.user?.name || "—"}
-                      </td>
-                      <td className="py-2.5 px-2 text-xs font-medium">
-                        {m.product?.name || "—"}
-                      </td>
-                      <td className="py-2.5 px-2">
-                        <span
-                          className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${typeInfo.color}`}
-                        >
-                          {typeInfo.label}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-2 text-xs text-right font-mono font-medium">
-                        {m.type === "out" ? "-" : m.type === "in" ? "+" : ""}
-                        {m.quantity}
-                      </td>
-                      <td className="py-2.5 px-2 text-xs text-muted truncate max-w-[150px]">
-                        {m.reason || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Products Page ──────────────────────────────────────────────────────────
 
 export default function ProductsPage() {
@@ -438,21 +139,23 @@ export default function ProductsPage() {
 
   // ── Read filters from URL ─────────────────────────────────────────────
   const urlSearch = searchParams.get("search") || "";
-  const urlCategoryId = searchParams.get("category_id") || "";
   const urlBrandId = searchParams.get("brand_id") || "";
-  const urlType = searchParams.get("type") || "";
   const urlSort = searchParams.get("sort") || "";
   const urlPage = parseInt(searchParams.get("page") || "1", 10);
 
+  const urlFilter = searchParams.get("filter") || "";
+
   const [search, setSearch] = useState(urlSearch);
   const [page, setPage] = useState(urlPage);
-  const [showLowStock, setShowLowStock] = useState(false);
+  const [showLowStock, setShowLowStock] = useState(urlFilter === "low_stock");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isStockOpen, setIsStockOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isMovementOpen, setIsMovementOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const [movementProduct, setMovementProduct] = useState<Product | undefined>();
+  const [historyProduct, setHistoryProduct] = useState<Product | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 500);
 
@@ -493,20 +196,14 @@ export default function ProductsPage() {
     name: urlSearch || undefined,
     pagina: urlPage,
     cantidad: 10,
-    category_id: urlCategoryId ? Number(urlCategoryId) : undefined,
     brand_id: urlBrandId ? Number(urlBrandId) : undefined,
-    is_for_sale: urlType === "sale" ? true : undefined,
-    is_supply: urlType === "supply" ? true : undefined,
     sort: urlSort || undefined,
   };
 
   // ── KPI filters (same as products but without pagination) ──────────────
   const kpiFilters = {
     name: queryFilters.name,
-    category_id: queryFilters.category_id,
     brand_id: queryFilters.brand_id,
-    is_for_sale: queryFilters.is_for_sale,
-    is_supply: queryFilters.is_supply,
   };
 
   // ── Hooks (ALL before conditional returns) ────────────────────────────
@@ -524,9 +221,16 @@ export default function ProductsPage() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      sileo.success({ title: "Producto eliminado", description: "El producto fue eliminado correctamente." });
+      sileo.success({
+        title: "Producto eliminado",
+        description: "El producto fue eliminado correctamente.",
+      });
     },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el producto." }),
+    onError: () =>
+      sileo.error({
+        title: "Error",
+        description: "No se pudo eliminar el producto.",
+      }),
   });
 
   React.useEffect(() => {
@@ -537,6 +241,12 @@ export default function ProductsPage() {
       router.push("/dashboard");
     }
   }, [activeRole, router]);
+
+  React.useEffect(() => {
+    if (searchParams.get("filter") === "low_stock") {
+      setShowLowStock(true);
+    }
+  }, [searchParams]);
 
   if (
     activeRole &&
@@ -554,14 +264,25 @@ export default function ProductsPage() {
     : products;
 
   // Count active URL filters
-  const activeFilterCount = [urlCategoryId, urlBrandId, urlType, urlSort].filter(Boolean).length;
+  const activeFilterCount = [urlBrandId, urlSort].filter(Boolean).length;
 
   const handleExportCSV = () => {
     if (products.length === 0) {
-      sileo.warning({ title: "Sin datos", description: "No hay productos para exportar." });
+      sileo.warning({
+        title: "Sin datos",
+        description: "No hay productos para exportar.",
+      });
       return;
     }
-    const headers = ["ID", "Nombre", "Descripcion", "Precio", "Stock", "Stock Minimo", "Marca", "Categoria", "Subcategoria", "Venta", "Insumo"];
+    const headers = [
+      "ID",
+      "Nombre",
+      "Descripcion",
+      "Precio",
+      "Stock",
+      "Stock Minimo",
+      "Marca",
+    ];
     const rows = products.map((p) => [
       p.id,
       `"${p.name.replace(/"/g, '""')}"`,
@@ -570,10 +291,6 @@ export default function ProductsPage() {
       p.stock,
       p.min_stock,
       `"${p.brand?.name || ""}"`,
-      `"${p.category?.name || ""}"`,
-      `"${p.subcategory?.name || ""}"`,
-      p.is_for_sale ? "SI" : "NO",
-      p.is_supply ? "SI" : "NO",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -583,12 +300,25 @@ export default function ProductsPage() {
     link.download = "productos_export.csv";
     link.click();
     URL.revokeObjectURL(url);
-    sileo.success({ title: "Exportación exitosa", description: `Se exportaron ${products.length} productos.` });
+    sileo.success({
+      title: "Exportación exitosa",
+      description: `Se exportaron ${products.length} productos.`,
+    });
   };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setIsFormOpen(true);
+  };
+
+  const handleMovement = (product?: Product) => {
+    setMovementProduct(product);
+    setIsMovementOpen(true);
+  };
+
+  const handleHistory = (product?: Product) => {
+    setHistoryProduct(product);
+    setIsHistoryOpen(true);
   };
 
   const handleDelete = (id: number) => {
@@ -602,18 +332,14 @@ export default function ProductsPage() {
 
   const handleApplyFilters = (filters: FilterValues) => {
     updateUrl({
-      category_id: filters.category_id,
       brand_id: filters.brand_id,
-      type: filters.type,
       sort: filters.sort,
     });
   };
 
   const handleClearFilters = () => {
     updateUrl({
-      category_id: undefined,
       brand_id: undefined,
-      type: undefined,
       sort: undefined,
     });
   };
@@ -642,21 +368,9 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
-            <History className="w-4 h-4 mr-2" />
-            Historial
-          </Button>
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            Importar CSV
-          </Button>
-          <Button variant="outline" onClick={() => setIsStockOpen(true)}>
+          <Button variant="outline" onClick={() => handleMovement()}>
             <ArrowUpDown className="w-4 h-4 mr-2" />
-            Cargar Stock
+            Registrar Movimiento
           </Button>
           <Button
             onClick={() => {
@@ -694,7 +408,9 @@ export default function ProductsPage() {
           label="Stock Bajo"
           value={kpisLoading ? "…" : (kpis?.low_stock_count ?? 0)}
           icon={AlertTriangle}
-          iconBg={(kpis?.low_stock_count ?? 0) > 0 ? "bg-red-50" : "bg-emerald-50"}
+          iconBg={
+            (kpis?.low_stock_count ?? 0) > 0 ? "bg-red-50" : "bg-emerald-50"
+          }
           iconColor={
             (kpis?.low_stock_count ?? 0) > 0 ? "text-danger" : "text-success"
           }
@@ -733,20 +449,22 @@ export default function ProductsPage() {
               setShowLowStock(!showLowStock);
               setPage(1);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${showLowStock
-              ? "bg-amber-50 border-amber-200 text-amber-800"
-              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
+              showLowStock
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+            }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             Stock Bajo
           </button>
           <button
             onClick={() => setIsFiltersOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${activeFilterCount > 0
-              ? "bg-brand-50 border-brand-200 text-brand-700"
-              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
+              activeFilterCount > 0
+                ? "bg-brand-50 border-brand-200 text-brand-700"
+                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+            }`}
           >
             <Filter className="w-3.5 h-3.5" />
             Filtros
@@ -756,6 +474,32 @@ export default function ProductsPage() {
               </span>
             )}
           </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="!px-3 !py-2 shrink-0 h-[38px] w-[38px]"
+              >
+                <MoreHorizontal className="w-4 h-4 text-muted" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <Download className="w-4 h-4 mr-2 text-muted" />
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsImportOpen(true)}>
+                <Upload className="w-4 h-4 mr-2 text-muted" />
+                Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleHistory()}>
+                <History className="w-4 h-4 mr-2 text-muted" />
+                Historial Global
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardBody>
       </Card>
 
@@ -787,14 +531,8 @@ export default function ProductsPage() {
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
                     Producto
                   </th>
-                  <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden lg:table-cell">
-                    Categoría
-                  </th>
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden md:table-cell">
                     Marca
-                  </th>
-                  <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
-                    Tipo
                   </th>
                   <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
                     Stock
@@ -836,52 +574,20 @@ export default function ProductsPage() {
                           </div>
                         </div>
                       </td>
-                      {/* Category */}
-                      <td className="px-6 py-3.5 hidden lg:table-cell">
-                        <div>
-                          <p className="text-sm text-foreground">
-                            {product.category?.name || "—"}
-                          </p>
-                          {product.subcategory && (
-                            <p className="text-xs text-muted">
-                              {product.subcategory.name}
-                            </p>
-                          )}
-                        </div>
-                      </td>
                       {/* Brand */}
                       <td className="px-6 py-3.5 hidden md:table-cell">
                         <p className="text-sm text-foreground">
                           {product.brand?.name || "—"}
                         </p>
                       </td>
-                      {/* Type badges */}
-                      <td className="px-6 py-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1 flex-wrap">
-                          {product.is_for_sale && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-50 border-emerald-200 text-emerald-700">
-                              <ShoppingBag className="w-3 h-3" />
-                              Venta
-                            </span>
-                          )}
-                          {product.is_supply && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">
-                              <Stethoscope className="w-3 h-3" />
-                              Insumo
-                            </span>
-                          )}
-                          {!product.is_for_sale && !product.is_supply && (
-                            <span className="text-xs text-muted">—</span>
-                          )}
-                        </div>
-                      </td>
                       {/* Stock */}
                       <td className="px-6 py-3.5 text-center">
                         <span
-                          className={`text-sm font-semibold ${product.stock <= product.min_stock
-                            ? "text-danger"
-                            : "text-foreground"
-                            }`}
+                          className={`text-sm font-semibold ${
+                            product.stock <= product.min_stock
+                              ? "text-danger"
+                              : "text-foreground"
+                          }`}
                         >
                           {product.stock} un.
                         </span>
@@ -907,17 +613,42 @@ export default function ProductsPage() {
                       <td className="px-6 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleEdit(product)}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all"
+                            title="Registrar Movimiento"
+                            onClick={() => handleMovement(product)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 bg-brand-50 hover:bg-brand-100 transition-all font-bold text-lg"
                           >
-                            <Pencil className="w-4 h-4" />
+                            ⇅
                           </button>
-                          <button
-                            onClick={() => handleDelete(product.id)}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-danger hover:bg-red-50 transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-muted hover:text-foreground hover:bg-surface-secondary transition-all">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(product)}
+                              >
+                                <Pencil className="w-4 h-4 mr-2 text-muted" />
+                                Editar Detalles
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleHistory(product)}
+                              >
+                                <History className="w-4 h-4 mr-2 text-muted" />
+                                Ver Historial
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-danger focus:bg-red-50 focus:text-danger"
+                                onClick={() => handleDelete(product.id)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Archivar / Desactivar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
@@ -949,17 +680,20 @@ export default function ProductsPage() {
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${urlPage === pageNum
-                      ? "bg-brand-600 text-white"
-                      : "border border-border hover:bg-surface-secondary"
-                      }`}
+                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${
+                      urlPage === pageNum
+                        ? "bg-brand-600 text-white"
+                        : "border border-border hover:bg-surface-secondary"
+                    }`}
                   >
                     {pageNum}
                   </button>
                 );
               })}
               <button
-                onClick={() => handlePageChange(Math.min(totalPages, urlPage + 1))}
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, urlPage + 1))
+                }
                 disabled={urlPage === totalPages}
                 className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] border border-border hover:bg-surface-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
@@ -971,28 +705,31 @@ export default function ProductsPage() {
       </Card>
 
       {/* Modals & Drawers */}
+      {isMovementOpen && activeRole && (
+        <MovementModal
+          isOpen={isMovementOpen}
+          onClose={() => setIsMovementOpen(false)}
+          preselectedProduct={movementProduct}
+          userId={activeRole.id}
+        />
+      )}
       <ProductFormModal
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         product={editingProduct}
       />
-      <StockMovementModal
-        isOpen={isStockOpen}
-        onClose={() => setIsStockOpen(false)}
-        products={products}
-      />
-      <StockMovementHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        products={products}
-      />
+      {isHistoryOpen && (
+        <StockMovementHistoryModal
+          isOpen={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+          product={historyProduct}
+        />
+      )}
       <ProductFiltersDrawer
         isOpen={isFiltersOpen}
         onClose={() => setIsFiltersOpen(false)}
         filters={{
-          category_id: urlCategoryId,
           brand_id: urlBrandId,
-          type: urlType,
           sort: urlSort,
         }}
         onApply={handleApplyFilters}
@@ -1004,12 +741,16 @@ export default function ProductsPage() {
         title="Importar Productos"
         endpointUrl="/products/import"
         templateUrl="/templates/products_template.csv"
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+        onSuccess={() =>
+          queryClient.invalidateQueries({ queryKey: ["products"] })
+        }
       />
       <ConfirmDialog
         isOpen={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        onConfirm={() =>
+          confirmDelete !== null && deleteMut.mutate(confirmDelete)
+        }
         title="Eliminar producto"
         description="¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
