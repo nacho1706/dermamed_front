@@ -7,9 +7,16 @@ import { getPatients } from "@/services/patients";
 import { PatientList } from "@/components/features/patients/patient-list";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 import { Button } from "@/components/ui/button";
-import { Upload, Download } from "lucide-react";
+import { Upload, Download, Plus, MoreHorizontal } from "lucide-react";
 import { sileo } from "sileo";
 import type { Patient } from "@/types";
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function PatientsPage() {
   const queryClient = useQueryClient();
@@ -103,14 +110,12 @@ export default function PatientsPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleExportCSV}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
-            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Importar CSV
-            </Button>
+            <Link href="/patients/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Paciente
+              </Button>
+            </Link>
           </div>
         </div>
         <p className="text-medical-600">
@@ -123,6 +128,28 @@ export default function PatientsPage() {
         isLoading={isLoading}
         onSearch={handleSearch}
         onPageChange={setPage}
+        secondaryActions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="!px-3 !py-2 shrink-0 h-[38px] w-[38px]"
+              >
+                <MoreHorizontal className="w-4 h-4 text-muted" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <Download className="w-4 h-4 mr-2 text-muted" />
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsImportOpen(true)}>
+                <Upload className="w-4 h-4 mr-2 text-muted" />
+                Importar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
       />
       <BulkImportModal
         isOpen={isImportOpen}

@@ -150,7 +150,7 @@ export function PatientForm({
           clearErrors("dni");
         }
       } catch (error) {
-        console.error(error);
+        // DNI validation error - silently fail since it's just a warning check
       }
     }
   };

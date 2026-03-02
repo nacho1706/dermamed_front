@@ -30,8 +30,16 @@ export default function EditPatientPage() {
       router.push(`/patients/${id}`);
     },
     onError: (error: any) => {
-      const message =
-        error.response?.data?.message || "Error al actualizar el paciente";
+      const responseData = error.response?.data;
+      let message = "Error al actualizar el paciente";
+
+      if (responseData?.errors) {
+        const firstKey = Object.keys(responseData.errors)[0];
+        message = responseData.errors[firstKey][0];
+      } else if (responseData?.message) {
+        message = responseData.message;
+      }
+
       toast.error(message);
     },
   });

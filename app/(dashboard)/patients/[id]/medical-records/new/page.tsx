@@ -101,10 +101,7 @@ function MedicalRecordFormContent() {
           await updateAppointment(appointmentId, { status: "completed" });
         }
       } catch (e) {
-        console.error(
-          "No se pudo marcar el turno como completado automáticamente",
-          e,
-        );
+        // Silently fail if cannot complete appointment
       }
 
       queryClient.invalidateQueries({
@@ -118,11 +115,20 @@ function MedicalRecordFormContent() {
       });
       router.push(`/patients/${patientId}`);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const responseData = error.response?.data;
+      let desc = "Hubo un problema al crear el registro médico.";
+
+      if (responseData?.errors) {
+        const firstKey = Object.keys(responseData.errors)[0];
+        desc = responseData.errors[firstKey][0];
+      } else if (responseData?.message) {
+        desc = responseData.message;
+      }
+
       toast.error("Error al guardar", {
-        description: "Hubo un problema al crear el registro médico.",
+        description: desc,
       });
-      console.error(error);
     },
   });
 
@@ -185,9 +191,11 @@ function MedicalRecordFormContent() {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Turno revertido a Sala de Espera");
       router.push("/dashboard");
-    } catch (error) {
-      console.error(error);
-      toast.error("Error al revertir el turno");
+    } catch (error: any) {
+      const responseData = error.response?.data;
+      let msg = "Error al revertir el turno";
+      if (responseData?.message) msg = responseData.message;
+      toast.error(msg);
     } finally {
       setIsReverting(false);
     }

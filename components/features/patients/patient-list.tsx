@@ -24,6 +24,7 @@ interface PatientListProps {
   isLoading: boolean;
   onSearch: (query: string) => void;
   onPageChange: (page: number) => void;
+  secondaryActions?: React.ReactNode;
 }
 
 export function PatientList({
@@ -31,6 +32,7 @@ export function PatientList({
   isLoading,
   onSearch,
   onPageChange,
+  secondaryActions,
 }: PatientListProps) {
   const patients = data?.data || [];
   const meta = data?.meta;
@@ -53,12 +55,7 @@ export function PatientList({
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          <Link href="/patients/new" className="flex-1 md:flex-none">
-            <Button className="w-full">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Nuevo Paciente
-            </Button>
-          </Link>
+          {secondaryActions}
         </div>
       </div>
 
