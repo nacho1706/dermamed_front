@@ -288,7 +288,7 @@ export function MovementModal({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-4">
           {/* Product Selection / Creation */}
-          <div className="space-y-3 p-4 bg-white dark:bg-gray-900 rounded-[var(--radius-lg)] border border-border relative z-10">
+          <div className="space-y-3 p-4 bg-surface-secondary rounded-[var(--radius-lg)] border border-border relative z-10">
             {!preselectedProduct && !isCreatingProduct ? (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground block">
@@ -311,11 +311,14 @@ export function MovementModal({
                         >
                           {field.value && searchResults
                             ? searchResults.find((p) => p.id === field.value)
-                              ?.name || "Producto seleccionado"
+                                ?.name || "Producto seleccionado"
                             : "Buscar producto..."}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[480px] p-0 bg-white dark:bg-gray-900 z-50" align="start">
+                      <PopoverContent
+                        className="w-[480px] p-0 bg-surface z-50"
+                        align="start"
+                      >
                         <Command shouldFilter={false}>
                           <CommandInput
                             placeholder="Escribe el nombre del producto..."
