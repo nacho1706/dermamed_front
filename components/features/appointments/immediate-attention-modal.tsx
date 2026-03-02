@@ -168,6 +168,8 @@ export function ImmediateAttentionModal({
         service_id: data.service_id,
         scheduled_start_at,
         scheduled_end_at,
+        is_overbook: false,
+        reserve_channel: "manual",
         status: isDoctor ? "in_progress" : "in_waiting_room",
         notes: isDoctor ? "Atención inmediata" : "Ingreso sin turno",
       });
@@ -186,7 +188,6 @@ export function ImmediateAttentionModal({
       }
     },
     onError: (error: any) => {
-      console.error("Create Appointment Error details:", error.response?.data);
       const errors = error.response?.data?.errors;
       if (errors) {
         const firstError = Object.values(errors)[0] as string[];
@@ -203,7 +204,6 @@ export function ImmediateAttentionModal({
       queryClient.invalidateQueries({ queryKey: ["patients"] });
     },
     onError: (error: any) => {
-      console.error("Create Patient Error details:", error.response?.data);
       const errors = error.response?.data?.errors;
       if (errors) {
         const firstError = Object.values(errors)[0] as string[];
@@ -257,7 +257,7 @@ export function ImmediateAttentionModal({
         doctor_id: data.doctor_id,
       });
     } catch (e) {
-      console.error(e);
+      // Errors handled by mutation onError
     }
   };
 

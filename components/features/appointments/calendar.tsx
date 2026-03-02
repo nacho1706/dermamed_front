@@ -332,9 +332,9 @@ export function Calendar({
                           className={cn(
                             "absolute rounded-md px-2 py-1 text-xs border cursor-pointer",
                             "transition-all hover:z-20 hover:shadow-md hover:-translate-y-0.5",
-                            config.bg,
-                            config.border,
-                            config.text,
+                            apt.is_overbook
+                              ? "bg-orange-500 hover:bg-orange-600 border-orange-600 text-white shadow-sm"
+                              : cn(config.bg, config.border, config.text),
                           )}
                           style={style}
                           onClick={(e) => {
@@ -342,30 +342,37 @@ export function Calendar({
                             onAppointmentClick(apt);
                           }}
                         >
-                          <div className="flex items-center gap-1.5">
-                            <div
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full flex-shrink-0",
-                                config.dot,
-                              )}
-                            />
-                            <span className="font-semibold truncate">
-                              {apt.patient?.full_name || "Paciente"}
+                          <div className="flex items-center gap-1 overflow-hidden">
+                            {apt.is_overbook && (
+                              <span
+                                className="text-[10px] flex-shrink-0"
+                                aria-hidden="true"
+                              >
+                                ⚠️
+                              </span>
+                            )}
+                            <span className="font-semibold text-xs truncate">
+                              {apt.patient?.first_name} {apt.patient?.last_name}
                             </span>
                           </div>
                           {heightNum > 32 && (
-                            <div className="flex items-center gap-1 text-[10px] opacity-80 mt-0.5 ml-3">
+                            <div className="flex items-center gap-1 text-[10px] opacity-80 mt-0.5 truncate">
                               <Clock className="w-3 h-3 flex-shrink-0" />
-                              {format(
-                                parseISO(apt.scheduled_start_at),
-                                "HH:mm",
-                              )}{" "}
-                              –{" "}
-                              {format(parseISO(apt.scheduled_end_at), "HH:mm")}
+                              <span className="truncate">
+                                {format(
+                                  parseISO(apt.scheduled_start_at),
+                                  "HH:mm",
+                                )}{" "}
+                                –{" "}
+                                {format(
+                                  parseISO(apt.scheduled_end_at),
+                                  "HH:mm",
+                                )}
+                              </span>
                             </div>
                           )}
                           {heightNum > 50 && (
-                            <div className="truncate mt-0.5 text-[10px] opacity-70 ml-3">
+                            <div className="truncate mt-0.5 text-[10px] opacity-70">
                               {apt.service?.name}
                             </div>
                           )}

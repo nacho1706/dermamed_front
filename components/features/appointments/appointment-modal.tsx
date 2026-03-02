@@ -20,7 +20,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AsyncCombobox } from "@/components/shared/async-combobox";
 import { FilterableSelect } from "@/components/shared/filterable-select";
 import { Appointment, Patient, User, Service } from "@/types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
+import { getAppointments } from "@/services/appointments";
 import { getPatients } from "@/services/patients";
 import { getUsers } from "@/services/users";
 import { getServices } from "@/services/services";
@@ -75,6 +77,7 @@ export function AppointmentModal({
     return isDoctor && initialData.doctor_id !== user.id;
   }, [initialData, user, isDoctor]);
 
+  const queryClient = useQueryClient();
   const [endTime, setEndTime] = useState<string | null>(null);
 
   // ─── Block past dates/times ─────────────────────────────────────────
@@ -193,6 +196,54 @@ export function AppointmentModal({
     }
   }, [selectedServiceId, selectedTime, servicesData]);
 
+  // Local overlap validation using cached appointments
+  const hasConflict = useMemo(() => {
+    if (!selectedDate || !selectedTime || !endTime || !selectedDoctorId)
+      return false;
+
+    // 1. Recuperar la Caché: Usa queryClient para obtener los turnos
+    const queries = queryClient.getQueriesData<any>({
+      queryKey: ["appointments"],
+    });
+    const apts: Appointment[] = [];
+    queries.forEach(([key, data]) => {
+      // Manejar la estructura paginada { data: Appointment[], ... }
+      if (data?.data && Array.isArray(data.data)) {
+        apts.push(...data.data);
+      }
+    });
+
+    const formStartUTC = localToUTC(selectedDate, selectedTime);
+    const formEndUTC = localToUTC(selectedDate, endTime);
+    // localToUTC returns "YYYY-MM-DD HH:mm:ss". JS Date parses this as local time.
+    // We add 'T' and 'Z' to force it to parse as UTC.
+    const startMs = new Date(formStartUTC.replace(" ", "T") + "Z").getTime();
+    const endMs = new Date(formEndUTC.replace(" ", "T") + "Z").getTime();
+
+    for (const apt of apts) {
+      if (apt.doctor_id !== Number(selectedDoctorId)) continue;
+      // 2. CRÍTICO: excluir turno actual
+      if (initialData && apt.id === initialData.id) continue;
+      if (["completed", "cancelled", "no_show"].includes(apt.status)) continue;
+
+      const aptStart = new Date(apt.scheduled_start_at).getTime();
+      const aptEnd = new Date(apt.scheduled_end_at).getTime();
+
+      // Check overlap: max(start) < min(end)
+      if (Math.max(startMs, aptStart) < Math.min(endMs, aptEnd)) {
+        return true;
+      }
+    }
+    return false;
+  }, [
+    selectedDate,
+    selectedTime,
+    endTime,
+    selectedDoctorId,
+    initialData,
+    queryClient,
+  ]);
+
   const handleFormSubmit = (data: AppointmentFormValues) => {
     if (isReadOnly) return;
 
@@ -203,14 +254,18 @@ export function AppointmentModal({
     const finalDoctorId =
       data.doctor_id || selectedDoctorId || (isDoctor ? String(user?.id) : "");
 
-    onSubmit({
+    // 4. Modificación del Payload: inyectar explícitamente la bandera
+    const payload = {
       patient_id: Number(data.patient_id),
       doctor_id: Number(finalDoctorId),
       service_id: Number(data.service_id),
       scheduled_start_at,
+      is_overbook: hasConflict, // Injection explicitly
       notes: data.notes,
       status: initialData ? initialData.status : "scheduled",
-    });
+    };
+
+    onSubmit(payload);
   };
 
   return (
@@ -401,6 +456,12 @@ export function AppointmentModal({
                     El médico no tiene horario configurado para este día
                   </p>
                 )}
+              {hasConflict && (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <span className="text-sm">⚠️</span> Horario ocupado
+                  (Sobreturno)
+                </p>
+              )}
               {errors.time && (
                 <p className="text-xs text-danger font-medium">
                   {errors.time.message}
@@ -468,15 +529,22 @@ export function AppointmentModal({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className={
-                    initialData ? "bg-brand-600 hover:bg-brand-700" : ""
-                  }
+                  className={cn(
+                    "transition-all duration-300 ease-in-out",
+                    !hasConflict
+                      ? "bg-brand-600 hover:bg-brand-700 text-white"
+                      : "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-500/20",
+                  )}
                 >
                   {isLoading
                     ? "Guardando..."
-                    : initialData
-                      ? "Actualizar Turno"
-                      : "Agendar Turno"}
+                    : hasConflict
+                      ? initialData
+                        ? "Actualizar como Sobreturno"
+                        : "Forzar Sobreturno"
+                      : initialData
+                        ? "Actualizar Turno"
+                        : "Agendar Turno"}
                 </Button>
               )}
             </div>

@@ -35,6 +35,7 @@ import {
   Undo2,
   MoreHorizontal,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
@@ -54,7 +55,7 @@ interface KpiCardProps {
   icon: React.ElementType;
   iconBg: string;
   iconColor: string;
-  badge?: { text: string; color: string };
+  badge?: { text: string; color: string; bg?: string };
   href?: string;
   progress?: number;
 }
@@ -71,24 +72,30 @@ function KpiCard({
 }: KpiCardProps) {
   const content = (
     <Card className="group hover:shadow-[var(--shadow-md)] transition-all duration-200 relative overflow-hidden">
-      <CardBody className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm text-muted font-medium">{label}</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold text-foreground tracking-tight">
-              {value}
-            </p>
-            {badge && (
-              <span className={`text-xs font-semibold ${badge.color}`}>
-                {badge.text}
-              </span>
-            )}
+      <CardBody className="px-5 py-4 flex flex-col justify-center">
+        <div className="flex justify-between items-center gap-3">
+          <p className="text-sm font-medium text-muted-foreground line-clamp-1">
+            {label}
+          </p>
+          <div
+            className={`w-9 h-9 rounded-[var(--radius-md)] ${iconBg} flex items-center justify-center shrink-0`}
+          >
+            <Icon className={`w-[18px] h-[18px] ${iconColor}`} />
           </div>
         </div>
-        <div
-          className={`w-11 h-11 rounded-[var(--radius-lg)] ${iconBg} flex items-center justify-center shrink-0`}
-        >
-          <Icon className={`w-5 h-5 ${iconColor}`} />
+        <div className="flex items-end gap-2 mt-1">
+          <p className="text-[28px] font-bold text-foreground leading-none tracking-tight">
+            {value}
+          </p>
+          {badge && (
+            <span
+              className={`text-[11px] mb-0.5 font-bold uppercase tracking-wider ${badge.color} ${
+                badge.bg ? `${badge.bg} px-1.5 py-[2px] rounded-md` : ""
+              }`}
+            >
+              {badge.text}
+            </span>
+          )}
         </div>
       </CardBody>
       {progress !== undefined && (
@@ -361,7 +368,7 @@ export default function DashboardPage() {
 
             {/* Pending Card: non-doctors */}
             <KpiCard
-              label="En Espera / Pendientes"
+              label="En espera"
               value={isLoading ? "…" : pendingCount}
               icon={Clock}
               iconBg="bg-amber-50"
@@ -385,10 +392,10 @@ export default function DashboardPage() {
             iconColor={lowStockCount > 0 ? "text-danger" : "text-success"}
             badge={
               lowStockCount > 0
-                ? { text: "Atención", color: "text-danger" }
+                ? { text: "Atención", color: "text-danger", bg: "bg-danger/10" }
                 : undefined
             }
-            href="/products"
+            href="/products?filter=low_stock"
           />
         )}
 
@@ -447,10 +454,10 @@ export default function DashboardPage() {
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-border/60">
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[10%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[12%]">
                         Hora
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[27%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[25%]">
                         Paciente
                       </th>
                       <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 hidden md:table-cell w-[25%]">
@@ -522,58 +529,15 @@ export default function DashboardPage() {
                 label="Nuevo Turno"
                 icon={Plus}
                 onClick={() => setIsAppointmentModalOpen(true)}
+              />
+              <QuickAction
+                label="Nuevo Paciente"
+                icon={Plus}
+                href="/patients/new"
                 variant="primary"
               />
-              {/* Only Manager/Receptionist see Inventory action */}
-              {!isDoctor && (
-                <QuickAction
-                  label="Inventario"
-                  icon={Package}
-                  href="/products"
-                />
-              )}
             </CardBody>
           </Card>
-
-          {/* Low Stock Alerts (Not for Doctor) */}
-          {!isDoctor && lowStockCount > 0 && (
-            <Card className="border-amber-200">
-              <CardHeader className="flex flex-row items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-warning" />
-                <h2 className="text-base font-semibold text-foreground">
-                  Alertas de Stock
-                </h2>
-              </CardHeader>
-              <CardBody className="space-y-3">
-                {lowStockProducts.slice(0, 4).map((product: any) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-muted">
-                        Mínimo: {product.min_stock} un.
-                      </p>
-                    </div>
-                    <span className="text-sm font-bold text-danger shrink-0">
-                      {product.stock} un.
-                    </span>
-                  </div>
-                ))}
-                {lowStockCount > 4 && (
-                  <Link
-                    href="/products"
-                    className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                  >
-                    Ver todos ({lowStockCount})
-                  </Link>
-                )}
-              </CardBody>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -606,10 +570,16 @@ export default function DashboardPage() {
                 : "Turno agendado correctamente",
             );
           } catch (error: any) {
-            console.error(error);
-            const message =
-              error.response?.data?.message ||
-              "Ocurrió un error al guardar el turno";
+            const responseData = error.response?.data;
+            let message = "Ocurrió un error al guardar el turno";
+
+            if (responseData?.errors) {
+              const firstKey = Object.keys(responseData.errors)[0];
+              message = responseData.errors[firstKey][0];
+            } else if (responseData?.message) {
+              message = responseData.message;
+            }
+
             toast.error(message);
           }
         }}
@@ -700,14 +670,22 @@ function AppointmentRow({
         toast.success("Paciente ingresado a sala de espera");
         setIsStarting(false);
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
       setIsStarting(false);
-      toast.error(
-        isDoctor
-          ? "Error al iniciar la consulta"
-          : "Error al ingresar a sala de espera",
-      );
+
+      const responseData = error.response?.data;
+      let message = isDoctor
+        ? "Error al iniciar la consulta"
+        : "Error al ingresar a sala de espera";
+
+      if (responseData?.errors) {
+        const firstKey = Object.keys(responseData.errors)[0];
+        message = responseData.errors[firstKey][0];
+      } else if (responseData?.message) {
+        message = responseData.message;
+      }
+
+      toast.error(message);
     }
   };
 
@@ -1062,13 +1040,23 @@ function AppointmentRow({
         ? "opacity-60 hover:opacity-100"
         : "hover:bg-surface-secondary/50";
 
-  const delayedClass = isDelayed ? "bg-amber-50/60" : "";
+  const delayedClass = isDelayed
+    ? "bg-amber-50 border-l-4 border-amber-400"
+    : "border-l-4 border-transparent";
 
   return (
     <tr
       className={`transition-opacity transition-colors ${opacityClass} ${delayedClass}`}
     >
-      <td className="px-6 py-3.5">
+      <td className="px-6 py-3.5 whitespace-nowrap relative">
+        {appointment.is_overbook && (
+          <div
+            title="Sobreturno"
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded bg-orange-100 text-orange-600 cursor-help transition-colors hover:bg-orange-200"
+          >
+            <AlertCircle className="w-3 h-3" />
+          </div>
+        )}
         <span className="text-sm font-medium text-foreground">{time}</span>
       </td>
       <td className="px-6 py-3.5 max-w-0 w-full truncate">

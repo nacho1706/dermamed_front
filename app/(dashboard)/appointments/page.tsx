@@ -85,8 +85,16 @@ export default function AppointmentsPage() {
       handleCloseModal();
     },
     onError: (error: any) => {
-      const message =
-        error.response?.data?.message || "Error al agendar el turno";
+      const responseData = error.response?.data;
+      let message = "Error al agendar el turno";
+
+      if (responseData?.errors) {
+        const firstKey = Object.keys(responseData.errors)[0];
+        message = responseData.errors[firstKey][0];
+      } else if (responseData?.message) {
+        message = responseData.message;
+      }
+
       toast.error(message);
     },
   });
@@ -116,8 +124,16 @@ export default function AppointmentsPage() {
       }
     },
     onError: (error: any) => {
-      const message =
-        error.response?.data?.message || "Error al actualizar el turno";
+      const responseData = error.response?.data;
+      let message = "Error al actualizar el turno";
+
+      if (responseData?.errors) {
+        const firstKey = Object.keys(responseData.errors)[0];
+        message = responseData.errors[firstKey][0];
+      } else if (responseData?.message) {
+        message = responseData.message;
+      }
+
       toast.error(message);
     },
   });
