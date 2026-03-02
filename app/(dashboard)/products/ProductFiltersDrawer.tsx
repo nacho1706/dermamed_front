@@ -3,6 +3,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getBrands } from "@/services/products";
+import { Archive } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -25,6 +26,7 @@ const selectClass =
 export interface FilterValues {
   brand_id?: string;
   sort?: string;
+  trashed?: string;
 }
 
 interface ProductFiltersDrawerProps {
@@ -141,6 +143,31 @@ export function ProductFiltersDrawer({
               <option value="stock_asc">Stock: menor a mayor</option>
               <option value="stock_desc">Stock: mayor a menor</option>
             </select>
+          </div>
+        </DrawerBody>
+
+        <DrawerBody className="space-y-5 border-t border-border">
+          {/* Archived toggle */}
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">
+              Estado
+            </label>
+            <button
+              type="button"
+              onClick={() =>
+                setLocalFilters((f) => ({
+                  ...f,
+                  trashed: f.trashed === "true" ? undefined : "true",
+                }))
+              }
+              className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-[var(--radius-md)] border transition-all ${localFilters.trashed === "true"
+                  ? "bg-amber-50 border-amber-200 text-amber-800"
+                  : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+                }`}
+            >
+              <Archive className="w-4 h-4" />
+              Ver productos archivados
+            </button>
           </div>
         </DrawerBody>
 

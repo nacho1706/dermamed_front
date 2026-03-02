@@ -6,6 +6,7 @@ import {
   getProducts,
   getProductKPIs,
   deleteProduct,
+  restoreProduct,
   getStockMovements,
   type ProductFilters,
 } from "@/services/products";
@@ -42,6 +43,8 @@ import {
   ShoppingBag,
   Stethoscope,
   MoreHorizontal,
+  ArchiveRestore,
+  Archive,
 } from "lucide-react";
 import type { Product } from "@/types";
 import {
@@ -142,12 +145,11 @@ export default function ProductsPage() {
   const urlBrandId = searchParams.get("brand_id") || "";
   const urlSort = searchParams.get("sort") || "";
   const urlPage = parseInt(searchParams.get("page") || "1", 10);
-
-  const urlFilter = searchParams.get("filter") || "";
+  const urlStockStatus = searchParams.get("stock_status") || "";
+  const urlTrashed = searchParams.get("trashed") || "";
 
   const [search, setSearch] = useState(urlSearch);
   const [page, setPage] = useState(urlPage);
-  const [showLowStock, setShowLowStock] = useState(urlFilter === "low_stock");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMovementOpen, setIsMovementOpen] = useState(false);
@@ -170,8 +172,8 @@ export default function ProductsPage() {
           sp.delete(key);
         }
       });
-      // Always reset to page 1 when filters change
-      if (!params.page) {
+      // Only reset page if caller didn't explicitly set it
+      if (!('page' in params)) {
         sp.delete("page");
       }
       router.replace(`?${sp.toString()}`, { scroll: false });
@@ -198,6 +200,8 @@ export default function ProductsPage() {
     cantidad: 10,
     brand_id: urlBrandId ? Number(urlBrandId) : undefined,
     sort: urlSort || undefined,
+    stock_status: urlStockStatus === "low" ? "low" : undefined,
+    trashed: urlTrashed === "true" ? "true" : undefined,
   };
 
   // ── KPI filters (same as products but without pagination) ──────────────
@@ -221,15 +225,33 @@ export default function ProductsPage() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-kpis"] });
       sileo.success({
-        title: "Producto eliminado",
-        description: "El producto fue eliminado correctamente.",
+        title: "Producto archivado",
+        description: "El producto fue archivado correctamente.",
       });
     },
     onError: () =>
       sileo.error({
         title: "Error",
-        description: "No se pudo eliminar el producto.",
+        description: "No se pudo archivar el producto.",
+      }),
+  });
+
+  const restoreMut = useMutation({
+    mutationFn: restoreProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-kpis"] });
+      sileo.success({
+        title: "Producto restaurado",
+        description: "El producto fue restaurado correctamente.",
+      });
+    },
+    onError: () =>
+      sileo.error({
+        title: "Error",
+        description: "No se pudo restaurar el producto.",
       }),
   });
 
@@ -242,12 +264,6 @@ export default function ProductsPage() {
     }
   }, [activeRole, router]);
 
-  React.useEffect(() => {
-    if (searchParams.get("filter") === "low_stock") {
-      setShowLowStock(true);
-    }
-  }, [searchParams]);
-
   if (
     activeRole &&
     !["clinic_manager", "receptionist"].includes(activeRole.name)
@@ -258,13 +274,12 @@ export default function ProductsPage() {
   const totalPages = data?.meta?.last_page ?? 1;
   const totalProducts = data?.meta?.total ?? 0;
 
-  // Filter for low stock toggle
-  const displayProducts = showLowStock
-    ? products.filter((p) => p.stock <= p.min_stock)
-    : products;
+  const displayProducts = products;
+  const isShowingLowStock = urlStockStatus === "low";
+  const isShowingTrashed = urlTrashed === "true";
 
   // Count active URL filters
-  const activeFilterCount = [urlBrandId, urlSort].filter(Boolean).length;
+  const activeFilterCount = [urlBrandId, urlSort, urlTrashed === "true" ? "1" : ""].filter(Boolean).length;
 
   const handleExportCSV = () => {
     if (products.length === 0) {
@@ -334,6 +349,7 @@ export default function ProductsPage() {
     updateUrl({
       brand_id: filters.brand_id,
       sort: filters.sort,
+      trashed: filters.trashed,
     });
   };
 
@@ -341,18 +357,15 @@ export default function ProductsPage() {
     updateUrl({
       brand_id: undefined,
       sort: undefined,
+      trashed: undefined,
     });
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    const sp = new URLSearchParams(searchParams.toString());
-    if (newPage > 1) {
-      sp.set("page", String(newPage));
-    } else {
-      sp.delete("page");
-    }
-    router.replace(`?${sp.toString()}`, { scroll: false });
+    updateUrl({
+      page: newPage > 1 ? String(newPage) : undefined,
+    });
   };
 
   return (
@@ -446,25 +459,25 @@ export default function ProductsPage() {
           </div>
           <button
             onClick={() => {
-              setShowLowStock(!showLowStock);
+              updateUrl({
+                stock_status: isShowingLowStock ? undefined : "low",
+              });
               setPage(1);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
-              showLowStock
-                ? "bg-amber-50 border-amber-200 text-amber-800"
-                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${isShowingLowStock
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+              }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             Stock Bajo
           </button>
           <button
             onClick={() => setIsFiltersOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
-              activeFilterCount > 0
-                ? "bg-brand-50 border-brand-200 text-brand-700"
-                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${activeFilterCount > 0
+              ? "bg-brand-50 border-brand-200 text-brand-700"
+              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+              }`}
           >
             <Filter className="w-3.5 h-3.5" />
             Filtros
@@ -514,14 +527,18 @@ export default function ProductsPage() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Package className="w-10 h-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted font-medium">
-                {showLowStock
+                {isShowingLowStock
                   ? "No hay productos con stock bajo"
-                  : "No se encontraron productos"}
+                  : isShowingTrashed
+                    ? "No hay productos archivados"
+                    : "No se encontraron productos"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {showLowStock
+                {isShowingLowStock
                   ? "¡Todo tu inventario está en orden!"
-                  : "Intenta con otro término de búsqueda."}
+                  : isShowingTrashed
+                    ? "Todos los productos están activos."
+                    : "Intenta con otro término de búsqueda."}
               </p>
             </div>
           ) : (
@@ -583,11 +600,10 @@ export default function ProductsPage() {
                       {/* Stock */}
                       <td className="px-6 py-3.5 text-center">
                         <span
-                          className={`text-sm font-semibold ${
-                            product.stock <= product.min_stock
-                              ? "text-danger"
-                              : "text-foreground"
-                          }`}
+                          className={`text-sm font-semibold ${product.stock <= product.min_stock
+                            ? "text-danger"
+                            : "text-foreground"
+                            }`}
                         >
                           {product.stock} un.
                         </span>
@@ -603,11 +619,17 @@ export default function ProductsPage() {
                       </td>
                       {/* Status */}
                       <td className="px-6 py-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${status.bg} ${status.color}`}
-                        >
-                          {status.label}
-                        </span>
+                        {product.deleted_at ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-red-100 text-red-800 border-red-200">
+                            Archivado
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${status.bg} ${status.color}`}
+                          >
+                            {status.label}
+                          </span>
+                        )}
                       </td>
                       {/* Actions */}
                       <td className="px-6 py-3.5 text-right">
@@ -640,13 +662,23 @@ export default function ProductsPage() {
                                 Ver Historial
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-danger focus:bg-red-50 focus:text-danger"
-                                onClick={() => handleDelete(product.id)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Archivar / Desactivar
-                              </DropdownMenuItem>
+                              {isShowingTrashed ? (
+                                <DropdownMenuItem
+                                  className="text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+                                  onClick={() => restoreMut.mutate(product.id)}
+                                >
+                                  <ArchiveRestore className="w-4 h-4 mr-2" />
+                                  Restaurar Producto
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  className="text-danger focus:bg-red-50 focus:text-danger"
+                                  onClick={() => handleDelete(product.id)}
+                                >
+                                  <Archive className="w-4 h-4 mr-2" />
+                                  Archivar Producto
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -680,11 +712,10 @@ export default function ProductsPage() {
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${
-                      urlPage === pageNum
-                        ? "bg-brand-600 text-white"
-                        : "border border-border hover:bg-surface-secondary"
-                    }`}
+                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${urlPage === pageNum
+                      ? "bg-brand-600 text-white"
+                      : "border border-border hover:bg-surface-secondary"
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -731,6 +762,7 @@ export default function ProductsPage() {
         filters={{
           brand_id: urlBrandId,
           sort: urlSort,
+          trashed: urlTrashed === "true" ? "true" : undefined,
         }}
         onApply={handleApplyFilters}
         onClear={handleClearFilters}
@@ -751,9 +783,9 @@ export default function ProductsPage() {
         onConfirm={() =>
           confirmDelete !== null && deleteMut.mutate(confirmDelete)
         }
-        title="Eliminar producto"
-        description="¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
+        title="Archivar producto"
+        description="¿Estás seguro de que deseas archivar este producto? Podrás restaurarlo más tarde desde los filtros."
+        confirmLabel="Archivar"
         variant="danger"
         isLoading={deleteMut.isPending}
       />

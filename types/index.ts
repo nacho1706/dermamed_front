@@ -194,6 +194,7 @@ export interface Product {
   subcategory?: Subcategory | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface StockMovement {

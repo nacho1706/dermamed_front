@@ -14,6 +14,8 @@ import type {
 export interface ProductFilters extends PaginationParams {
   name?: string;
   low_stock?: boolean;
+  stock_status?: "low";
+  trashed?: "true" | "false";
   brand_id?: number;
   sort?: string;
 }
@@ -67,6 +69,20 @@ export async function deleteProduct(id: number): Promise<void> {
   await api.delete(`/products/${id}`);
 }
 
+export async function restoreProduct(id: number): Promise<Product> {
+  const response = await api.patch<{ data: Product }>(`/products/${id}/restore`);
+  return response.data.data;
+}
+
+export async function getAdjustmentReasons(): Promise<
+  { value: string; label: string }[]
+> {
+  const response = await api.get<{
+    data: { value: string; label: string }[];
+  }>("/stock-movements/adjustment-reasons");
+  return response.data.data;
+}
+
 // ─── Brands ─────────────────────────────────────────────────────────────────
 
 export async function getBrands(): Promise<Brand[]> {
@@ -105,6 +121,8 @@ export interface StockMovementInput {
 export interface StockMovementFilters extends PaginationParams {
   product_id?: number;
   type?: "in" | "out" | "adjustment";
+  date_from?: string;
+  date_to?: string;
 }
 
 export async function getStockMovements(

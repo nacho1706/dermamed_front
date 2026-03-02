@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   getStockMovements,
@@ -23,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   XIcon,
+  CalendarDays,
 } from "lucide-react";
 import type { Product } from "@/types";
 
@@ -37,6 +39,8 @@ export function StockMovementHistoryModal({
 }) {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<StockMovementFilters["type"]>();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Use product_id filter if a product is provided
   const filters: StockMovementFilters = {
@@ -44,6 +48,8 @@ export function StockMovementHistoryModal({
     cantidad: 10,
     product_id: product?.id,
     type: typeFilter,
+    date_from: dateFrom || undefined,
+    date_to: dateTo || undefined,
   };
 
   const { data, isLoading } = useQuery({
@@ -152,6 +158,45 @@ export function StockMovementHistoryModal({
             >
               Ajustes
             </Button>
+          </div>
+
+          {/* Date range filter */}
+          <div className="flex items-center gap-2 mt-3">
+            <CalendarDays className="w-4 h-4 text-muted shrink-0" />
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 text-xs"
+              placeholder="Desde"
+            />
+            <span className="text-xs text-muted">a</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 text-xs"
+              placeholder="Hasta"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setPage(1);
+                }}
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </DialogHeader>
 
