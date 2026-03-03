@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,13 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AsyncCombobox } from "@/components/shared/async-combobox";
+import { CreatableAsyncCombobox } from "@/components/shared/creatable-async-combobox";
 import { FilterableSelect } from "@/components/shared/filterable-select";
-import { Appointment, Patient, User, Service } from "@/types";
+import { Appointment, User, Service } from "@/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { getAppointments } from "@/services/appointments";
-import { getPatients } from "@/services/patients";
+import { getPatients, createPatient } from "@/services/patients";
 import { getUsers } from "@/services/users";
 import { getServices } from "@/services/services";
 import { useAuth } from "@/contexts/auth-context";
@@ -38,17 +38,57 @@ import {
   Stethoscope,
   FileText,
   Info,
+  UserPlus,
+  ChevronLeft,
 } from "lucide-react";
+import { toast } from "sonner";
 
-// Schema
-const appointmentSchema = z.object({
-  patient_id: z.string().min(1, "Seleccione un paciente"),
-  doctor_id: z.string().min(1, "Seleccione un médico"),
-  service_id: z.string().min(1, "Seleccione un servicio"),
-  date: z.string().min(1, "Fecha requerida"),
-  time: z.string().min(1, "Hora requerida"),
-  notes: z.string().optional(),
-});
+// ─── Schema ──────────────────────────────────────────────────────────────────
+
+const appointmentSchema = z
+  .object({
+    patient_id: z.string().optional(),
+    // Inline new-patient fields
+    new_patient_first_name: z.string().optional(),
+    new_patient_last_name: z.string().optional(),
+    new_patient_phone: z.string().optional(),
+    // Core appointment fields
+    doctor_id: z.string().min(1, "Seleccione un médico"),
+    service_id: z.string().min(1, "Seleccione un servicio"),
+    date: z.string().min(1, "Fecha requerida"),
+    time: z.string().min(1, "Hora requerida"),
+    notes: z.string().optional(),
+    // Hidden flag — controlled by component state
+    _is_creating_patient: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data._is_creating_patient) {
+      // Patient ID not required — inline form fields are required instead
+      if (!data.new_patient_first_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El nombre es requerido",
+          path: ["new_patient_first_name"],
+        });
+      }
+      if (!data.new_patient_last_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El apellido es requerido",
+          path: ["new_patient_last_name"],
+        });
+      }
+    } else {
+      // Normal flow — patient_id required
+      if (!data.patient_id || data.patient_id === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Seleccione un paciente",
+          path: ["patient_id"],
+        });
+      }
+    }
+  });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
@@ -73,14 +113,14 @@ export function AppointmentModal({
   const isDoctor = hasRole("doctor");
   const isReadOnly = useMemo(() => {
     if (!initialData || !user) return false;
-    // If user is doctor and doesn't own the appointment, it's read-only
     return isDoctor && initialData.doctor_id !== user.id;
   }, [initialData, user, isDoctor]);
 
   const queryClient = useQueryClient();
   const [endTime, setEndTime] = useState<string | null>(null);
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ─── Block past dates/times ─────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const {
@@ -95,6 +135,9 @@ export function AppointmentModal({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       patient_id: "",
+      new_patient_first_name: "",
+      new_patient_last_name: "",
+      new_patient_phone: "",
       doctor_id: isDoctor ? String(user?.id) : "",
       service_id: "",
       date: initialDate
@@ -102,14 +145,39 @@ export function AppointmentModal({
         : format(new Date(), "yyyy-MM-dd"),
       time: initialDate ? format(initialDate, "HH:mm") : "09:00",
       notes: "",
+      _is_creating_patient: false,
     },
   });
 
-  // Watch fields for end time calculation and working hours
   const selectedServiceId = watch("service_id");
   const selectedTime = watch("time");
   const selectedDoctorId = watch("doctor_id");
   const selectedDate = watch("date");
+
+  // Keep the hidden flag in sync with component state
+  useEffect(() => {
+    setValue("_is_creating_patient", isCreatingPatient);
+  }, [isCreatingPatient, setValue]);
+
+  const handleSwitchToSearch = useCallback(() => {
+    setIsCreatingPatient(false);
+    setValue("patient_id", "");
+    setValue("new_patient_first_name", "");
+    setValue("new_patient_last_name", "");
+    setValue("new_patient_phone", "");
+  }, [setValue]);
+
+  const handleCreateRequest = useCallback(
+    (searchText: string) => {
+      setIsCreatingPatient(true);
+      setValue("patient_id", "");
+      // Pre-fill first name from search text (first word)
+      const words = searchText.trim().split(/\s+/);
+      setValue("new_patient_first_name", words[0] || "");
+      setValue("new_patient_last_name", words.slice(1).join(" ") || "");
+    },
+    [setValue],
+  );
 
   // Fetch doctor availabilities
   const { data: availabilityData } = useQuery({
@@ -122,7 +190,6 @@ export function AppointmentModal({
     enabled: !!selectedDoctorId,
   });
 
-  // Determine working hours for the selected date and doctor
   const workingHours = useMemo(() => {
     if (!selectedDate || !availabilityData?.data) return null;
     const dayOfWeek = new Date(selectedDate + "T12:00:00").getDay();
@@ -131,8 +198,8 @@ export function AppointmentModal({
     );
     if (!avail) return null;
     return {
-      start: avail.start_time.slice(0, 5), // "08:00"
-      end: avail.end_time.slice(0, 5), // "18:00"
+      start: avail.start_time.slice(0, 5),
+      end: avail.end_time.slice(0, 5),
     };
   }, [selectedDate, availabilityData]);
 
@@ -146,34 +213,49 @@ export function AppointmentModal({
     queryFn: () => getServices(),
   });
 
-  // Update form when initialData changes
+  // Reset form on open/initialData change
   useEffect(() => {
     if (initialData) {
+      setIsCreatingPatient(false);
       reset({
         patient_id: String(initialData.patient_id),
+        new_patient_first_name: "",
+        new_patient_last_name: "",
+        new_patient_phone: "",
         doctor_id: String(initialData.doctor_id),
         service_id: String(initialData.service_id),
         date: extractLocalDate(initialData.scheduled_start_at),
         time: extractLocalTime(initialData.scheduled_start_at),
         notes: initialData.notes || "",
+        _is_creating_patient: false,
       });
     } else if (initialDate) {
+      setIsCreatingPatient(false);
       reset({
         patient_id: "",
+        new_patient_first_name: "",
+        new_patient_last_name: "",
+        new_patient_phone: "",
         doctor_id: isDoctor ? String(user?.id) : "",
         service_id: "",
         date: format(initialDate, "yyyy-MM-dd"),
         time: format(initialDate, "HH:mm"),
         notes: "",
+        _is_creating_patient: false,
       });
     } else if (isOpen) {
+      setIsCreatingPatient(false);
       reset({
         patient_id: "",
+        new_patient_first_name: "",
+        new_patient_last_name: "",
+        new_patient_phone: "",
         doctor_id: isDoctor ? String(user?.id) : "",
         service_id: "",
         date: format(new Date(), "yyyy-MM-dd"),
         time: "09:00",
         notes: "",
+        _is_creating_patient: false,
       });
     }
   }, [initialData, initialDate, reset, isOpen, isDoctor, user?.id]);
@@ -196,18 +278,16 @@ export function AppointmentModal({
     }
   }, [selectedServiceId, selectedTime, servicesData]);
 
-  // Local overlap validation using cached appointments
+  // Local overlap validation
   const hasConflict = useMemo(() => {
     if (!selectedDate || !selectedTime || !endTime || !selectedDoctorId)
       return false;
 
-    // 1. Recuperar la Caché: Usa queryClient para obtener los turnos
     const queries = queryClient.getQueriesData<any>({
       queryKey: ["appointments"],
     });
     const apts: Appointment[] = [];
-    queries.forEach(([key, data]) => {
-      // Manejar la estructura paginada { data: Appointment[], ... }
+    queries.forEach(([, data]) => {
       if (data?.data && Array.isArray(data.data)) {
         apts.push(...data.data);
       }
@@ -215,21 +295,17 @@ export function AppointmentModal({
 
     const formStartUTC = localToUTC(selectedDate, selectedTime);
     const formEndUTC = localToUTC(selectedDate, endTime);
-    // localToUTC returns "YYYY-MM-DD HH:mm:ss". JS Date parses this as local time.
-    // We add 'T' and 'Z' to force it to parse as UTC.
     const startMs = new Date(formStartUTC.replace(" ", "T") + "Z").getTime();
     const endMs = new Date(formEndUTC.replace(" ", "T") + "Z").getTime();
 
     for (const apt of apts) {
       if (apt.doctor_id !== Number(selectedDoctorId)) continue;
-      // 2. CRÍTICO: excluir turno actual
       if (initialData && apt.id === initialData.id) continue;
       if (["completed", "cancelled", "no_show"].includes(apt.status)) continue;
 
       const aptStart = new Date(apt.scheduled_start_at).getTime();
       const aptEnd = new Date(apt.scheduled_end_at).getTime();
 
-      // Check overlap: max(start) < min(end)
       if (Math.max(startMs, aptStart) < Math.min(endMs, aptEnd)) {
         return true;
       }
@@ -244,34 +320,70 @@ export function AppointmentModal({
     queryClient,
   ]);
 
-  const handleFormSubmit = (data: AppointmentFormValues) => {
+  // ─── Dual-submit with safe error handling ────────────────────────────
+  const handleFormSubmit = async (data: AppointmentFormValues) => {
     if (isReadOnly) return;
 
-    // Convert selected local time to UTC for the API
-    const scheduled_start_at = localToUTC(data.date, data.time);
+    setIsSubmitting(true);
+    try {
+      let patientId: number;
 
-    // If doctor_id is disabled, it won't be in data. Use the watched value or fallback to user id
-    const finalDoctorId =
-      data.doctor_id || selectedDoctorId || (isDoctor ? String(user?.id) : "");
+      if (isCreatingPatient) {
+        // Step 1: create patient — isolated try/catch so a failure doesn't leak
+        let newPatient;
+        try {
+          newPatient = await createPatient({
+            first_name: data.new_patient_first_name?.trim(),
+            last_name: data.new_patient_last_name?.trim(),
+            phone: data.new_patient_phone?.trim() || undefined,
+          });
+        } catch (patientError: any) {
+          const responseData = patientError.response?.data;
+          let message = "Error al registrar el paciente";
+          if (responseData?.errors) {
+            const firstKey = Object.keys(responseData.errors)[0];
+            message = responseData.errors[firstKey][0];
+          } else if (responseData?.message) {
+            message = responseData.message;
+          }
+          toast.error(message);
+          setIsSubmitting(false);
+          return; // Stop here — never reach createAppointment
+        }
 
-    // 4. Modificación del Payload: inyectar explícitamente la bandera
-    const payload = {
-      patient_id: Number(data.patient_id),
-      doctor_id: Number(finalDoctorId),
-      service_id: Number(data.service_id),
-      scheduled_start_at,
-      is_overbook: hasConflict, // Injection explicitly
-      notes: data.notes,
-      status: initialData ? initialData.status : "scheduled",
-    };
+        patientId = newPatient.id;
+      } else {
+        patientId = Number(data.patient_id);
+      }
 
-    onSubmit(payload);
+      // Step 2: build appointment payload and delegate to parent
+      const finalDoctorId =
+        data.doctor_id ||
+        selectedDoctorId ||
+        (isDoctor ? String(user?.id) : "");
+
+      const payload = {
+        patient_id: patientId,
+        doctor_id: Number(finalDoctorId),
+        service_id: Number(data.service_id),
+        scheduled_start_at: localToUTC(data.date, data.time),
+        is_overbook: hasConflict,
+        notes: data.notes,
+        status: initialData ? initialData.status : "scheduled",
+      };
+
+      onSubmit(payload);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const isBusy = isLoading || isSubmitting;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
           <DialogTitle>
             {initialData ? "Editar Turno" : "Nuevo Turno"}
           </DialogTitle>
@@ -279,225 +391,313 @@ export function AppointmentModal({
 
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
-          className="space-y-5 py-2"
+          className="flex flex-col flex-1 min-h-0"
         >
-          {/* Patient Select */}
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="patient_id"
-              className="text-sm font-medium text-foreground"
-            >
-              Paciente
-            </Label>
-            <Controller
-              name="patient_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncCombobox
-                  value={field.value}
-                  onChange={(val) => field.onChange(val ? String(val) : "")}
-                  fetchFn={async (search) => {
-                    const res = await getPatients({ search, cantidad: 10 });
-                    return res.data;
-                  }}
-                  itemLabel={(p) => `${p.full_name} | DNI: ${p.dni || "N/A"}`}
-                  itemValue={(p) => String(p.id)}
-                  placeholder="Seleccionar paciente"
-                  searchPlaceholder="Buscar paciente..."
-                  disabled={!!initialData || isReadOnly}
-                  selectedLabel={
-                    initialData?.patient
-                      ? `${initialData.patient.full_name} | DNI: ${initialData.patient.dni || "N/A"}`
-                      : undefined
-                  }
-                />
-              )}
-            />
-            {errors.patient_id && (
-              <p className="text-xs text-danger font-medium">
-                {errors.patient_id.message}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Doctor Select */}
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5 py-2">
+            {/* Patient Select */}
             <div className="space-y-1.5">
               <Label
-                htmlFor="doctor_id"
+                htmlFor="patient_id"
                 className="text-sm font-medium text-foreground"
               >
-                Médico
+                Paciente
               </Label>
-              <Controller
-                name="doctor_id"
-                control={control}
-                render={({ field }) => (
-                  <FilterableSelect
-                    value={field.value}
-                    onChange={(val) => field.onChange(val ? String(val) : "")}
-                    options={(doctorsData?.data || []).map((d) => ({
-                      label: `Dr. ${d.name}`,
-                      value: String(d.id),
-                    }))}
-                    placeholder="Seleccionar médico"
-                    disabled={isDoctor || isReadOnly}
-                  />
-                )}
-              />
-              {errors.doctor_id && (
+
+              {/* Combobox — hidden when in creation mode */}
+              {!isCreatingPatient && (
+                <Controller
+                  name="patient_id"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableAsyncCombobox
+                      value={field.value}
+                      onChange={(val) => field.onChange(val ? String(val) : "")}
+                      onCreateRequest={handleCreateRequest}
+                      fetchFn={async (search) => {
+                        const res = await getPatients({ search, cantidad: 10 });
+                        return res.data;
+                      }}
+                      placeholder="Seleccionar paciente"
+                      searchPlaceholder="Buscar por nombre, apellido o teléfono..."
+                      disabled={!!initialData || isReadOnly}
+                      selectedLabel={
+                        initialData?.patient
+                          ? `${initialData.patient.full_name}${initialData.patient.dni ? ` | DNI: ${initialData.patient.dni}` : ""}`
+                          : undefined
+                      }
+                      queryKey="appointment-modal-patient"
+                    />
+                  )}
+                />
+              )}
+
+              {(errors as any).patient_id && !isCreatingPatient && (
                 <p className="text-xs text-danger font-medium">
-                  {errors.doctor_id.message}
+                  {(errors as any).patient_id.message}
                 </p>
+              )}
+
+              {/* ─── Inline "Express" Patient Creation Form ───────────────── */}
+              {isCreatingPatient && (
+                <div
+                  className={cn(
+                    "rounded-[var(--radius-md)] border border-brand-200 bg-brand-50/40 p-4 space-y-3",
+                    "animate-in slide-in-from-top-2 duration-200",
+                  )}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <UserPlus className="h-4 w-4 text-brand-600" />
+                      <span className="text-sm font-semibold text-brand-700">
+                        Registro Exprés
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSwitchToSearch}
+                      className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Buscar existente
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-muted leading-tight">
+                    Solo nombre, apellido y teléfono. El DNI se puede completar
+                    después en el perfil del paciente.
+                  </p>
+
+                  {/* Name row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Nombre *
+                      </Label>
+                      <Input
+                        {...register("new_patient_first_name")}
+                        placeholder="Ej: Juan"
+                        className="h-9 text-sm"
+                      />
+                      {errors.new_patient_first_name && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_first_name.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Apellido *
+                      </Label>
+                      <Input
+                        {...register("new_patient_last_name")}
+                        placeholder="Ej: Pérez"
+                        className="h-9 text-sm"
+                      />
+                      {errors.new_patient_last_name && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_last_name.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-foreground">
+                      Teléfono{" "}
+                      <span className="text-muted font-normal">(opcional)</span>
+                    </Label>
+                    <Input
+                      {...register("new_patient_phone")}
+                      placeholder="Ej: 3813193828"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Service Select */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="service_id"
-                className="text-sm font-medium text-foreground"
-              >
-                Servicio
-              </Label>
-              <Controller
-                name="service_id"
-                control={control}
-                render={({ field }) => (
-                  <FilterableSelect
-                    value={field.value}
-                    onChange={(val) => field.onChange(val ? String(val) : "")}
-                    options={(servicesData?.data || []).map((s) => ({
-                      label: `${s.name} (${s.duration_minutes} min)`,
-                      value: String(s.id),
-                    }))}
-                    placeholder="Seleccionar servicio"
-                    disabled={isReadOnly}
-                  />
-                )}
-              />
-              {errors.service_id && (
-                <p className="text-xs text-danger font-medium">
-                  {errors.service_id.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Date */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="date"
-                className="text-sm font-medium text-foreground"
-              >
-                Fecha
-              </Label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  min={todayStr}
-                  {...register("date")}
-                  disabled={isReadOnly}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Doctor Select */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="doctor_id"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Médico
+                </Label>
+                <Controller
+                  name="doctor_id"
+                  control={control}
+                  render={({ field }) => (
+                    <FilterableSelect
+                      value={field.value}
+                      onChange={(val) => field.onChange(val ? String(val) : "")}
+                      options={(doctorsData?.data || []).map((d) => ({
+                        label: `Dr. ${d.name}`,
+                        value: String(d.id),
+                      }))}
+                      placeholder="Seleccionar médico"
+                      disabled={isDoctor || isReadOnly}
+                    />
+                  )}
                 />
-              </div>
-              {errors.date && (
-                <p className="text-xs text-danger font-medium">
-                  {errors.date.message}
-                </p>
-              )}
-            </div>
-
-            {/* Time */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="time"
-                className="text-sm font-medium text-foreground"
-              >
-                Hora Inicio
-              </Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
-                <Input
-                  type="time"
-                  className="pl-9"
-                  min={
-                    selectedDate === todayStr
-                      ? (() => {
-                          const nowTime = format(new Date(), "HH:mm");
-                          // If doctor has working hours, use whichever is later
-                          if (
-                            workingHours?.start &&
-                            workingHours.start > nowTime
-                          ) {
-                            return workingHours.start;
-                          }
-                          return nowTime;
-                        })()
-                      : workingHours?.start
-                  }
-                  max={workingHours?.end}
-                  {...register("time")}
-                  disabled={isReadOnly}
-                />
-              </div>
-              {workingHours && (
-                <p className="text-xs text-muted flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Horario disponible: {workingHours.start} – {workingHours.end}
-                </p>
-              )}
-              {selectedDoctorId &&
-                selectedDate &&
-                !workingHours &&
-                availabilityData && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <Info className="h-3 w-3" />
-                    El médico no tiene horario configurado para este día
+                {errors.doctor_id && (
+                  <p className="text-xs text-danger font-medium">
+                    {errors.doctor_id.message}
                   </p>
                 )}
-              {hasConflict && (
-                <p className="text-xs text-amber-600 font-medium flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <span className="text-sm">⚠️</span> Horario ocupado
-                  (Sobreturno)
-                </p>
-              )}
-              {errors.time && (
-                <p className="text-xs text-danger font-medium">
-                  {errors.time.message}
-                </p>
-              )}
+              </div>
+
+              {/* Service Select */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="service_id"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Servicio
+                </Label>
+                <Controller
+                  name="service_id"
+                  control={control}
+                  render={({ field }) => (
+                    <FilterableSelect
+                      value={field.value}
+                      onChange={(val) => field.onChange(val ? String(val) : "")}
+                      options={(servicesData?.data || []).map((s) => ({
+                        label: `${s.name} (${s.duration_minutes} min)`,
+                        value: String(s.id),
+                      }))}
+                      placeholder="Seleccionar servicio"
+                      disabled={isReadOnly}
+                    />
+                  )}
+                />
+                {errors.service_id && (
+                  <p className="text-xs text-danger font-medium">
+                    {errors.service_id.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Date */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="date"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Fecha
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    min={todayStr}
+                    {...register("date")}
+                    disabled={isReadOnly}
+                  />
+                </div>
+                {errors.date && (
+                  <p className="text-xs text-danger font-medium">
+                    {errors.date.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Time */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="time"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Hora Inicio
+                </Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
+                  <Input
+                    type="time"
+                    className="pl-9"
+                    min={
+                      selectedDate === todayStr
+                        ? (() => {
+                            const nowTime = format(new Date(), "HH:mm");
+                            if (
+                              workingHours?.start &&
+                              workingHours.start > nowTime
+                            ) {
+                              return workingHours.start;
+                            }
+                            return nowTime;
+                          })()
+                        : workingHours?.start
+                    }
+                    max={workingHours?.end}
+                    {...register("time")}
+                    disabled={isReadOnly}
+                  />
+                </div>
+                {workingHours && (
+                  <p className="text-xs text-muted flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Horario disponible: {workingHours.start} –{" "}
+                    {workingHours.end}
+                  </p>
+                )}
+                {selectedDoctorId &&
+                  selectedDate &&
+                  !workingHours &&
+                  availabilityData && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      El médico no tiene horario configurado para este día
+                    </p>
+                  )}
+                {hasConflict && (
+                  <p className="text-xs text-amber-600 font-medium flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <span className="text-sm">⚠️</span> Horario ocupado
+                    (Sobreturno)
+                  </p>
+                )}
+                {errors.time && (
+                  <p className="text-xs text-danger font-medium">
+                    {errors.time.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* End Time Preview */}
+            {endTime && (
+              <div className="text-sm text-muted flex items-center gap-2 bg-surface-secondary px-3 py-2.5 rounded-[var(--radius-md)] border border-border/50">
+                <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
+                <span>
+                  Finaliza aproximadamente a las{" "}
+                  <strong className="text-foreground">{endTime}</strong> hs
+                </span>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="notes"
+                className="text-sm font-medium text-foreground"
+              >
+                Notas (Opcional)
+              </Label>
+              <Textarea
+                {...register("notes")}
+                placeholder="Detalles adicionales para el turno..."
+                className="resize-none"
+                disabled={isReadOnly}
+              />
             </div>
           </div>
 
-          {/* End Time Preview */}
-          {endTime && (
-            <div className="text-sm text-muted flex items-center gap-2 bg-surface-secondary px-3 py-2.5 rounded-[var(--radius-md)] border border-border/50">
-              <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
-              <span>
-                Finaliza aproximadamente a las{" "}
-                <strong className="text-foreground">{endTime}</strong> hs
-              </span>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="notes"
-              className="text-sm font-medium text-foreground"
-            >
-              Notas (Opcional)
-            </Label>
-            <Textarea
-              {...register("notes")}
-              placeholder="Detalles adicionales para el turno..."
-              className="resize-none"
-              disabled={isReadOnly}
-            />
-          </div>
-
-          <DialogFooter className="pt-2 sm:justify-between items-center w-full">
+          <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0 sm:justify-between items-center w-full">
             <div className="flex gap-2 w-full justify-start">
               {initialData &&
                 initialData.status !== "cancelled" &&
@@ -515,7 +715,7 @@ export function AppointmentModal({
                         onSubmit({ status: "cancelled" });
                       }
                     }}
-                    disabled={isLoading || isReadOnly}
+                    disabled={isBusy || isReadOnly}
                   >
                     Cancelar Turno
                   </Button>
@@ -528,7 +728,7 @@ export function AppointmentModal({
               {!isReadOnly && (
                 <Button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isBusy}
                   className={cn(
                     "transition-all duration-300 ease-in-out",
                     !hasConflict
@@ -536,8 +736,10 @@ export function AppointmentModal({
                       : "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-500/20",
                   )}
                 >
-                  {isLoading
-                    ? "Guardando..."
+                  {isBusy
+                    ? isCreatingPatient && isSubmitting
+                      ? "Registrando paciente..."
+                      : "Guardando..."
                     : hasConflict
                       ? initialData
                         ? "Actualizar como Sobreturno"

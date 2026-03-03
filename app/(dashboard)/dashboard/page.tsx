@@ -395,7 +395,7 @@ export default function DashboardPage() {
                 ? { text: "Atención", color: "text-danger", bg: "bg-danger/10" }
                 : undefined
             }
-            href="/products?filter=low_stock"
+            href="/products?stock_status=low"
           />
         )}
 
@@ -1078,6 +1078,11 @@ function AppointmentRow({
               <p className="text-[10px] text-muted-foreground truncate">
                 con {appointment.doctor.name}
               </p>
+            )}
+            {appointment.patient && !appointment.patient.dni && (
+              <span className="text-[10px] text-orange-600 font-medium block leading-tight">
+                ⚠️ Falta DNI
+              </span>
             )}
           </div>
         </Link>
