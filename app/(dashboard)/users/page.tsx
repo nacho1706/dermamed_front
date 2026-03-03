@@ -109,7 +109,7 @@ function KpiCard({
 }: {
   label: string;
   value: string | number;
-  icon: any;
+  icon: React.ElementType;
   iconBg: string;
   iconColor: string;
 }) {
@@ -188,24 +188,35 @@ function UserFormModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const data: any = {
-      name,
-      email,
-      role_ids: roleIds.map((id) => parseInt(id)),
-    };
-
-    if (isDoctorSelected) {
-      data.specialty = specialty || null;
-    }
+    const role_ids = roleIds.map((id) => parseInt(id));
 
     if (isEdit && user) {
-      // Logic only for edit
-      data.cuit = cuit || null;
-      data.is_active = isActive;
-      updateMut.mutate({ id: user.id, data }, { onSuccess: onClose });
+      const updateData: Partial<import("@/types").User> & {
+        role_ids: number[];
+      } = {
+        name,
+        email,
+        role_ids,
+        cuit: cuit || null,
+        is_active: isActive,
+      };
+      if (isDoctorSelected) {
+        updateData.specialty = specialty || null;
+      }
+      updateMut.mutate(
+        { id: user.id, data: updateData },
+        { onSuccess: onClose },
+      );
     } else {
-      // Logic only for invite
-      inviteMut.mutate(data, { onSuccess: onClose });
+      const inviteData: import("@/types").InviteUserRequest = {
+        name,
+        email,
+        role_ids,
+      };
+      if (isDoctorSelected && specialty) {
+        inviteData.specialty = specialty;
+      }
+      inviteMut.mutate(inviteData, { onSuccess: onClose });
     }
   };
 
