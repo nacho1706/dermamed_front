@@ -309,7 +309,7 @@ export function ImmediateAttentionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-[500px] p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-brand-600" />
@@ -322,11 +322,8 @@ export function ImmediateAttentionModal({
           </p>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col flex-1 min-h-0"
-        >
-          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5 py-3">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="px-6 pb-4 space-y-5 py-3">
             {/* Patient searcher */}
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-foreground">
@@ -340,9 +337,7 @@ export function ImmediateAttentionModal({
                   render={({ field }) => (
                     <CreatableAsyncCombobox
                       value={field.value}
-                      onChange={(val) =>
-                        field.onChange(val ? String(val) : "")
-                      }
+                      onChange={(val) => field.onChange(val ? String(val) : "")}
                       onCreateRequest={handleCreateRequest}
                       fetchFn={async (search) => {
                         const res = await getPatients({ search, cantidad: 10 });
@@ -447,7 +442,9 @@ export function ImmediateAttentionModal({
                     <div className="space-y-1">
                       <Label className="text-xs text-foreground">
                         Teléfono{" "}
-                        <span className="text-muted font-normal">(opcional)</span>
+                        <span className="text-muted font-normal">
+                          (opcional)
+                        </span>
                       </Label>
                       <Input
                         {...register("new_patient_phone")}
@@ -499,9 +496,7 @@ export function ImmediateAttentionModal({
                   render={({ field }) => (
                     <FilterableSelect
                       value={field.value || ""}
-                      onChange={(val) =>
-                        field.onChange(val ? String(val) : "")
-                      }
+                      onChange={(val) => field.onChange(val ? String(val) : "")}
                       options={(doctorsData?.data || []).map((d) => ({
                         label: d.name,
                         value: String(d.id),
@@ -514,7 +509,7 @@ export function ImmediateAttentionModal({
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0 flex justify-end gap-2">
+          <DialogFooter className="px-6 py-4 border-t border-border flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>

@@ -36,6 +36,7 @@ import {
   MoreHorizontal,
   CheckCircle2,
   AlertCircle,
+  UserRoundCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment } from "@/types";
@@ -511,31 +512,24 @@ export default function DashboardPage() {
               </h2>
             </CardHeader>
             <CardBody className="space-y-2">
-              {/* New Quick Action Component for custom logic */}
-              <button
-                onClick={() => setIsImmediateModalOpen(true)}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 group bg-danger/10 border border-danger/20 hover:border-danger hover:shadow-[var(--shadow-sm)]"
-              >
-                <div className="w-8 h-8 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 bg-danger/20">
-                  <AlertTriangle className="w-4 h-4 text-danger" />
-                </div>
-                <span className="text-sm font-medium flex-1 text-danger text-left">
-                  {isDoctor ? "Atención Inmediata" : "Ingreso sin Turno"}
-                </span>
-                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-danger" />
-              </button>
-
               <QuickAction
                 label="Nuevo Turno"
                 icon={Plus}
                 onClick={() => setIsAppointmentModalOpen(true)}
-              />
-              <QuickAction
-                label="Nuevo Paciente"
-                icon={Plus}
-                href="/patients/new"
                 variant="primary"
               />
+              <button
+                onClick={() => setIsImmediateModalOpen(true)}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 group bg-brand-50 border border-brand-100 hover:border-brand-300 hover:bg-brand-100/60 hover:shadow-[var(--shadow-sm)]"
+              >
+                <div className="w-8 h-8 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 bg-brand-100">
+                  <UserRoundCheck className="w-4 h-4 text-brand-600" />
+                </div>
+                <span className="text-sm font-medium flex-1 text-brand-700 text-left">
+                  Atención Inmediata
+                </span>
+                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-brand-400" />
+              </button>
             </CardBody>
           </Card>
         </div>
