@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,9 @@ export function FilterableSelect({
 }: FilterableSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -43,13 +46,13 @@ export function FilterableSelect({
       )
     : options;
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click — must also check the portal div
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      const isInsideContainer = containerRef.current?.contains(target);
+      const isInsideDropdown = dropdownRef.current?.contains(target);
+      if (!isInsideContainer && !isInsideDropdown) {
         setOpen(false);
         setSearch("");
       }
@@ -103,10 +106,33 @@ export function FilterableSelect({
 
   const handleTriggerClick = useCallback(() => {
     if (!disabled) {
+      if (!open && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const DROPDOWN_MAX_H = 240; // matches max-h-[240px] below
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        const openUpward =
+          spaceBelow < DROPDOWN_MAX_H && rect.top > DROPDOWN_MAX_H;
+
+        if (openUpward) {
+          setDropdownStyle({
+            position: "fixed",
+            bottom: window.innerHeight - rect.top + 4,
+            left: rect.left,
+            width: rect.width,
+          });
+        } else {
+          setDropdownStyle({
+            position: "fixed",
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: rect.width,
+          });
+        }
+      }
       setOpen((prev) => !prev);
       setSearch("");
     }
-  }, [disabled]);
+  }, [disabled, open]);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -152,65 +178,75 @@ export function FilterableSelect({
         )}
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div
-          className={cn(
-            "absolute z-[100] mt-1 w-full rounded-[var(--radius-md)]",
-            "bg-surface border border-border shadow-[var(--shadow-md)]",
-            "animate-in fade-in-0 zoom-in-95 duration-100",
-          )}
-        >
-          {/* Search filter */}
-          {options.length > 5 && (
-            <div className="flex items-center gap-2 px-3 border-b border-border">
-              <Search className="h-3.5 w-3.5 text-muted shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="flex-1 min-w-0 py-2.5 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-                autoComplete="off"
-              />
-            </div>
-          )}
-
-          {/* Options list */}
-          <ul className="p-1 max-h-[200px] overflow-y-auto overflow-x-hidden">
-            {filteredOptions.length === 0 ? (
-              <li className="px-2.5 py-2 text-sm text-center text-muted">
-                {emptyText}
-              </li>
-            ) : (
-              filteredOptions.map((option) => {
-                const isSelected = value === option.value;
-                return (
-                  <li
-                    key={String(option.value)}
-                    onClick={() => handleSelect(option)}
-                    className={cn(
-                      "flex items-center gap-2 px-2.5 py-2 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors",
-                      isSelected
-                        ? "bg-brand-50 text-brand-700"
-                        : "text-foreground hover:bg-surface-secondary",
-                    )}
-                  >
-                    <Check
-                      className={cn(
-                        "h-4 w-4 shrink-0",
-                        isSelected ? "opacity-100 text-brand-600" : "opacity-0",
-                      )}
-                    />
-                    <span className="truncate min-w-0">{option.label}</span>
-                  </li>
-                );
-              })
+      {/* Dropdown — rendered in a portal at fixed viewport coords */}
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ ...dropdownStyle, pointerEvents: "auto" }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "z-[9999] rounded-[var(--radius-md)]",
+              "bg-surface border border-border shadow-[var(--shadow-md)]",
+              "animate-in fade-in-0 zoom-in-95 duration-100",
             )}
-          </ul>
-        </div>
-      )}
+          >
+            {/* Search filter */}
+            {options.length > 5 && (
+              <div className="flex items-center gap-2 px-3 border-b border-border">
+                <Search className="h-3.5 w-3.5 text-muted shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 min-w-0 py-2.5 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+
+            {/* Options list */}
+            <ul className="p-1 max-h-[200px] overflow-y-auto overflow-x-hidden">
+              {filteredOptions.length === 0 ? (
+                <li className="px-2.5 py-2 text-sm text-center text-muted">
+                  {emptyText}
+                </li>
+              ) : (
+                filteredOptions.map((option) => {
+                  const isSelected = value === option.value;
+                  return (
+                    <li
+                      key={String(option.value)}
+                      onClick={() => handleSelect(option)}
+                      className={cn(
+                        "flex items-center gap-2 px-2.5 py-2 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors",
+                        isSelected
+                          ? "bg-brand-50 text-brand-700"
+                          : "text-foreground hover:bg-surface-secondary",
+                      )}
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          isSelected
+                            ? "opacity-100 text-brand-600"
+                            : "opacity-0",
+                        )}
+                      />
+                      <span className="truncate min-w-0">{option.label}</span>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
