@@ -1,7 +1,12 @@
 "use client";
 
 import api from "@/lib/api";
-import type { User, PaginatedResponse, PaginationParams } from "@/types";
+import type {
+  User,
+  PaginatedResponse,
+  PaginationParams,
+  InviteUserRequest,
+} from "@/types";
 
 export interface UserFilters extends PaginationParams {
   name?: string;
@@ -23,11 +28,7 @@ export async function getUser(id: number): Promise<User> {
   return response.data.data;
 }
 
-export async function inviteUser(data: {
-  name: string;
-  email: string;
-  role_id: number;
-}): Promise<User> {
+export async function inviteUser(data: InviteUserRequest): Promise<User> {
   const response = await api.post<{ data: User }>("/users/invite", data);
   return response.data.data;
 }
@@ -38,7 +39,7 @@ export async function resendInvite(id: number): Promise<void> {
 
 export async function updateUser(
   id: number,
-  data: Partial<User> & { password?: string; role_id?: number },
+  data: Partial<User> & { password?: string; role_ids?: number[] },
 ): Promise<User> {
   const response = await api.put<{ data: User }>(`/users/${id}`, data);
   return response.data.data;

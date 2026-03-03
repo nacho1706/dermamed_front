@@ -8,11 +8,7 @@ import {
   deleteUser,
   type UserFilters,
 } from "@/services/users";
-import {
-  PaginatedUsersSchema,
-  UserSchema,
-  type ValidatedUser,
-} from "@/lib/schemas/user";
+import { PaginatedUsersSchema, UserSchema } from "@/lib/schemas/user";
 import { sileo } from "sileo";
 
 export function useUsers(filters?: UserFilters) {
@@ -44,11 +40,13 @@ export function useUsersKpi(
   return useQuery({
     queryKey: ["users-kpi", type],
     queryFn: async () => {
-      let filters: UserFilters = { cantidad: 1 };
-      if (type === "active") filters.is_active = true;
-      if (type === "doctors") filters.role = "doctor";
-      if (type === "receptionists") filters.role = "receptionist";
-      if (type === "managers") filters.role = "clinic_manager";
+      const filters: UserFilters = {
+        cantidad: 1,
+        ...(type === "active" ? { is_active: true } : {}),
+        ...(type === "doctors" ? { role: "doctor" } : {}),
+        ...(type === "receptionists" ? { role: "receptionist" } : {}),
+        ...(type === "managers" ? { role: "clinic_manager" } : {}),
+      };
 
       const response = await getUsers(filters);
       return PaginatedUsersSchema.parse(response);
@@ -81,8 +79,16 @@ export function useInviteUser() {
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
-      updateUser(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<import("@/types").User> & {
+        password?: string;
+        role_ids?: number[];
+      };
+    }) => updateUser(id, data),
     // Optimistic Update Rollback Logic setup can be complex for paginated, but we can do it if needed.
     // For now we invalidate to keep it simple and safe for standard settings forms.
     onSuccess: (_, variables) => {
