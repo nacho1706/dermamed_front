@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  getServices,
-  createService,
-  updateService,
-  deleteService,
-} from "@/services/services";
+  useServices,
+  useCreateService,
+  useUpdateService,
+  useDeleteService,
+} from "@/hooks/queries/useServices";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,26 +107,8 @@ function ServiceFormModal({
     }
   }, [isOpen, service]);
 
-  const createMut = useMutation({
-    mutationFn: createService,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["services"] });
-      sileo.success({ title: "Servicio creado", description: "El servicio fue creado correctamente." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo crear el servicio." }),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Service> }) =>
-      updateService(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["services"] });
-      sileo.success({ title: "Servicio actualizado", description: "Los cambios fueron guardados correctamente." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el servicio." }),
-  });
+  const createMut = useCreateService();
+  const updateMut = useUpdateService();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,9 +120,9 @@ function ServiceFormModal({
     };
 
     if (isEdit && service) {
-      updateMut.mutate({ id: service.id, data });
+      updateMut.mutate({ id: service.id, data }, { onSuccess: onClose });
     } else {
-      createMut.mutate(data);
+      createMut.mutate(data, { onSuccess: onClose });
     }
   };
 
@@ -260,24 +242,13 @@ export default function ServicesPage() {
   const debouncedSearch = useDebounce(search, 500);
 
   // ── All hooks must be declared before any conditional returns ──────────────
-  const { data, isLoading } = useQuery({
-    queryKey: ["services", debouncedSearch, page],
-    queryFn: () =>
-      getServices({
-        name: debouncedSearch || undefined,
-        pagina: page,
-        cantidad: 10,
-      }),
+  const { data, isLoading } = useServices({
+    name: debouncedSearch || undefined,
+    pagina: page,
+    cantidad: 10,
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteService,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["services"] });
-      sileo.success({ title: "Servicio eliminado", description: "El servicio fue eliminado correctamente." });
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el servicio." }),
-  });
+  const deleteMut = useDeleteService();
 
   React.useEffect(() => {
     if (!hasRole("clinic_manager")) {
@@ -303,12 +274,15 @@ export default function ServicesPage() {
   const avgDuration =
     services.length > 0
       ? services.reduce((acc, s) => acc + Number(s.duration_minutes), 0) /
-      services.length
+        services.length
       : 0;
 
   const handleExportCSV = () => {
     if (services.length === 0) {
-      sileo.warning({ title: "Sin datos", description: "No hay servicios para exportar." });
+      sileo.warning({
+        title: "Sin datos",
+        description: "No hay servicios para exportar.",
+      });
       return;
     }
     const headers = ["ID", "Nombre", "Descripcion", "Precio", "Duracion (min)"];
@@ -327,7 +301,10 @@ export default function ServicesPage() {
     link.download = "servicios_export.csv";
     link.click();
     URL.revokeObjectURL(url);
-    sileo.success({ title: "Exportación exitosa", description: `Se exportaron ${services.length} servicios.` });
+    sileo.success({
+      title: "Exportación exitosa",
+      description: `Se exportaron ${services.length} servicios.`,
+    });
   };
 
   const handleEdit = (service: Service) => {
@@ -569,12 +546,16 @@ export default function ServicesPage() {
         title="Importar Servicios"
         endpointUrl="/services/import"
         templateUrl="/templates/services_template.csv"
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["services"] })}
+        onSuccess={() =>
+          queryClient.invalidateQueries({ queryKey: ["services"] })
+        }
       />
       <ConfirmDialog
         isOpen={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        onConfirm={() =>
+          confirmDelete !== null && deleteMut.mutate(confirmDelete)
+        }
         title="Eliminar servicio"
         description="¿Estás seguro de que deseas eliminar este servicio? Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
