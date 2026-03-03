@@ -38,7 +38,7 @@
 ### 2. Soporte para Roles Múltiples
 
 - **Regla**: El usuario puede tener un array de roles.
-- **Acción**: NUNCA valides con `user.role === 'admin'`. Usá `user.roles.includes('admin')`.
+- **Acción**: NUNCA valides con `user.role === 'clinic_manager'`. Usá `user.roles.includes('clinic_manager')`.
 - Adaptá los componentes de Sidebar y Route Guards para manejar arrays de roles.
 
 ### 3. Inmutabilidad (No Hard Deletes en UI)
