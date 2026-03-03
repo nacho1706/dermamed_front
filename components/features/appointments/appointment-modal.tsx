@@ -51,6 +51,7 @@ const appointmentSchema = z
     // Inline new-patient fields
     new_patient_first_name: z.string().optional(),
     new_patient_last_name: z.string().optional(),
+    new_patient_dni: z.string().optional(),
     new_patient_phone: z.string().optional(),
     // Core appointment fields
     doctor_id: z.string().min(1, "Seleccione un médico"),
@@ -76,6 +77,19 @@ const appointmentSchema = z
           code: z.ZodIssueCode.custom,
           message: "El apellido es requerido",
           path: ["new_patient_last_name"],
+        });
+      }
+      if (!data.new_patient_dni?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El DNI es requerido",
+          path: ["new_patient_dni"],
+        });
+      } else if (!/^\d{7,8}$/.test(data.new_patient_dni.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El DNI debe tener 7 u 8 dígitos",
+          path: ["new_patient_dni"],
         });
       }
     } else {
@@ -137,6 +151,7 @@ export function AppointmentModal({
       patient_id: "",
       new_patient_first_name: "",
       new_patient_last_name: "",
+      new_patient_dni: "",
       new_patient_phone: "",
       doctor_id: isDoctor ? String(user?.id) : "",
       service_id: "",
@@ -164,6 +179,7 @@ export function AppointmentModal({
     setValue("patient_id", "");
     setValue("new_patient_first_name", "");
     setValue("new_patient_last_name", "");
+    setValue("new_patient_dni", "");
     setValue("new_patient_phone", "");
   }, [setValue]);
 
@@ -221,6 +237,7 @@ export function AppointmentModal({
         patient_id: String(initialData.patient_id),
         new_patient_first_name: "",
         new_patient_last_name: "",
+        new_patient_dni: "",
         new_patient_phone: "",
         doctor_id: String(initialData.doctor_id),
         service_id: String(initialData.service_id),
@@ -235,6 +252,7 @@ export function AppointmentModal({
         patient_id: "",
         new_patient_first_name: "",
         new_patient_last_name: "",
+        new_patient_dni: "",
         new_patient_phone: "",
         doctor_id: isDoctor ? String(user?.id) : "",
         service_id: "",
@@ -249,6 +267,7 @@ export function AppointmentModal({
         patient_id: "",
         new_patient_first_name: "",
         new_patient_last_name: "",
+        new_patient_dni: "",
         new_patient_phone: "",
         doctor_id: isDoctor ? String(user?.id) : "",
         service_id: "",
@@ -335,10 +354,19 @@ export function AppointmentModal({
           newPatient = await createPatient({
             first_name: data.new_patient_first_name?.trim(),
             last_name: data.new_patient_last_name?.trim(),
+            dni: data.new_patient_dni?.trim(),
             phone: data.new_patient_phone?.trim() || undefined,
           });
         } catch (patientError: any) {
+          const status = patientError.response?.status;
           const responseData = patientError.response?.data;
+          if (status === 409) {
+            toast.error(
+              "Ya existe un paciente registrado con ese DNI. Buscalo usando el buscador.",
+            );
+            setIsSubmitting(false);
+            return;
+          }
           let message = "Error al registrar el paciente";
           if (responseData?.errors) {
             const firstKey = Object.keys(responseData.errors)[0];
@@ -464,11 +492,6 @@ export function AppointmentModal({
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-muted leading-tight">
-                    Solo nombre, apellido y teléfono. El DNI se puede completar
-                    después en el perfil del paciente.
-                  </p>
-
                   {/* Name row */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -503,17 +526,42 @@ export function AppointmentModal({
                     </div>
                   </div>
 
-                  {/* Phone */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-foreground">
-                      Teléfono{" "}
-                      <span className="text-muted font-normal">(opcional)</span>
-                    </Label>
-                    <Input
-                      {...register("new_patient_phone")}
-                      placeholder="Ej: 3813193828"
-                      className="h-9 text-sm"
-                    />
+                  {/* DNI + Phone row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">DNI *</Label>
+                      <Input
+                        {...register("new_patient_dni", {
+                          onChange: (e) => {
+                            e.target.value = e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 8);
+                          },
+                        })}
+                        placeholder="Ej: 30452758"
+                        maxLength={8}
+                        inputMode="numeric"
+                        className="h-9 text-sm"
+                      />
+                      {errors.new_patient_dni && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_dni.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Teléfono{" "}
+                        <span className="text-muted font-normal">
+                          (opcional)
+                        </span>
+                      </Label>
+                      <Input
+                        {...register("new_patient_phone")}
+                        placeholder="Ej: 3813193828"
+                        className="h-9 text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

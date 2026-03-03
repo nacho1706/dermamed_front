@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,17 +11,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertTriangle, Search, UserPlus, Play } from "lucide-react";
-import { AsyncCombobox } from "@/components/shared/async-combobox";
+import { UserCheck, UserPlus, ChevronLeft, Play } from "lucide-react";
+import { CreatableAsyncCombobox } from "@/components/shared/creatable-async-combobox";
 import { FilterableSelect } from "@/components/shared/filterable-select";
 import { ActiveConsultationAlertModal } from "@/components/features/appointments/active-consultation-alert-modal";
 import type { Appointment } from "@/types";
+import { cn } from "@/lib/utils";
 
 import { createPatient, getPatients } from "@/services/patients";
 import { createAppointment } from "@/services/appointments";
@@ -32,46 +33,63 @@ import { localToUTC } from "@/lib/timezone";
 import { format, addMinutes } from "date-fns";
 import { toast } from "sonner";
 
-// ─── Schemas ────────────────────────────────────────────────────────────────
+// ─── Schema ──────────────────────────────────────────────────────────────────
 
-const existingPatientSchema = z.object({
-  patient_id: z.string().min(1, "Seleccione un paciente"),
-  service_id: z.string().min(1, "Seleccione un servicio"),
-  doctor_id: z.string().optional(),
-});
-
-const newPatientSchemaBase = z.object({
-  first_name: z.string().min(1, "El nombre es requerido").max(100),
-  last_name: z.string().min(1, "El apellido es requerido").max(100),
-  dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
-  cuit: z
-    .string()
-    .regex(/^\d{11}$/, "El CUIT debe tener exactamente 11 dígitos numéricos")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
-  service_id: z.string().min(1, "Seleccione un servicio"),
-  doctor_id: z.string().optional(),
-});
-
-const newPatientSchema = newPatientSchemaBase.refine(
-  (data) => {
-    if (data.cuit && data.dni) {
-      // Validate that the middle of the CUIT matches the DNI (padded to 8 digits)
-      const dniPadded = data.dni.padStart(8, "0");
-      const cuitMiddle = data.cuit.substring(2, 10);
-      return cuitMiddle === dniPadded;
+const schema = z
+  .object({
+    patient_id: z.string().optional(),
+    // Inline new-patient fields
+    new_patient_first_name: z.string().optional(),
+    new_patient_last_name: z.string().optional(),
+    new_patient_dni: z.string().optional(),
+    new_patient_phone: z.string().optional(),
+    // Appointment fields
+    service_id: z.string().min(1, "Seleccione un servicio"),
+    doctor_id: z.string().optional(),
+    // Hidden flag
+    _is_creating_patient: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data._is_creating_patient) {
+      if (!data.new_patient_first_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El nombre es requerido",
+          path: ["new_patient_first_name"],
+        });
+      }
+      if (!data.new_patient_last_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El apellido es requerido",
+          path: ["new_patient_last_name"],
+        });
+      }
+      if (!data.new_patient_dni?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El DNI es requerido",
+          path: ["new_patient_dni"],
+        });
+      } else if (!/^\d{7,8}$/.test(data.new_patient_dni.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "El DNI debe tener 7 u 8 dígitos",
+          path: ["new_patient_dni"],
+        });
+      }
+    } else {
+      if (!data.patient_id || data.patient_id === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Seleccione un paciente",
+          path: ["patient_id"],
+        });
+      }
     }
-    return true;
-  },
-  {
-    message: "El CUIT no coincide con el DNI ingresado",
-    path: ["cuit"],
-  },
-);
+  });
 
-type ExistingPatientForm = z.infer<typeof existingPatientSchema>;
-type NewPatientForm = z.infer<typeof newPatientSchema>;
+type FormValues = z.infer<typeof schema>;
 
 interface ImmediateAttentionModalProps {
   isOpen: boolean;
@@ -88,55 +106,86 @@ export function ImmediateAttentionModal({
   const queryClient = useQueryClient();
   const { user, hasRole } = useAuth();
   const isDoctor = hasRole("doctor");
-  const [activeTab, setActiveTab] = useState<"search" | "new">("search");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: servicesData } = useQuery({
     queryKey: ["services"],
     queryFn: () => getServices(),
   });
 
-  // Fetch doctors for the selector (only needed for non-doctors)
   const { data: doctorsData } = useQuery({
     queryKey: ["users", "doctors"],
     queryFn: () => getUsers({ role: "doctor", is_active: true, cantidad: 100 }),
     enabled: !isDoctor,
   });
 
-  // Forms
   const {
-    control: controlExisting,
-    handleSubmit: handleSubmitExisting,
-    formState: { errors: errorsExisting },
-    setValue: setExistingPatient,
-  } = useForm<ExistingPatientForm>({
-    resolver: zodResolver(existingPatientSchema),
-    defaultValues: { patient_id: "", service_id: "", doctor_id: "" },
-  });
-
-  const {
-    register: registerNew,
-    control: controlNew,
-    handleSubmit: handleSubmitNew,
-    setValue: setNewPatientValue,
-    getValues: getNewValues,
-    setError: setNewError,
-    clearErrors: clearNewErrors,
-    formState: { errors: errorsNew },
-  } = useForm<NewPatientForm>({
-    resolver: zodResolver(newPatientSchema),
+    control,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: {
-      first_name: "",
-      last_name: "",
-      dni: "",
-      cuit: "",
+      patient_id: "",
+      new_patient_first_name: "",
+      new_patient_last_name: "",
+      new_patient_dni: "",
+      new_patient_phone: "",
       service_id: "",
       doctor_id: "",
+      _is_creating_patient: false,
     },
   });
 
-  // Mutations
+  // Keep hidden flag in sync with local state
+  useEffect(() => {
+    setValue("_is_creating_patient", isCreatingPatient);
+  }, [isCreatingPatient, setValue]);
+
+  // Reset on open/close
+  useEffect(() => {
+    if (isOpen) {
+      setIsCreatingPatient(false);
+      reset({
+        patient_id: "",
+        new_patient_first_name: "",
+        new_patient_last_name: "",
+        new_patient_dni: "",
+        new_patient_phone: "",
+        service_id: "",
+        doctor_id: "",
+        _is_creating_patient: false,
+      });
+    }
+  }, [isOpen, reset]);
+
+  const handleSwitchToSearch = useCallback(() => {
+    setIsCreatingPatient(false);
+    setValue("patient_id", "");
+    setValue("new_patient_first_name", "");
+    setValue("new_patient_last_name", "");
+    setValue("new_patient_dni", "");
+    setValue("new_patient_phone", "");
+  }, [setValue]);
+
+  const handleCreateRequest = useCallback(
+    (searchText: string) => {
+      setIsCreatingPatient(true);
+      setValue("patient_id", "");
+      const words = searchText.trim().split(/\s+/);
+      setValue("new_patient_first_name", words[0] || "");
+      setValue("new_patient_last_name", words.slice(1).join(" ") || "");
+    },
+    [setValue],
+  );
+
+  // Mutation: create appointment
   const createAppointmentMutation = useMutation({
     mutationFn: (data: {
       patient_id: number;
@@ -151,15 +200,14 @@ export function ImmediateAttentionModal({
       const service = servicesData?.data.find(
         (s) => String(s.id) === String(data.service_id),
       );
-      // Fallback to 30 mins if duration is not found
       const duration = service?.duration_minutes || 30;
 
       const endTimeDate = addMinutes(now, duration);
-      const endString = format(endTimeDate, "yyyy-MM-dd");
-      const endTimeString = format(endTimeDate, "HH:mm");
-      const scheduled_end_at = localToUTC(endString, endTimeString);
+      const scheduled_end_at = localToUTC(
+        format(endTimeDate, "yyyy-MM-dd"),
+        format(endTimeDate, "HH:mm"),
+      );
 
-      // Doctor: use own ID. Non-doctor: use selected doctor_id.
       const resolvedDoctorId = isDoctor ? user!.id : Number(data.doctor_id);
 
       return createAppointment({
@@ -177,12 +225,10 @@ export function ImmediateAttentionModal({
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       if (isDoctor) {
-        // Doctor: redirect to medical records
         router.push(
           `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
         );
       } else {
-        // Receptionist/Manager: stay, show toast
         toast.success("Paciente ingresado a sala de espera");
         onClose();
       }
@@ -198,397 +244,296 @@ export function ImmediateAttentionModal({
     },
   });
 
-  const createPatientMutation = useMutation({
-    mutationFn: createPatient,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["patients"] });
-    },
-    onError: (error: any) => {
-      const errors = error.response?.data?.errors;
-      if (errors) {
-        const firstError = Object.values(errors)[0] as string[];
-        toast.error(firstError[0] || "Error en los datos del paciente");
-      } else {
-        toast.error(error.response?.data?.message || "Error al crear paciente");
-      }
-    },
-  });
-
-  const onExistingSubmit = async (data: ExistingPatientForm) => {
+  const onSubmit = async (data: FormValues) => {
     if (!user) return;
+
     // Non-doctor: validate doctor selection
     if (!isDoctor && !data.doctor_id) {
       toast.error("Debe seleccionar un médico");
       return;
     }
-    if (activeAppointment) {
-      setIsConflictModalOpen(true);
-      return;
-    }
-    await createAppointmentMutation.mutateAsync({
-      patient_id: Number(data.patient_id),
-      service_id: Number(data.service_id),
-      doctor_id: data.doctor_id,
-    });
-  };
 
-  const onNewSubmit = async (data: NewPatientForm) => {
-    if (!user) return;
-    // Non-doctor: validate doctor selection
-    if (!isDoctor && !data.doctor_id) {
-      toast.error("Debe seleccionar un médico");
-      return;
-    }
     if (activeAppointment) {
       setIsConflictModalOpen(true);
       return;
     }
+
+    setIsSubmitting(true);
     try {
-      const newPatient = await createPatientMutation.mutateAsync({
-        first_name: data.first_name,
-        last_name: data.last_name,
-        dni: data.dni,
-        cuit: data.cuit || null,
-      });
+      let patientId: number;
+
+      if (isCreatingPatient) {
+        try {
+          const newPatient = await createPatient({
+            first_name: data.new_patient_first_name?.trim(),
+            last_name: data.new_patient_last_name?.trim(),
+            dni: data.new_patient_dni?.trim(),
+            phone: data.new_patient_phone?.trim() || undefined,
+          });
+          patientId = newPatient.id;
+          queryClient.invalidateQueries({ queryKey: ["patients"] });
+        } catch (patientError: any) {
+          const status = patientError.response?.status;
+          const responseData = patientError.response?.data;
+          if (status === 409) {
+            toast.error(
+              "Ya existe un paciente registrado con ese DNI. Buscalo usando el buscador.",
+            );
+            return;
+          }
+          let message = "Error al registrar el paciente";
+          if (responseData?.errors) {
+            const firstKey = Object.keys(responseData.errors)[0];
+            message = responseData.errors[firstKey][0];
+          } else if (responseData?.message) {
+            message = responseData.message;
+          }
+          toast.error(message);
+          return;
+        }
+      } else {
+        patientId = Number(data.patient_id);
+      }
 
       await createAppointmentMutation.mutateAsync({
-        patient_id: newPatient.id,
+        patient_id: patientId,
         service_id: Number(data.service_id),
         doctor_id: data.doctor_id,
       });
-    } catch (e) {
-      // Errors handled by mutation onError
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDniBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    const dni = e.target.value;
-    if (dni && dni.length > 5) {
-      try {
-        const response = await getPatients({ dni });
-        if (response.data && response.data.length > 0) {
-          const exists = response.data.some((p) => p.dni === dni);
-          if (exists) {
-            setNewError("dni", {
-              type: "manual",
-              message: "Este DNI ya está registrado",
-            });
-          } else {
-            clearNewErrors("dni");
-          }
-        } else {
-          clearNewErrors("dni");
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  };
-
-  const isLoading =
-    createAppointmentMutation.isPending || createPatientMutation.isPending;
+  const isBusy = isSubmitting || createAppointmentMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <div className="flex items-center gap-2 text-danger">
-            <AlertTriangle className="w-5 h-5" />
-            <DialogTitle className="text-danger">
-              {isDoctor ? "Atención Inmediata" : "Ingreso sin Turno"}
-            </DialogTitle>
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-brand-600" />
+            <DialogTitle>Registro de Ingreso Directo</DialogTitle>
           </div>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted mt-1">
             {isDoctor
               ? "Crea un turno en curso al instante."
               : "Registra un paciente en sala de espera sin turno previo."}
           </p>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as any)}
-          className="w-full mt-4"
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col flex-1 min-h-0"
         >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="search">
-              <Search className="w-4 h-4 mr-2" />
-              Paciente Existente
-            </TabsTrigger>
-            <TabsTrigger value="new">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Nuevo Paciente
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5 py-3">
+            {/* Patient searcher */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">
+                Paciente
+              </Label>
 
-          <div className="mt-6">
-            {/* ─── TAB: BÚSQUEDA ───────────────────────────────────────── */}
-            <TabsContent value="search" className="space-y-4 m-0">
-              <form
-                onSubmit={handleSubmitExisting(onExistingSubmit)}
-                className="space-y-4"
-              >
-                <div className="space-y-2">
-                  <Label>Buscar Paciente</Label>
-                  <Controller
-                    name="patient_id"
-                    control={controlExisting}
-                    render={({ field }) => (
-                      <AsyncCombobox
-                        value={field.value}
-                        onChange={(val) =>
-                          field.onChange(val ? String(val) : "")
-                        }
-                        fetchFn={async (search) => {
-                          const res = await getPatients({
-                            search,
-                            cantidad: 10,
-                          });
-                          return res.data;
-                        }}
-                        itemLabel={(p) =>
-                          `${p.full_name} | DNI: ${p.dni || "N/A"}`
-                        }
-                        itemValue={(p) => String(p.id)}
-                        placeholder="Buscar por Nombre, Apellido o DNI..."
-                        searchPlaceholder="Escribir para buscar..."
-                      />
-                    )}
-                  />
-                  {errorsExisting.patient_id && (
-                    <p className="text-xs text-danger">
-                      {errorsExisting.patient_id.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Servicio / Motivo</Label>
-                  <Controller
-                    name="service_id"
-                    control={controlExisting}
-                    render={({ field }) => (
-                      <FilterableSelect
-                        value={field.value}
-                        onChange={(val) =>
-                          field.onChange(val ? String(val) : "")
-                        }
-                        options={(servicesData?.data || []).map((s) => ({
-                          label: s.name,
-                          value: String(s.id),
-                        }))}
-                        placeholder="Seleccionar servicio..."
-                      />
-                    )}
-                  />
-                  {errorsExisting.service_id && (
-                    <p className="text-xs text-danger">
-                      {errorsExisting.service_id.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Doctor selector: visible and required for non-doctors */}
-                {!isDoctor && (
-                  <div className="space-y-2">
-                    <Label>
-                      Médico Asignado <span className="text-danger">*</span>
-                    </Label>
-                    <Controller
-                      name="doctor_id"
-                      control={controlExisting}
-                      render={({ field }) => (
-                        <FilterableSelect
-                          value={field.value || ""}
-                          onChange={(val) =>
-                            field.onChange(val ? String(val) : "")
-                          }
-                          options={(doctorsData?.data || []).map((d) => ({
-                            label: d.name,
-                            value: String(d.id),
-                          }))}
-                          placeholder="Seleccionar médico..."
-                        />
-                      )}
+              {!isCreatingPatient && (
+                <Controller
+                  name="patient_id"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableAsyncCombobox
+                      value={field.value}
+                      onChange={(val) =>
+                        field.onChange(val ? String(val) : "")
+                      }
+                      onCreateRequest={handleCreateRequest}
+                      fetchFn={async (search) => {
+                        const res = await getPatients({ search, cantidad: 10 });
+                        return res.data;
+                      }}
+                      placeholder="Seleccionar paciente"
+                      searchPlaceholder="Buscar por nombre, apellido o DNI..."
+                      queryKey="direct-entry-modal-patient"
                     />
-                  </div>
-                )}
+                  )}
+                />
+              )}
 
-                <Button
-                  type="submit"
-                  className="w-full bg-danger hover:bg-red-700 text-white"
-                  disabled={isLoading}
+              {(errors as any).patient_id && !isCreatingPatient && (
+                <p className="text-xs text-danger font-medium">
+                  {(errors as any).patient_id.message}
+                </p>
+              )}
+
+              {/* ─── Inline Express Patient Form ─────────────────────────── */}
+              {isCreatingPatient && (
+                <div
+                  className={cn(
+                    "rounded-[var(--radius-md)] border border-brand-200 bg-brand-50/40 p-4 space-y-3",
+                    "animate-in slide-in-from-top-2 duration-200",
+                  )}
                 >
-                  {isLoading ? (
-                    <Spinner className="mr-2" size="sm" />
-                  ) : (
-                    <Play className="w-4 h-4 mr-2 fill-current" />
-                  )}
-                  {isDoctor ? "Iniciar Ahora" : "Ingresar a Espera"}
-                </Button>
-              </form>
-            </TabsContent>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <UserPlus className="h-4 w-4 text-brand-600" />
+                      <span className="text-sm font-semibold text-brand-700">
+                        Registro Exprés
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSwitchToSearch}
+                      className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Buscar existente
+                    </button>
+                  </div>
 
-            {/* ─── TAB: NUEVO ──────────────────────────────────────────── */}
-            <TabsContent value="new" className="space-y-4 m-0">
-              <form
-                onSubmit={handleSubmitNew(onNewSubmit)}
-                className="space-y-4"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nombre</Label>
-                    <Input
-                      {...registerNew("first_name")}
-                      placeholder="Nombre"
-                    />
-                    {errorsNew.first_name && (
-                      <p className="text-xs text-danger">
-                        {errorsNew.first_name.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Apellido</Label>
-                    <Input
-                      {...registerNew("last_name")}
-                      placeholder="Apellido"
-                    />
-                    {errorsNew.last_name && (
-                      <p className="text-xs text-danger">
-                        {errorsNew.last_name.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>DNI</Label>
-                    <Input
-                      {...registerNew("dni", {
-                        onChange: (e) => {
-                          e.target.value = e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 8);
-                        },
-                        onBlur: (e) => handleDniBlur(e),
-                      })}
-                      placeholder="Ej: 30452758"
-                      maxLength={8}
-                      inputMode="numeric"
-                    />
-                    {errorsNew.dni && (
-                      <p className="text-xs text-danger">
-                        {errorsNew.dni.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>CUIT / CUIL (Opcional)</Label>
-                    <Controller
-                      name="cuit"
-                      control={controlNew}
-                      render={({ field }) => (
-                        <Input
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const value = e.target.value
-                              .replace(/\D/g, "")
-                              .slice(0, 11);
-                            field.onChange(value);
-                            if (value.length === 11) {
-                              const extractedDni = value.substring(2, 10);
-                              const currentDni = getNewValues("dni");
-                              if (!currentDni) {
-                                setNewPatientValue("dni", extractedDni, {
-                                  shouldValidate: true,
-                                });
-                              }
-                            }
-                          }}
-                          placeholder="Sin puntos ni guiones"
-                        />
-                      )}
-                    />
-                    {errorsNew.cuit && (
-                      <p className="text-xs text-danger">
-                        {errorsNew.cuit.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Servicio / Motivo</Label>
-                  <Controller
-                    name="service_id"
-                    control={controlNew}
-                    render={({ field }) => (
-                      <FilterableSelect
-                        value={field.value}
-                        onChange={(val) =>
-                          field.onChange(val ? String(val) : "")
-                        }
-                        options={(servicesData?.data || []).map((s) => ({
-                          label: s.name,
-                          value: String(s.id),
-                        }))}
-                        placeholder="Seleccionar servicio..."
+                  {/* Name row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Nombre *
+                      </Label>
+                      <Input
+                        {...register("new_patient_first_name")}
+                        placeholder="Ej: Juan"
+                        className="h-9 text-sm"
                       />
-                    )}
-                  />
-                  {errorsNew.service_id && (
-                    <p className="text-xs text-danger">
-                      {errorsNew.service_id.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Doctor selector: visible and required for non-doctors */}
-                {!isDoctor && (
-                  <div className="space-y-2">
-                    <Label>
-                      Médico Asignado <span className="text-danger">*</span>
-                    </Label>
-                    <Controller
-                      name="doctor_id"
-                      control={controlNew}
-                      render={({ field }) => (
-                        <FilterableSelect
-                          value={field.value || ""}
-                          onChange={(val) =>
-                            field.onChange(val ? String(val) : "")
-                          }
-                          options={(doctorsData?.data || []).map((d) => ({
-                            label: d.name,
-                            value: String(d.id),
-                          }))}
-                          placeholder="Seleccionar médico..."
-                        />
+                      {errors.new_patient_first_name && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_first_name.message}
+                        </p>
                       )}
-                    />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Apellido *
+                      </Label>
+                      <Input
+                        {...register("new_patient_last_name")}
+                        placeholder="Ej: Pérez"
+                        className="h-9 text-sm"
+                      />
+                      {errors.new_patient_last_name && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_last_name.message}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                <Button
-                  type="submit"
-                  className="w-full bg-danger hover:bg-red-700 text-white"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Spinner className="mr-2" size="sm" />
-                  ) : (
-                    <Play className="w-4 h-4 mr-2 fill-current" />
+                  {/* DNI + Phone row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">DNI *</Label>
+                      <Input
+                        {...register("new_patient_dni", {
+                          onChange: (e) => {
+                            e.target.value = e.target.value
+                              .replace(/\\D/g, "")
+                              .slice(0, 8);
+                          },
+                        })}
+                        placeholder="Ej: 30452758"
+                        maxLength={8}
+                        inputMode="numeric"
+                        className="h-9 text-sm"
+                      />
+                      {errors.new_patient_dni && (
+                        <p className="text-[11px] text-danger">
+                          {errors.new_patient_dni.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-foreground">
+                        Teléfono{" "}
+                        <span className="text-muted font-normal">(opcional)</span>
+                      </Label>
+                      <Input
+                        {...register("new_patient_phone")}
+                        placeholder="Ej: 3813193828"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Service */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">
+                Servicio / Motivo
+              </Label>
+              <Controller
+                name="service_id"
+                control={control}
+                render={({ field }) => (
+                  <FilterableSelect
+                    value={field.value}
+                    onChange={(val) => field.onChange(val ? String(val) : "")}
+                    options={(servicesData?.data || []).map((s) => ({
+                      label: s.name,
+                      value: String(s.id),
+                    }))}
+                    placeholder="Seleccionar servicio..."
+                  />
+                )}
+              />
+              {errors.service_id && (
+                <p className="text-xs text-danger font-medium">
+                  {errors.service_id.message}
+                </p>
+              )}
+            </div>
+
+            {/* Doctor selector: only shown for non-doctors */}
+            {!isDoctor && (
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Médico Asignado <span className="text-danger">*</span>
+                </Label>
+                <Controller
+                  name="doctor_id"
+                  control={control}
+                  render={({ field }) => (
+                    <FilterableSelect
+                      value={field.value || ""}
+                      onChange={(val) =>
+                        field.onChange(val ? String(val) : "")
+                      }
+                      options={(doctorsData?.data || []).map((d) => ({
+                        label: d.name,
+                        value: String(d.id),
+                      }))}
+                      placeholder="Seleccionar médico..."
+                    />
                   )}
-                  {isDoctor ? "Crear y Atender" : "Crear e Ingresar a Espera"}
-                </Button>
-              </form>
-            </TabsContent>
+                />
+              </div>
+            )}
           </div>
-        </Tabs>
+
+          <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={isBusy}
+              className="bg-brand-600 hover:bg-brand-700 text-white"
+            >
+              {isBusy ? (
+                <Spinner className="mr-2" size="sm" />
+              ) : (
+                <Play className="w-4 h-4 mr-2 fill-current" />
+              )}
+              {isDoctor ? "Ingresar a Consulta" : "Ingresar a Espera"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
+
       <ActiveConsultationAlertModal
         isOpen={isConflictModalOpen}
         onClose={() => setIsConflictModalOpen(false)}
