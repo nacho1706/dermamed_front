@@ -68,7 +68,9 @@ export function formatLocalTime(isoString: string): string {
  * @param isoString - "2026-02-18T17:30:00+00:00"
  * @returns "18/02/2026 14:30"
  */
-export function formatLocalDateTime(isoString: string): string {
+export function formatLocalDateTime(isoString: string | null | undefined): string {
+  if (!isoString) return "-";
+
   return formatInTimeZone(
     parseISO(isoString),
     CLINIC_TIMEZONE,

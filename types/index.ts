@@ -226,10 +226,27 @@ export interface Invoice {
 export interface InvoiceItem {
   id: number;
   invoice_id: number;
+  product_id?: number | null;
+  service_id?: number | null;
+  executor_doctor_id?: number | null;
   description: string;
   quantity: number;
   unit_price: number;
   subtotal: number;
+}
+
+export interface CashShift {
+  id: number;
+  opening_balance: number;
+  closing_balance: number | null;
+  opened_at: string;
+  closed_at: string | null;
+  opened_by_user_id: number;
+  closed_by_user_id: number | null;
+  expected_balance?: number;
+  total_incomes?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InvoicePayment {

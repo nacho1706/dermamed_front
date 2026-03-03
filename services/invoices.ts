@@ -139,3 +139,8 @@ export async function deleteInvoicePayment(
 ): Promise<void> {
   await api.delete(`/invoices/${invoiceId}/payments/${paymentId}`);
 }
+
+export async function getInvoiceHistory(invoiceId: number): Promise<any[]> {
+  const response = await api.get<{ data: any[] }>(`/invoices/${invoiceId}/history`);
+  return response.data.data;
+}

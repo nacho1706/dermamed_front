@@ -34,26 +34,29 @@ import {
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  FileText,
-  DollarSign,
-  Receipt,
-  Eye,
-  Trash2,
-  CheckCircle2,
-  Clock,
-  MoreVertical,
-} from "lucide-react";
+import { Wallet, FileText, DollarSign, Clock, CheckCircle2, MoreVertical, Plus, Receipt, Eye, Trash2, AlertCircle, History } from "lucide-react";
+import { getCurrentCashShift } from "@/services/cash-shifts";
+import { InvoiceFormModal } from "./components/InvoiceFormModal";
+import { CashShiftWidget } from "./components/CashShiftWidget";
+import { InvoiceHistoryModal } from "./components/InvoiceHistoryModal";
 import type { Invoice, Patient } from "@/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
-function formatCurrency(value: number) {
+function formatCurrency(value: string | number) {
+  const numericValue = typeof value === 'string' ? parseFloat(value) : value;
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
-  }).format(value);
+  }).format(numericValue || 0);
 }
 
 function getStatusColor(status: string) {
@@ -119,370 +122,6 @@ function KpiCard({
   );
 }
 
-// ─── Invoice Form Modal (Create/Edit) ───────────────────────────────────────
-
-function InvoiceFormModal({
-  isOpen,
-  onClose,
-  invoice,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  invoice?: Invoice;
-}) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const isEdit = !!invoice;
-
-  // Form State
-  const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(
-    invoice?.patient || null,
-  );
-  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-  const [voucherTypeId, setVoucherTypeId] = useState<string>(
-    invoice?.voucher_type_id?.toString() || "",
-  );
-  const [items, setItems] = useState<
-    { description: string; quantity: number; unit_price: number }[]
-  >(
-    invoice?.items?.map((i) => ({
-      description: i.description,
-      quantity: i.quantity,
-      unit_price: i.unit_price,
-    })) || [{ description: "", quantity: 1, unit_price: 0 }],
-  );
-
-  // Queries
-  const debouncedPatientSearch = useDebounce(patientSearch, 300);
-  const { data: patientsData } = useQuery({
-    queryKey: ["patients", "search", debouncedPatientSearch],
-    queryFn: () =>
-      getPatients({
-        first_name: debouncedPatientSearch || undefined,
-        cantidad: 5,
-      }),
-    enabled:
-      isOpen && (debouncedPatientSearch.length > 0 || showPatientDropdown),
-  });
-
-  const { data: voucherTypes } = useQuery({
-    queryKey: ["voucher-types"],
-    queryFn: getVoucherTypes,
-    enabled: isOpen,
-  });
-
-  // Calculate totals
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.unit_price,
-    0,
-  );
-
-  // Reset form
-  React.useEffect(() => {
-    if (isOpen && !invoice) {
-      setPatientSearch("");
-      setSelectedPatient(null);
-      setVoucherTypeId("");
-      setItems([{ description: "", quantity: 1, unit_price: 0 }]);
-    } else if (isOpen && invoice) {
-      setSelectedPatient(invoice.patient || null);
-      setVoucherTypeId(invoice.voucher_type_id.toString());
-      setItems(
-        invoice.items?.map((i) => ({
-          description: i.description,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-        })) || [],
-      );
-    }
-  }, [isOpen, invoice]);
-
-  // Mutations
-  const createMut = useMutation({
-    mutationFn: createInvoice,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Factura creada correctamente");
-      onClose();
-    },
-    onError: () => toast.error("Error al crear la factura"),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Invoice> }) =>
-      updateInvoice(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Factura actualizada correctamente");
-      onClose();
-    },
-    onError: () => toast.error("Error al actualizar la factura"),
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPatient || !voucherTypeId) {
-      toast.error("Complete todos los campos obligatorios");
-      return;
-    }
-
-    const payload = {
-      patient_id: selectedPatient.id,
-      voucher_type_id: parseInt(voucherTypeId),
-      items: items.map((i) => ({
-        description: i.description,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-        subtotal: i.quantity * i.unit_price,
-      })),
-      total: subtotal,
-      status: invoice ? invoice.status : "pending", // Default to pending
-    };
-
-    // Cast payload because new items don't have IDs yet, but the strict Invoice type requires them.
-    // Ideally we would have a specific CreateInvoiceRequest type.
-    const finalPayload = payload as unknown as Partial<Invoice>;
-
-    if (isEdit && invoice) {
-      updateMut.mutate({ id: invoice.id, data: finalPayload });
-    } else {
-      createMut.mutate(finalPayload);
-    }
-  };
-
-  const addItem = () => {
-    setItems([...items, { description: "", quantity: 1, unit_price: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const updateItem = (
-    index: number,
-    field: keyof (typeof items)[0],
-    value: any,
-  ) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
-  };
-
-  const isPending = createMut.isPending || updateMut.isPending;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? `Editar Factura #${invoice?.id}` : "Nueva Factura"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Patient Search */}
-            <div className="relative z-20">
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Paciente *
-              </label>
-              {selectedPatient ? (
-                <div className="flex items-center justify-between px-3 py-2 bg-brand-50 border border-brand-200 rounded-[var(--radius-md)]">
-                  <span className="text-sm font-medium text-brand-800">
-                    {selectedPatient.first_name} {selectedPatient.last_name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPatient(null);
-                      setPatientSearch("");
-                    }}
-                    className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                  >
-                    Cambiar
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Input
-                    placeholder="Buscar paciente..."
-                    value={patientSearch}
-                    onChange={(e) => {
-                      setPatientSearch(e.target.value);
-                      setShowPatientDropdown(true);
-                    }}
-                    onFocus={() => setShowPatientDropdown(true)}
-                  />
-                  {showPatientDropdown &&
-                    patientsData &&
-                    patientsData.data.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-[var(--radius-md)] shadow-lg max-h-60 overflow-y-auto">
-                        {patientsData.data.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPatient(p);
-                              setShowPatientDropdown(false);
-                            }}
-                            className="w-full text-left px-4 py-2 hover:bg-surface-secondary text-sm"
-                          >
-                            <p className="font-medium">
-                              {p.first_name} {p.last_name}
-                            </p>
-                            {p.cuit && (
-                              <p className="text-xs text-muted">{p.cuit}</p>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                </>
-              )}
-            </div>
-
-            {/* Voucher Type */}
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Tipo de Comprobante *
-              </label>
-              <Select value={voucherTypeId} onValueChange={setVoucherTypeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {voucherTypes?.map((vt) => (
-                    <SelectItem key={vt.id} value={vt.id.toString()}>
-                      {vt.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Items Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-sm font-semibold text-foreground">Items</h3>
-            </div>
-
-            {items.map((item, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-12 gap-3 items-end bg-surface-secondary/30 p-3 rounded-[var(--radius-md)]"
-              >
-                <div className="col-span-6 md:col-span-6">
-                  <label className="text-xs font-medium text-muted block mb-1">
-                    Descripción
-                  </label>
-                  <Input
-                    value={item.description}
-                    onChange={(e) =>
-                      updateItem(index, "description", e.target.value)
-                    }
-                    placeholder="Consulta, Tratamiento..."
-                    required
-                  />
-                </div>
-                <div className="col-span-2 md:col-span-2">
-                  <label className="text-xs font-medium text-muted block mb-1">
-                    Cant.
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(
-                        index,
-                        "quantity",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-span-3 md:col-span-3">
-                  <label className="text-xs font-medium text-muted block mb-1">
-                    Precio Un.
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_price}
-                    onChange={(e) =>
-                      updateItem(
-                        index,
-                        "unit_price",
-                        parseFloat(e.target.value) || 0,
-                      )
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-span-1 flex justify-end pb-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    className="text-muted hover:text-danger p-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addItem}
-              className="mt-2 w-full border-dashed"
-            >
-              <Plus className="w-4 h-4 mr-2" /> Agregar Item
-            </Button>
-          </div>
-
-          {/* Totals */}
-          <div className="flex justify-end pt-4 border-t">
-            <div className="text-right space-y-1">
-              <p className="text-sm text-muted">Subtotal</p>
-              <p className="text-2xl font-bold text-foreground">
-                {formatCurrency(subtotal)}
-              </p>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending || items.length === 0}>
-              {isPending ? (
-                <Spinner size="sm" />
-              ) : isEdit ? (
-                "Guardar Cambios"
-              ) : (
-                "Crear Factura"
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ─── Payment Modal ──────────────────────────────────────────────────────────
 
@@ -505,10 +144,12 @@ function PaymentModal({
     enabled: isOpen,
   });
 
-  const pendingAmount = invoice
-    ? invoice.total -
-    (invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)
+  const pendingAmount = invoice && invoice.total
+    ? Number(invoice.total) -
+    (invoice.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
     : 0;
+
+  const isCash = methods?.find((m) => m.id.toString() === methodId)?.name?.toLowerCase().includes("efectivo");
 
   React.useEffect(() => {
     if (isOpen && invoice) {
@@ -523,6 +164,7 @@ function PaymentModal({
       addInvoicePayment(invoice!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
       // Also invalidate list if status changes
       toast.success("Pago registrado correctamente");
       onClose();
@@ -533,8 +175,13 @@ function PaymentModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !methodId) return;
+
+    // Topar el payload a la deuda según los requerimientos
+    const parsedAmount = parseFloat(amount);
+    const finalAmount = Math.min(parsedAmount, pendingAmount);
+
     mutation.mutate({
-      amount: parseFloat(amount),
+      amount: finalAmount,
       payment_method_id: parseInt(methodId),
     });
   };
@@ -548,19 +195,38 @@ function PaymentModal({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-1.5">
-              Monto *
+              Monto a Pagar *
             </label>
             <Input
               type="number"
               step="0.01"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              max={pendingAmount}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val > pendingAmount && !isCash) {
+                  setAmount(pendingAmount.toString());
+                } else {
+                  setAmount(e.target.value);
+                }
+              }}
+              max={isCash ? undefined : (pendingAmount || 0)}
               required
             />
-            <p className="text-xs text-muted mt-1">
-              Pendiente: {formatCurrency(pendingAmount)}
-            </p>
+            <div className="flex flex-col gap-1 mt-1">
+              <p className="text-xs text-muted font-medium">
+                Faltan pagar: {formatCurrency(pendingAmount || 0)}
+              </p>
+              {parseFloat(amount) < pendingAmount && parseFloat(amount) > 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded-md font-medium mt-1">
+                  Este pago será parcial. La factura seguirá pendiente.
+                </p>
+              )}
+              {isCash && parseFloat(amount) > pendingAmount && (
+                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 p-2 rounded-md font-bold mt-1 shadow-sm">
+                  Vuelto para el cliente: {formatCurrency(parseFloat(amount) - pendingAmount)}
+                </p>
+              )}
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-foreground block mb-1.5">
@@ -579,6 +245,7 @@ function PaymentModal({
               </SelectContent>
             </Select>
           </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
@@ -617,8 +284,8 @@ function InvoiceDetailModal({
   if (!invoice) return null;
 
   const totalPaid =
-    invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const pending = invoice.total - totalPaid;
+    invoice.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+  const pending = Number(invoice.total) - totalPaid;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -780,23 +447,33 @@ export default function InvoicesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
-  React.useEffect(() => {
-    if (
-      activeRole &&
-      !["clinic_manager", "receptionist"].includes(activeRole.name)
-    ) {
-      router.push("/dashboard");
-    }
-  }, [activeRole, router]);
+  const { data: cashShift } = useQuery({
+    queryKey: ["currentCashShift"],
+    queryFn: getCurrentCashShift,
+  });
 
-  if (
-    activeRole &&
-    !["clinic_manager", "receptionist"].includes(activeRole.name)
-  )
-    return null;
+  const isReceptionist = activeRole?.name === "receptionist";
+  const isDoctor = activeRole?.name === "doctor";
+
+  if (activeRole && isDoctor) {
+    return (
+      <div className="p-6 max-w-[1400px]">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-start gap-3 mt-2">
+          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Acceso Restringido</p>
+            <p className="text-xs mt-1 text-red-700">
+              El módulo de facturación es exclusivo para personal administrativo.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Queries
   const { data, isLoading } = useQuery({
@@ -836,20 +513,11 @@ export default function InvoicesPage() {
   const totalPages = data?.meta?.last_page ?? 1;
   const totalInvoices = data?.meta?.total ?? 0;
 
-  // Calculate KPIs (Mocked or calculated from current page? Ideally from a "dashboard" endpoint,
-  // but I have to calculate from available data or shows "..." if backend doesn't provide summary.
-  // I'll just show totals from metadata if available or just placeholders since I don't have a stats endpoint)
-  // `products` page calculated it from *all* products loaded? No, it used paginated data. That's flawed for totals.
-  // But `products` loads 10 items. `lowStock` was filtered from `allProducts`?
-  // Ah, `products.ts` getProducts returns `PaginatedResponse`.
-  // Wait, `products/page.tsx` line 612 requests `cantidad: 10`.
-  // Then line 630 `allProducts.filter`... `allProducts` is `products` (only 10).
-  // Implementation in `products` page is buggy for KPIs if it only uses current page.
-  // I will just show "Total Facturas" from `totalInvoices`.
-  // For "Monto Total", I can't calculate it without fetching all. I'll leave it as "..." or fetch a summary if possible.
-  // I'll refrain from showing incorrect totals. I'll show "Total Facturas" (meta.total) accurately.
-  // For "Pendientes", without a specific endpoint stats, I can't show the real number.
-  // I will just display the current visible page stats or 0 to be safe.
+  const pageMontoFacturado = invoices
+    .filter((inv) => inv.status !== "cancelled")
+    .reduce((sum, inv) => sum + Number(inv.total), 0);
+  const pagePendientes = invoices.filter((inv) => inv.status === "pending").length;
+  const pagePagadas = invoices.filter((inv) => inv.status === "paid").length;
 
   const deleteMut = useMutation({
     mutationFn: deleteInvoice,
@@ -902,6 +570,8 @@ export default function InvoicesPage() {
         </Button>
       </div>
 
+      <CashShiftWidget />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -912,22 +582,22 @@ export default function InvoicesPage() {
           iconColor="text-blue-700"
         />
         <KpiCard
-          label="Monto Facturado"
-          value={isLoading ? "…" : "—"} // TODO: Need backend stat
+          label="Monto Facturado (Pág)"
+          value={isLoading ? "…" : formatCurrency(pageMontoFacturado)}
           icon={DollarSign}
           iconBg="bg-emerald-50"
           iconColor="text-emerald-700"
         />
         <KpiCard
-          label="Pendientes"
-          value={isLoading ? "…" : "—"} // TODO: Need backend stat
+          label="Pendientes (Pág)"
+          value={isLoading ? "…" : pagePendientes}
           icon={Clock}
           iconBg="bg-amber-50"
           iconColor="text-amber-700"
         />
         <KpiCard
-          label="Pagadas"
-          value={isLoading ? "…" : "—"} // TODO: Need backend stat
+          label="Pagadas (Pág)"
+          value={isLoading ? "…" : pagePagadas}
           icon={CheckCircle2}
           iconBg="bg-purple-50"
           iconColor="text-purple-700"
@@ -1040,25 +710,57 @@ export default function InvoicesPage() {
                       >
                         <Eye className="w-4 h-4 text-muted hover:text-foreground" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(inv)}
-                        title="Editar"
-                        disabled={inv.status === "paid"}
-                        className="p-2"
-                      >
-                        <MoreVertical className="w-4 h-4 text-muted hover:text-foreground" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(inv.id)}
-                        title="Eliminar"
-                        className="text-muted hover:text-danger p-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="p-2">
+                            <MoreVertical className="w-4 h-4 text-muted hover:text-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => openEdit(inv)}
+                            disabled={
+                              inv.status === "paid" ||
+                              (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opened_at)))
+                            }
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Editar Factura
+                          </DropdownMenuItem>
+                          {(inv.status === "pending" || inv.status === "draft") && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedInvoice(inv);
+                                setIsPaymentOpen(true);
+                              }}
+                            >
+                              <DollarSign className="w-4 h-4 mr-2 text-emerald-600" />
+                              Registrar Pago
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedInvoice(inv);
+                              setIsHistoryOpen(true);
+                            }}
+                          >
+                            <History className="w-4 h-4 mr-2 text-blue-600" />
+                            Ver Historial
+                          </DropdownMenuItem>
+                          {!isReceptionist && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(inv.id)}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
@@ -1111,6 +813,11 @@ export default function InvoicesPage() {
         isOpen={isPaymentOpen}
         onClose={() => setIsPaymentOpen(false)}
         invoice={selectedInvoice}
+      />
+      <InvoiceHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        invoiceId={selectedInvoice?.id}
       />
     </div>
   );
