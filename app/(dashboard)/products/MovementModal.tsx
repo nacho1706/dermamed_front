@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -10,58 +10,70 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { sileo } from "sileo";
 import {
   createProduct,
   createStockMovement,
   getBrands,
+  getProducts,
   type StockMovementInput,
 } from "@/services/products";
 import type { Product } from "@/types";
-import { Package, Plus } from "lucide-react";
+import {
+  Package,
+  Plus,
+  Search,
+  X,
+  Loader2,
+  Check,
+  ChevronLeft,
+} from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 // ─── Select styling ─────────────────────────────────────────────────────────
 const selectClass =
   "w-full px-3 py-2 text-sm rounded-[var(--radius-md)] border border-border bg-surface hover:border-[var(--border-hover)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all";
 
-// ─── Zod Schema with Conditional Validation ─────────────────────────────────
+// ─── Zod Schema ──────────────────────────────────────────────────────────────
 const movementSchema = z
   .object({
     productId: z.number().nullable(),
     newProductName: z.string().optional(),
     type: z.enum(["in", "out", "adjustment"]),
     reason: z.string().min(1, "Selecciona un motivo"),
-    quantity: z.number().min(1, "La cantidad debe ser mayor a 0"),
+    quantity: z.number().nonnegative(),
     notes: z.string().optional(),
     // Product creation fields
     description: z.string().optional(),
     price: z.number().optional(),
     minStock: z.number().optional(),
     brandId: z.number().nullable().optional(),
+    _is_creating_product: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
-    // If no product is selected, we are CREATING a new one.
-    if (!data.productId) {
-      if (!data.newProductName || data.newProductName.trim() === "") {
+    if (data.quantity < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La cantidad no puede ser negativa",
+        path: ["quantity"],
+      });
+    }
+    if (data.type !== "adjustment" && data.quantity < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La cantidad debe ser mayor a 0",
+        path: ["quantity"],
+      });
+    }
+    if (data._is_creating_product) {
+      if (!data.newProductName?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "El nombre del producto es requerido",
@@ -82,12 +94,207 @@ const movementSchema = z
           path: ["minStock"],
         });
       }
+    } else if (!data.productId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona un producto",
+        path: ["productId"],
+      });
     }
   });
 
 type MovementFormValues = z.infer<typeof movementSchema>;
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Inline Product Search Combobox ─────────────────────────────────────────
+function ProductCombobox({
+  value,
+  onSelect,
+  onCreateRequest,
+  disabled,
+}: {
+  value: number | null;
+  onSelect: (product: Product) => void;
+  onCreateRequest: (searchText: string) => void;
+  disabled?: boolean;
+}) {
+  const [inputValue, setInputValue] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const debouncedSearch = useDebounce(inputValue, 350);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync: if value cleared externally, reset
+  useEffect(() => {
+    if (!value) {
+      setSelectedProduct(null);
+      setIsOpen(false);
+    }
+  }, [value]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["products-search-combobox", debouncedSearch],
+    queryFn: () => getProducts({ name: debouncedSearch, cantidad: 10 }),
+    enabled: debouncedSearch.length >= 2,
+    select: (r) => r.data,
+  });
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+        setInputValue("");
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const handleSelect = useCallback(
+    (product: Product) => {
+      setSelectedProduct(product);
+      onSelect(product);
+      setInputValue("");
+      setIsOpen(false);
+    },
+    [onSelect],
+  );
+
+  const handleClear = useCallback(() => {
+    setSelectedProduct(null);
+    setInputValue("");
+    setIsOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  // ─── Selected state ─────────────────────────────────────────────────
+  if (selectedProduct && !isOpen) {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-2 w-full px-3 py-2 text-sm rounded-[var(--radius-md)]",
+          "bg-surface border border-border",
+          "transition-all duration-150",
+          disabled
+            ? "opacity-50 cursor-not-allowed"
+            : "cursor-pointer hover:border-[var(--border-hover)]",
+        )}
+        onClick={disabled ? undefined : handleClear}
+        title="Clic para cambiar"
+      >
+        <Package className="h-4 w-4 text-brand-500 shrink-0" />
+        <span className="flex-1 min-w-0 truncate text-foreground">
+          {selectedProduct.name}
+        </span>
+        <span className="text-xs text-muted shrink-0">
+          Stock: {selectedProduct.stock}
+        </span>
+        {!disabled && <X className="h-3.5 w-3.5 shrink-0 text-muted" />}
+      </div>
+    );
+  }
+
+  // ─── Search state ─────────────────────────────────────────────────
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 rounded-[var(--radius-md)]",
+          "bg-surface border border-border",
+          "hover:border-[var(--border-hover)] transition-all duration-150",
+          isOpen && "ring-2 ring-brand-500/20 border-brand-500",
+        )}
+      >
+        <Search className="h-4 w-4 text-muted shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          placeholder="Buscar producto por nombre..."
+          disabled={disabled}
+          className="flex-1 min-w-0 py-2 text-sm bg-transparent placeholder:text-muted-foreground disabled:cursor-not-allowed focus:outline-none focus-visible:outline-none focus:ring-0"
+          style={{ outline: "none", boxShadow: "none" }}
+          autoComplete="off"
+        />
+        {isLoading && (
+          <Loader2 className="h-4 w-4 text-muted animate-spin shrink-0" />
+        )}
+      </div>
+
+      {isOpen && inputValue.length > 0 && (
+        <div
+          className={cn(
+            "absolute z-[100] mt-1 w-full rounded-[var(--radius-md)]",
+            "bg-surface border border-border shadow-[var(--shadow-md)]",
+            "max-h-[260px] overflow-y-auto",
+            "animate-in fade-in-0 zoom-in-95 duration-100",
+          )}
+        >
+          {debouncedSearch.length < 2 ? (
+            <div className="p-3 text-sm text-center text-muted">
+              Escribí al menos 2 caracteres...
+            </div>
+          ) : isLoading ? (
+            <div className="flex items-center justify-center gap-2 p-3">
+              <Loader2 className="h-4 w-4 text-muted animate-spin" />
+              <span className="text-sm text-muted">Buscando...</span>
+            </div>
+          ) : (
+            <ul className="p-1">
+              {data && data.length > 0
+                ? data.map((product) => (
+                    <li
+                      key={product.id}
+                      onClick={() => handleSelect(product)}
+                      className="flex items-center gap-2 px-2.5 py-2.5 text-sm rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-secondary transition-colors"
+                    >
+                      <Package className="h-4 w-4 text-muted shrink-0" />
+                      <span className="flex flex-col min-w-0">
+                        <span className="font-medium text-foreground truncate">
+                          {product.name}
+                        </span>
+                        <span className="text-xs text-muted">
+                          Stock: {product.stock} · Mín: {product.min_stock}
+                        </span>
+                      </span>
+                    </li>
+                  ))
+                : null}
+
+              {data && data.length > 0 && (
+                <li className="h-px bg-border/50 my-1 mx-1" />
+              )}
+
+              {/* Fixed "Create" option */}
+              <li
+                onClick={() => {
+                  setIsOpen(false);
+                  setInputValue("");
+                  onCreateRequest(debouncedSearch || inputValue);
+                }}
+                className="flex items-center gap-2 px-2.5 py-2.5 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors text-brand-600 hover:bg-brand-50"
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="font-medium truncate">
+                  Crear producto{" "}
+                  {debouncedSearch ? `"${debouncedSearch}"` : "nuevo"}
+                </span>
+              </li>
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export function MovementModal({
   isOpen,
   onClose,
@@ -101,30 +308,7 @@ export function MovementModal({
 }) {
   const queryClient = useQueryClient();
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 300);
   const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
-
-  // Search products
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ["products-search", debouncedSearch],
-    queryFn: async () => {
-      if (!debouncedSearch) return [];
-      const { getProducts } = await import("@/services/products");
-      const res = await getProducts({ name: debouncedSearch, cantidad: 10 });
-      return res.data;
-    },
-    enabled:
-      debouncedSearch.length > 0 && !preselectedProduct && !isCreatingProduct,
-  });
-
-  // Fetch brands when creating product
-  useEffect(() => {
-    if (isCreatingProduct && brands.length === 0) {
-      getBrands().then(setBrands).catch(console.error);
-    }
-  }, [isCreatingProduct, brands.length]);
 
   const form = useForm<MovementFormValues>({
     resolver: zodResolver(movementSchema),
@@ -139,6 +323,7 @@ export function MovementModal({
       price: undefined,
       minStock: undefined,
       brandId: null,
+      _is_creating_product: false,
     },
   });
 
@@ -147,13 +332,26 @@ export function MovementModal({
     setValue,
     handleSubmit,
     reset,
-    control,
+    register,
     formState: { errors },
   } = form;
+
   const currentType = watch("type");
   const currentProductId = watch("productId");
 
-  // Reset form when modal opens/closes or preselected product changes
+  // Keep hidden flag in sync
+  useEffect(() => {
+    setValue("_is_creating_product", isCreatingProduct);
+  }, [isCreatingProduct, setValue]);
+
+  // Fetch brands when creating
+  useEffect(() => {
+    if (isCreatingProduct && brands.length === 0) {
+      getBrands().then(setBrands).catch(console.error);
+    }
+  }, [isCreatingProduct, brands.length]);
+
+  // Reset on open
   useEffect(() => {
     if (isOpen) {
       reset({
@@ -167,22 +365,19 @@ export function MovementModal({
         price: undefined,
         minStock: undefined,
         brandId: null,
+        _is_creating_product: false,
       });
       setIsCreatingProduct(false);
-      setSearchQuery("");
     }
   }, [isOpen, preselectedProduct, reset]);
 
-  // Adjust reason options based on type
+  // Clear reason when type changes
   useEffect(() => {
     setValue("reason", "");
   }, [currentType, setValue]);
 
   // Mutations
-  const createProductMut = useMutation({
-    mutationFn: createProduct,
-  });
-
+  const createProductMut = useMutation({ mutationFn: createProduct });
   const moveStockMut = useMutation({
     mutationFn: createStockMovement,
     onSuccess: () => {
@@ -195,39 +390,27 @@ export function MovementModal({
       });
       onClose();
     },
-    onError: () => {
-      sileo.error({
-        title: "Error",
-        description: "No se pudo registrar el movimiento.",
-      });
-    },
   });
 
   const onSubmit = async (data: MovementFormValues) => {
     try {
       let targetProductId = data.productId;
 
-      // 1. Create product if necessary (Double Submit)
-      if (!targetProductId && data.newProductName) {
+      if (isCreatingProduct && data.newProductName) {
         if (data.price === undefined || data.minStock === undefined) return;
-
-        const newProductParam: Partial<Product> = {
+        const created = await createProductMut.mutateAsync({
           name: data.newProductName,
           description: data.description || undefined,
           price: data.price,
           min_stock: data.minStock,
           brand_id: data.brandId || null,
-          stock: 0, // Initializes at 0, movement adds it
-        };
-
-        const createdProduct =
-          await createProductMut.mutateAsync(newProductParam);
-        targetProductId = createdProduct.id;
+          stock: 0,
+        });
+        targetProductId = created.id;
       }
 
       if (!targetProductId) throw new Error("No product ID resolved");
 
-      // 2. Register Movement
       const movementData: StockMovementInput = {
         product_id: targetProductId,
         user_id: userId,
@@ -237,243 +420,210 @@ export function MovementModal({
       };
 
       await moveStockMut.mutateAsync(movementData);
-    } catch (error) {
+    } catch (error: any) {
+      // Intercept Axios errors so the modal never crashes
+      const status = error?.response?.status;
+      const serverMessage =
+        error?.response?.data?.message ||
+        (error?.response?.data?.errors
+          ? Object.values(error.response.data.errors).flat().join(" ")
+          : null);
+
+      if (status === 422) {
+        sileo.error({
+          title: "Operación denegada",
+          description:
+            serverMessage ??
+            "El stock no puede quedar en negativo. Revisá la cantidad ingresada.",
+        });
+        return;
+      }
+
       console.error(error);
+      sileo.error({
+        title: "Error",
+        description: serverMessage ?? "No se pudo registrar el movimiento.",
+      });
     }
   };
 
   const isPending = createProductMut.isPending || moveStockMut.isPending;
 
-  // Render Reason Options
   const renderReasonOptions = () => {
-    if (currentType === "in") {
+    if (currentType === "in")
       return (
         <>
           <option value="">Selecciona un motivo...</option>
           <option value="supplier_purchase">Compra a Proveedor</option>
-          <option value="adjustment">Ajuste de Inventario</option>
         </>
       );
-    }
-    if (currentType === "out") {
+    if (currentType === "out")
       return (
         <>
           <option value="">Selecciona un motivo...</option>
           <option value="patient_sale">Venta a Paciente</option>
           <option value="internal_use">Uso en Consultorio</option>
-          <option value="adjustment">Ajuste de Inventario</option>
         </>
       );
-    }
-    if (currentType === "adjustment") {
+    if (currentType === "adjustment")
       return (
         <>
           <option value="">Selecciona un motivo...</option>
-          <option value="sale">Venta</option>
-          <option value="expiry">Caducidad</option>
-          <option value="breakage">Rotura</option>
-          <option value="internal_use_adj">Uso Interno</option>
+          <option value="inventory_correction">Corrección de Inventario</option>
+          <option value="loss">Pérdida / Caducidad</option>
         </>
       );
-    }
     return <option value="">Selecciona un tipo primero...</option>;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
           <DialogTitle>Registrar Movimiento de Stock</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-4">
-          {/* Product Selection / Creation */}
-          <div className="space-y-3 p-4 bg-surface-secondary rounded-[var(--radius-lg)] border border-border relative z-10">
-            {!preselectedProduct && !isCreatingProduct ? (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">
-                  Producto *
-                </label>
-                <Controller
-                  name="productId"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover
-                      open={isComboboxOpen}
-                      onOpenChange={setIsComboboxOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isComboboxOpen}
-                          className="w-full justify-between"
-                        >
-                          {field.value && searchResults
-                            ? searchResults.find((p) => p.id === field.value)
-                                ?.name || "Producto seleccionado"
-                            : "Buscar producto..."}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-[480px] p-0 bg-surface z-50"
-                        align="start"
-                      >
-                        <Command shouldFilter={false}>
-                          <CommandInput
-                            placeholder="Escribe el nombre del producto..."
-                            value={searchQuery}
-                            onValueChange={setSearchQuery}
-                          />
-                          <CommandList>
-                            <CommandEmpty>
-                              {isSearching ? (
-                                "Buscando..."
-                              ) : searchQuery ? (
-                                <div className="p-4 text-center">
-                                  <p className="text-sm text-muted mb-3">
-                                    No se encontró "{searchQuery}"
-                                  </p>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => {
-                                      setValue("newProductName", searchQuery);
-                                      setIsCreatingProduct(true);
-                                      setValue("productId", null);
-                                      setIsComboboxOpen(false);
-                                    }}
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Crear "{searchQuery}"
-                                  </Button>
-                                </div>
-                              ) : (
-                                "Escribe para buscar..."
-                              )}
-                            </CommandEmpty>
-                            <CommandGroup>
-                              {searchResults?.map((product: any) => (
-                                <CommandItem
-                                  key={product.id}
-                                  value={String(product.id)}
-                                  onSelect={(val) => {
-                                    field.onChange(Number(val));
-                                    setIsComboboxOpen(false);
-                                  }}
-                                >
-                                  {product.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-              </div>
-            ) : preselectedProduct ? (
-              <div className="flex items-center gap-3 bg-surface p-3 rounded-[var(--radius-md)] border border-border">
-                <div className="w-10 h-10 rounded bg-brand-50 flex items-center justify-center shrink-0">
-                  <Package className="w-5 h-5 text-brand-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm text-foreground">
-                    {preselectedProduct.name}
-                  </p>
-                  <p className="text-xs text-muted">
-                    Stock actual: {preselectedProduct.stock} | Mín:{" "}
-                    {preselectedProduct.min_stock}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* Creating New Product In-line */
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-brand-600 flex items-center">
-                    <Plus className="w-4 h-4 mr-1" /> Nuevo Producto
-                  </h3>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs px-2"
-                    onClick={() => {
-                      setIsCreatingProduct(false);
-                      setValue("newProductName", "");
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5 py-3">
+            {/* Product selection */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">
+                Producto
+              </Label>
 
-                <div className="grid grid-cols-1 gap-3">
+              {/* Preselected product chip */}
+              {preselectedProduct ? (
+                <div className="flex items-center gap-3 bg-surface-secondary p-3 rounded-[var(--radius-md)] border border-border">
+                  <div className="w-9 h-9 rounded bg-brand-50 flex items-center justify-center shrink-0">
+                    <Package className="w-4 w-4 text-brand-600" />
+                  </div>
                   <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">
-                      Nombre *
-                    </label>
+                    <p className="font-medium text-sm text-foreground">
+                      {preselectedProduct.name}
+                    </p>
+                    <p className="text-xs text-muted">
+                      Stock actual: {preselectedProduct.stock} · Mín:{" "}
+                      {preselectedProduct.min_stock}
+                    </p>
+                  </div>
+                </div>
+              ) : !isCreatingProduct ? (
+                /* Search combobox */
+                <ProductCombobox
+                  value={currentProductId}
+                  onSelect={(product) => setValue("productId", product.id)}
+                  onCreateRequest={(searchText) => {
+                    setIsCreatingProduct(true);
+                    setValue("productId", null);
+                    setValue("newProductName", searchText);
+                  }}
+                />
+              ) : null}
+
+              {(errors as any).productId && !isCreatingProduct && (
+                <p className="text-xs text-danger font-medium">
+                  {(errors as any).productId.message}
+                </p>
+              )}
+
+              {/* Inline product creation form */}
+              {isCreatingProduct && (
+                <div
+                  className={cn(
+                    "rounded-[var(--radius-md)] border border-brand-200 bg-brand-50/40 p-4 space-y-3",
+                    "animate-in slide-in-from-top-2 duration-200",
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="h-4 w-4 text-brand-600" />
+                      <span className="text-sm font-semibold text-brand-700">
+                        Nuevo Producto
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingProduct(false);
+                        setValue("newProductName", "");
+                        setValue("productId", null);
+                      }}
+                      className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Buscar existente
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nombre *</Label>
                     <Input
-                      {...form.register("newProductName")}
-                      className="h-8 text-sm"
+                      {...register("newProductName")}
+                      placeholder="Ej: Crema Hidratante X"
+                      className="h-9 text-sm"
                     />
                     {errors.newProductName && (
-                      <p className="text-xs text-danger mt-1">
+                      <p className="text-[11px] text-danger">
                         {errors.newProductName.message}
                       </p>
                     )}
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">
-                      Descripción
-                    </label>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Descripción{" "}
+                      <span className="text-muted font-normal">(opcional)</span>
+                    </Label>
                     <Input
-                      {...form.register("description")}
-                      className="h-8 text-sm"
+                      {...register("description")}
+                      placeholder="Descripción breve"
+                      className="h-9 text-sm"
                     />
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-foreground block mb-1">
-                        Precio *
-                      </label>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Precio *</Label>
                       <Input
                         type="number"
                         step="0.01"
-                        {...form.register("price", { valueAsNumber: true })}
-                        className="h-8 text-sm"
+                        {...register("price", { valueAsNumber: true })}
+                        className="h-9 text-sm"
+                        placeholder="0.00"
                       />
                       {errors.price && (
-                        <p className="text-xs text-danger mt-1">
+                        <p className="text-[11px] text-danger">
                           {errors.price.message}
                         </p>
                       )}
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-foreground block mb-1">
-                        Stock Mínimo *
-                      </label>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Stock Mínimo *</Label>
                       <Input
                         type="number"
-                        {...form.register("minStock", { valueAsNumber: true })}
-                        className="h-8 text-sm"
+                        {...register("minStock", { valueAsNumber: true })}
+                        className="h-9 text-sm"
+                        placeholder="0"
                       />
                       {errors.minStock && (
-                        <p className="text-xs text-danger mt-1">
+                        <p className="text-[11px] text-danger">
                           {errors.minStock.message}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">
-                      Marca
-                    </label>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Marca{" "}
+                      <span className="text-muted font-normal">(opcional)</span>
+                    </Label>
                     <select
-                      {...form.register("brandId", {
+                      {...register("brandId", {
                         setValueAs: (v) => (v === "" ? null : parseInt(v, 10)),
                       })}
                       className={selectClass}
@@ -487,69 +637,75 @@ export function MovementModal({
                     </select>
                   </div>
                 </div>
-              </div>
-            )}
-            {errors.productId && !isCreatingProduct && (
-              <p className="text-xs text-danger">{errors.productId.message}</p>
-            )}
-          </div>
-
-          {/* Movement Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Tipo *
-              </label>
-              <select {...form.register("type")} className={selectClass}>
-                <option value="in">Ingreso (+)</option>
-                <option value="out">Retiro (-)</option>
-                <option value="adjustment">Ajuste (±)</option>
-              </select>
+              )}
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">
-                Cantidad *
-              </label>
-              <Input
-                type="number"
-                min="1"
-                {...form.register("quantity", { valueAsNumber: true })}
-              />
-              {errors.quantity && (
+
+            {/* Movement type + quantity */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Tipo *
+                </Label>
+                <select {...register("type")} className={selectClass}>
+                  <option value="in">Ingreso (+)</option>
+                  <option value="out">Retiro (-)</option>
+                  <option value="adjustment">Ajuste (±)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">
+                  {currentType === "adjustment"
+                    ? "Stock Real Actual *"
+                    : "Cantidad *"}
+                </Label>
+                <Input
+                  type="number"
+                  min={currentType === "adjustment" ? "0" : "1"}
+                  {...register("quantity", { valueAsNumber: true })}
+                />
+                {errors.quantity && (
+                  <p className="text-xs text-danger mt-1">
+                    {errors.quantity.message}
+                  </p>
+                )}
+                {currentType === "adjustment" && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Este número reemplazará el stock actual directamente.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Reason */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">
+                Motivo *
+              </Label>
+              <select {...register("reason")} className={selectClass}>
+                {renderReasonOptions()}
+              </select>
+              {errors.reason && (
                 <p className="text-xs text-danger mt-1">
-                  {errors.quantity.message}
+                  {errors.reason.message}
                 </p>
               )}
             </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">
+                Notas <span className="text-muted font-normal">(Opcional)</span>
+              </Label>
+              <textarea
+                {...register("notes")}
+                className={`${selectClass} min-h-[80px] resize-none`}
+                placeholder="Justificación del movimiento..."
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Motivo *
-            </label>
-            <select {...form.register("reason")} className={selectClass}>
-              {renderReasonOptions()}
-            </select>
-            {errors.reason && (
-              <p className="text-xs text-danger mt-1">
-                {errors.reason.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1.5">
-              Notas (Opcional)
-            </label>
-            <textarea
-              {...form.register("notes")}
-              className={`${selectClass} min-h-[80px] resize-none`}
-              placeholder="Justificación del movimiento..."
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          {/* Pinned footer */}
+          <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0 flex justify-end gap-3">
             <Button
               type="button"
               variant="ghost"
@@ -560,7 +716,10 @@ export function MovementModal({
             </Button>
             <Button
               type="submit"
-              disabled={isPending || (!currentProductId && !isCreatingProduct)}
+              disabled={
+                isPending ||
+                (!currentProductId && !isCreatingProduct && !preselectedProduct)
+              }
             >
               {isPending ? (
                 <Spinner size="sm" />
@@ -570,7 +729,7 @@ export function MovementModal({
                 "Registrar Movimiento"
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

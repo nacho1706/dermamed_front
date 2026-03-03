@@ -83,7 +83,7 @@ export interface Patient {
   first_name: string;
   last_name: string;
   full_name: string; // Calculated in backend resource
-  dni: string;
+  dni: string | null;
   cuit: string | null;
   email: string | null;
   phone: string | null;
@@ -204,8 +204,14 @@ export interface StockMovement {
   type: "in" | "out" | "adjustment";
   reason: string | null;
   notes?: string | null;
+  previous_stock: number;
   product?: Product;
-  user?: User;
+  user?: {
+    id: number;
+    name: string;
+    first_name?: string;
+    last_name?: string;
+  };
   created_at: string;
 }
 

@@ -26,7 +26,17 @@ import {
   XIcon,
   CalendarDays,
 } from "lucide-react";
-import type { Product } from "@/types";
+import type { Product, StockMovement } from "@/types";
+import { cn } from "@/lib/utils";
+
+// ─── Date preset types ───────────────────────────────────────────────────────
+type DatePreset =
+  | "today"
+  | "yesterday"
+  | "last7"
+  | "this_month"
+  | "custom"
+  | null;
 
 export function StockMovementHistoryModal({
   isOpen,
@@ -41,6 +51,44 @@ export function StockMovementHistoryModal({
   const [typeFilter, setTypeFilter] = useState<StockMovementFilters["type"]>();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>(null);
+
+  // ─── Preset logic ────────────────────────────────────────────────────────
+  const applyPreset = (preset: DatePreset) => {
+    setDatePreset(preset);
+    setPage(1);
+    const now = new Date();
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+    if (preset === "today") {
+      const today = fmt(now);
+      setDateFrom(today);
+      setDateTo(today);
+    } else if (preset === "yesterday") {
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const y = fmt(yest);
+      setDateFrom(y);
+      setDateTo(y);
+    } else if (preset === "last7") {
+      const from = new Date(now);
+      from.setDate(from.getDate() - 6);
+      setDateFrom(fmt(from));
+      setDateTo(fmt(now));
+    } else if (preset === "this_month") {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      setDateFrom(fmt(from));
+      setDateTo(fmt(now));
+    } else if (preset === "custom") {
+      // Keep whatever dates exist; user fills them in manually
+      setDateFrom("");
+      setDateTo("");
+    } else {
+      // null — clear all
+      setDateFrom("");
+      setDateTo("");
+    }
+  };
 
   // Use product_id filter if a product is provided
   const filters: StockMovementFilters = {
@@ -62,6 +110,7 @@ export function StockMovementHistoryModal({
   const meta = data?.meta;
   const totalPages = meta?.last_page || 1;
 
+  // ─── Type badge info ─────────────────────────────────────────────────────
   const getTypeInfo = (type: string, reason: string | null) => {
     switch (type) {
       case "in":
@@ -69,8 +118,7 @@ export function StockMovementHistoryModal({
           icon: TrendingUp,
           color: "text-emerald-600",
           bg: "bg-emerald-50",
-          label: reason === "supplier_purchase" ? "Compra" : "Ajuste (+)",
-          sign: "+",
+          label: reason === "supplier_purchase" ? "Compra" : "Ingreso",
         };
       case "out":
         return {
@@ -82,8 +130,7 @@ export function StockMovementHistoryModal({
               ? "Venta"
               : reason === "internal_use"
                 ? "Uso Interno"
-                : "Ajuste (-)",
-          sign: "-",
+                : "Retiro",
         };
       default:
         return {
@@ -91,9 +138,44 @@ export function StockMovementHistoryModal({
           color: "text-blue-600",
           bg: "bg-blue-50",
           label: "Ajuste",
-          sign: "",
         };
     }
+  };
+
+  // ─── Ledger quantity renderer ─────────────────────────────────────────────
+  const renderQuantity = (movement: StockMovement) => {
+    const prev = movement.previous_stock ?? 0;
+    const qty = movement.quantity;
+
+    if (movement.type === "in") {
+      return (
+        <div className="flex flex-col items-end shrink-0">
+          <span className="text-sm font-bold text-emerald-600">+{qty}</span>
+          <span className="text-[10px] text-muted leading-tight">
+            Quedan: {prev + qty}
+          </span>
+        </div>
+      );
+    }
+    if (movement.type === "out") {
+      return (
+        <div className="flex flex-col items-end shrink-0">
+          <span className="text-sm font-bold text-red-600">-{qty}</span>
+          <span className="text-[10px] text-muted leading-tight">
+            Quedan: {prev - qty}
+          </span>
+        </div>
+      );
+    }
+    // adjustment
+    return (
+      <div className="flex flex-col items-end shrink-0">
+        <span className="text-sm font-bold text-blue-600">
+          {prev} → {qty}
+        </span>
+        <span className="text-[10px] text-muted leading-tight">Ajuste</span>
+      </div>
+    );
   };
 
   return (
@@ -112,7 +194,7 @@ export function StockMovementHistoryModal({
             </DialogTitle>
           </div>
 
-          {/* Filters */}
+          {/* Type filters */}
           <div className="flex items-center gap-2 mt-4">
             <Button
               variant={!typeFilter ? "primary" : "outline"}
@@ -160,42 +242,69 @@ export function StockMovementHistoryModal({
             </Button>
           </div>
 
-          {/* Date range filter */}
-          <div className="flex items-center gap-2 mt-3">
-            <CalendarDays className="w-4 h-4 text-muted shrink-0" />
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                setPage(1);
-              }}
-              className="h-8 text-xs"
-              placeholder="Desde"
-            />
-            <span className="text-xs text-muted">a</span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
-                setPage(1);
-              }}
-              className="h-8 text-xs"
-              placeholder="Hasta"
-            />
-            {(dateFrom || dateTo) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDateFrom("");
-                  setDateTo("");
-                  setPage(1);
-                }}
-                className="text-xs text-muted hover:text-foreground transition-colors"
-              >
-                <XIcon className="w-3.5 h-3.5" />
-              </button>
+          {/* Date preset bar */}
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(
+                [
+                  { key: "today", label: "Hoy" },
+                  { key: "yesterday", label: "Ayer" },
+                  { key: "last7", label: "Últimos 7 días" },
+                  { key: "this_month", label: "Este mes" },
+                  { key: "custom", label: "Personalizado" },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(datePreset === key ? null : key)}
+                  className={cn(
+                    "h-7 px-3 rounded-full text-xs font-medium border transition-all duration-150 cursor-pointer",
+                    datePreset === key
+                      ? "bg-brand-600 text-white border-brand-600"
+                      : "bg-surface border-border text-muted hover:border-brand-500 hover:text-brand-600",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+
+              {datePreset && (
+                <button
+                  type="button"
+                  onClick={() => applyPreset(null)}
+                  className="h-7 px-2 rounded-full text-xs text-muted hover:text-foreground border border-border transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <XIcon className="w-3 h-3" />
+                  Limpiar
+                </button>
+              )}
+            </div>
+
+            {/* Custom date inputs — only visible when preset = 'custom' */}
+            {datePreset === "custom" && (
+              <div className="flex items-center gap-2 animate-in slide-in-from-top-1 duration-150">
+                <CalendarDays className="w-4 h-4 text-muted shrink-0" />
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 text-xs"
+                />
+                <span className="text-xs text-muted">a</span>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 text-xs"
+                />
+              </div>
             )}
           </div>
         </DialogHeader>
@@ -226,16 +335,18 @@ export function StockMovementHistoryModal({
                 return (
                   <div
                     key={movement.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-border bg-surface hover:border-[var(--border-hover)] transition-all"
+                    className="flex items-start gap-4 p-4 rounded-xl border border-border bg-surface hover:border-[var(--border-hover)] transition-all"
                   >
+                    {/* Type icon */}
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${info.bg}`}
                     >
                       <Icon className={`w-4 h-4 ${info.color}`} />
                     </div>
 
+                    {/* Main info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="text-sm font-semibold text-foreground truncate">
                           {!product && (
                             <span className="text-brand-600 mr-1">
@@ -244,27 +355,29 @@ export function StockMovementHistoryModal({
                           )}
                           {info.label}
                         </p>
-                        <span className={`text-sm font-bold ${info.color}`}>
-                          {info.sign}
-                          {movement.quantity}
-                        </span>
+                        {/* Ledger quantity */}
+                        {renderQuantity(movement)}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted">
+                        {/* Timestamp */}
                         <span className="flex items-center">
                           {formatLocalDateTime(movement.created_at)}
                         </span>
+                        {/* Responsible user */}
                         {movement.user && (
                           <span className="flex items-center gap-1">
                             <span className="w-1 h-1 rounded-full bg-border hidden sm:block" />
-                            {movement.user.first_name} {movement.user.last_name}
+                            {movement.user.name ??
+                              `${movement.user.first_name ?? ""} ${movement.user.last_name ?? ""}`.trim()}
                           </span>
                         )}
                       </div>
 
+                      {/* Notes */}
                       {movement.notes && (
                         <div className="mt-2 p-2.5 rounded-md bg-surface-secondary/50 border border-border/50 text-xs text-muted-foreground italic line-clamp-2">
-                          "{movement.notes}"
+                          &ldquo;{movement.notes}&rdquo;
                         </div>
                       )}
                     </div>
