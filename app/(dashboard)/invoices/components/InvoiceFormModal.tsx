@@ -169,19 +169,22 @@ export function InvoiceFormModal({
     });
 
     // Services and Products loading (Fetch all or paginated? In typical selects we fetch a chunk)
-    const { data: productsData } = useQuery({
+    const { data: productsData, isLoading: isLoadingProducts } = useQuery({
         queryKey: ["products", "all"],
         queryFn: () => getProducts({ cantidad: 100 } as any),
         enabled: isOpen,
     });
     const products = productsData?.data || [];
 
-    const { data: servicesData } = useQuery({
+    const { data: servicesData, isLoading: isLoadingServices } = useQuery({
         queryKey: ["services", "all"],
         queryFn: () => getServices({ cantidad: 100 }),
         enabled: isOpen,
     });
     const services = servicesData?.data || [];
+
+    // True once both catalogs have resolved — prevents Select hydration race
+    const isDataReady = isOpen && !isLoadingProducts && !isLoadingServices;
 
     // Form Setup
     const form = useForm<InvoiceFormValues>({
@@ -223,11 +226,11 @@ export function InvoiceFormModal({
         name: "payments",
     });
 
-    // Reset form when modal opens
+    // Reset form when modal opens — gated on catalog data being ready
     useEffect(() => {
+        if (!isDataReady) return;          // wait for products/services to load
         if (isOpen) {
             if (invoice) {
-                // Determine patient details directly from the invoice object
                 if (invoice.patient) {
                     setSelectedPatient(invoice.patient);
                     setPatientSearch(`${invoice.patient.first_name} ${invoice.patient.last_name}`);
@@ -239,11 +242,11 @@ export function InvoiceFormModal({
                     items: invoice.items?.map((item) => ({
                         type: item.product_id ? "product" : "service",
                         description: item.description,
-                        quantity: item.quantity,
-                        unit_price: Number(item.unit_price),
-                        product_id: item.product_id ? item.product_id : null,
-                        service_id: item.service_id ? item.service_id : null,
-                        executor_doctor_id: item.executor_doctor_id ? item.executor_doctor_id : null,
+                        quantity: Number(item.quantity) || 1,
+                        unit_price: Number(item.unit_price) || 0,
+                        product_id: item.product_id ? item.product_id.toString() : "",
+                        service_id: item.service_id ? item.service_id.toString() : "",
+                        executor_doctor_id: item.executor_doctor_id ? item.executor_doctor_id.toString() : "",
                     })) as any || [],
                     payments: invoice.payments?.map((payment) => ({
                         payment_method_id: payment.payment_method?.id || 1,
@@ -260,9 +263,9 @@ export function InvoiceFormModal({
                             description: "",
                             quantity: 1,
                             unit_price: 0,
-                            product_id: null,
-                            service_id: null,
-                            executor_doctor_id: null,
+                            product_id: "",
+                            service_id: "",
+                            executor_doctor_id: "",
                         } as any,
                     ],
                     payments: [],
@@ -272,7 +275,7 @@ export function InvoiceFormModal({
             }
             setShowPatientDropdown(false);
         }
-    }, [isOpen, invoice, form]);
+    }, [isOpen, isDataReady, invoice, form]);
 
     // Compute Subtotal Dynamically
     const watchedItems = form.watch("items");
@@ -283,7 +286,7 @@ export function InvoiceFormModal({
 
     const payments = form.watch("payments");
     const totalPaid = payments?.reduce(
-        (sum, payment) => sum + (payment.amount || 0),
+        (sum, payment) => sum + Number(payment.amount || 0),
         0
     ) || 0;
 
@@ -336,11 +339,11 @@ export function InvoiceFormModal({
     const updateMut = useMutation({
         mutationFn: (data: { id: number; payload: Partial<Invoice> }) => updateInvoice(data.id, data.payload),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            // refetchQueries forces an immediate network request (not just stale-mark)
+            queryClient.refetchQueries({ queryKey: ["invoices"] });
             queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
             toast.success("Factura actualizada correctamente");
             onClose();
-            router.refresh();
         },
         onError: (error: any) => {
             const message =
@@ -360,13 +363,13 @@ export function InvoiceFormModal({
             voucher_type_id: data.voucher_type_id,
             total: subtotal,
             items: data.items.map((i) => ({
-                product_id: i.product_id || undefined,
-                service_id: i.service_id || undefined,
-                executor_doctor_id: i.executor_doctor_id || undefined,
+                product_id: i.product_id ? parseInt(i.product_id as any) : undefined,
+                service_id: i.service_id ? parseInt(i.service_id as any) : undefined,
+                executor_doctor_id: i.executor_doctor_id ? parseInt(i.executor_doctor_id as any) : undefined,
                 description: i.description,
                 quantity: i.quantity,
                 unit_price: i.unit_price,
-                subtotal: i.quantity * i.unit_price, // Backend checks this
+                subtotal: i.quantity * i.unit_price,
             })),
             payments: data.payments?.map((p) => {
                 // Determine if payment is cash
@@ -605,11 +608,7 @@ export function InvoiceFormModal({
                                                                         onValueChange={(val) =>
                                                                             handleProductSelect(index, parseInt(val))
                                                                         }
-                                                                        value={
-                                                                            field.value
-                                                                                ? field.value.toString()
-                                                                                : undefined
-                                                                        }
+                                                                        value={field.value?.toString() || ""}
                                                                     >
                                                                         <FormControl>
                                                                             <SelectTrigger>
@@ -641,11 +640,7 @@ export function InvoiceFormModal({
                                                                         onValueChange={(val) =>
                                                                             handleServiceSelect(index, parseInt(val))
                                                                         }
-                                                                        value={
-                                                                            field.value
-                                                                                ? field.value.toString()
-                                                                                : undefined
-                                                                        }
+                                                                        value={field.value?.toString() || ""}
                                                                     >
                                                                         <FormControl>
                                                                             <SelectTrigger>
@@ -680,13 +675,9 @@ export function InvoiceFormModal({
                                                                 <FormLabel>Médico *</FormLabel>
                                                                 <Select
                                                                     onValueChange={(val) =>
-                                                                        field.onChange(parseInt(val))
+                                                                        field.onChange(val)
                                                                     }
-                                                                    value={
-                                                                        field.value
-                                                                            ? field.value.toString()
-                                                                            : undefined
-                                                                    }
+                                                                    value={field.value?.toString() || ""}
                                                                 >
                                                                     <FormControl>
                                                                         <SelectTrigger>
