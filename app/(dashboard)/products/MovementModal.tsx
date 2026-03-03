@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -36,6 +36,10 @@ import {
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
+import {
+  FilterableSelect,
+  type FilterableSelectOption,
+} from "@/components/shared/filterable-select";
 
 // ─── Select styling ─────────────────────────────────────────────────────────
 const selectClass =
@@ -333,6 +337,7 @@ export function MovementModal({
     handleSubmit,
     reset,
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -449,31 +454,20 @@ export function MovementModal({
 
   const isPending = createProductMut.isPending || moveStockMut.isPending;
 
-  const renderReasonOptions = () => {
+  const getReasonOptions = (): FilterableSelectOption[] => {
     if (currentType === "in")
-      return (
-        <>
-          <option value="">Selecciona un motivo...</option>
-          <option value="supplier_purchase">Compra a Proveedor</option>
-        </>
-      );
+      return [{ value: "supplier_purchase", label: "Compra a Proveedor" }];
     if (currentType === "out")
-      return (
-        <>
-          <option value="">Selecciona un motivo...</option>
-          <option value="patient_sale">Venta a Paciente</option>
-          <option value="internal_use">Uso en Consultorio</option>
-        </>
-      );
+      return [
+        { value: "patient_sale", label: "Venta a Paciente" },
+        { value: "internal_use", label: "Uso en Consultorio" },
+      ];
     if (currentType === "adjustment")
-      return (
-        <>
-          <option value="">Selecciona un motivo...</option>
-          <option value="inventory_correction">Corrección de Inventario</option>
-          <option value="loss">Pérdida / Caducidad</option>
-        </>
-      );
-    return <option value="">Selecciona un tipo primero...</option>;
+      return [
+        { value: "inventory_correction", label: "Corrección de Inventario" },
+        { value: "loss", label: "Pérdida / Caducidad" },
+      ];
+    return [];
   };
 
   return (
@@ -622,19 +616,24 @@ export function MovementModal({
                       Marca{" "}
                       <span className="text-muted font-normal">(opcional)</span>
                     </Label>
-                    <select
-                      {...register("brandId", {
-                        setValueAs: (v) => (v === "" ? null : parseInt(v, 10)),
-                      })}
-                      className={selectClass}
-                    >
-                      <option value="">Sin marca</option>
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      name="brandId"
+                      control={control}
+                      render={({ field }) => (
+                        <FilterableSelect
+                          value={field.value}
+                          onChange={(val) =>
+                            field.onChange(val ? Number(val) : null)
+                          }
+                          options={brands.map((b) => ({
+                            label: b.name,
+                            value: b.id,
+                          }))}
+                          placeholder="Sin marca"
+                          searchPlaceholder="Buscar marca..."
+                        />
+                      )}
+                    />
                   </div>
                 </div>
               )}
@@ -646,11 +645,22 @@ export function MovementModal({
                 <Label className="text-sm font-medium text-foreground">
                   Tipo *
                 </Label>
-                <select {...register("type")} className={selectClass}>
-                  <option value="in">Ingreso (+)</option>
-                  <option value="out">Retiro (-)</option>
-                  <option value="adjustment">Ajuste (±)</option>
-                </select>
+                <Controller
+                  name="type"
+                  control={control}
+                  render={({ field }) => (
+                    <FilterableSelect
+                      value={field.value}
+                      onChange={(val) => field.onChange(val as string)}
+                      options={[
+                        { value: "in", label: "Ingreso (+)" },
+                        { value: "out", label: "Retiro (-)" },
+                        { value: "adjustment", label: "Ajuste (±)" },
+                      ]}
+                      placeholder="Seleccionar tipo..."
+                    />
+                  )}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-foreground">
@@ -681,9 +691,19 @@ export function MovementModal({
               <Label className="text-sm font-medium text-foreground">
                 Motivo *
               </Label>
-              <select {...register("reason")} className={selectClass}>
-                {renderReasonOptions()}
-              </select>
+              <Controller
+                name="reason"
+                control={control}
+                render={({ field }) => (
+                  <FilterableSelect
+                    value={field.value}
+                    onChange={(val) => field.onChange(val as string)}
+                    options={getReasonOptions()}
+                    placeholder="Selecciona un motivo..."
+                    disabled={!currentType}
+                  />
+                )}
+              />
               {errors.reason && (
                 <p className="text-xs text-danger mt-1">
                   {errors.reason.message}
