@@ -21,6 +21,48 @@ export function formatDate(dateString: string | null | undefined): string {
 }
 
 /**
+ * Format an Argentine phone number for human-readable display.
+ * Input: E.164 format stored by backend  (+549XXXXXXXXXX, +54XXXXXXXXXX, etc.)
+ * Output examples:
+ *   +54 9 381 319 3874   (mobile — 10 digit with '9')
+ *   +54 11 4444 5555     (landline — 10 digit without extra '9')
+ *   +54 9 11 4444 5555   (mobile CABA)
+ *   Raw string returned unchanged if pattern doesn't match.
+ */
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "—";
+
+  // Only transform standard Argentine E.164: +549... (mobile) or +54... (landline)
+  const match = phone.match(/^\+549?(\d+)$/);
+  if (!match) return phone; // international — return as-is
+
+  const isMobile = phone.startsWith("+549");
+  const digits = match[1]; // digits after +54 or +549
+
+  if (isMobile) {
+    if (digits.length === 10 && digits.startsWith("11")) {
+      // CABA mobile: +54 9 11 XXXX XXXX
+      return `+54 9 11 ${digits.slice(2, 6)} ${digits.slice(6)}`;
+    }
+    if (digits.length === 10) {
+      // Interior mobile: +54 9 XXX XXX XXXX
+      return `+54 9 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    return `+54 9 ${digits}`;
+  } else {
+    if (digits.length === 10 && digits.startsWith("11")) {
+      // CABA landline: +54 11 XXXX XXXX
+      return `+54 11 ${digits.slice(2, 6)} ${digits.slice(6)}`;
+    }
+    if (digits.length === 10) {
+      // Interior landline: +54 XXX XXXX XXXX
+      return `+54 ${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+    }
+    return `+54 ${digits}`;
+  }
+}
+
+/**
  * Format a datetime string to locale-friendly display
  */
 export function formatDateTime(dateString: string | null | undefined): string {

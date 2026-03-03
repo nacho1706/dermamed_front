@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/utils";
+import { formatPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppointmentStatusBadge } from "@/components/ui/appointment-status-badge";
@@ -212,7 +213,9 @@ export default function PatientDetailPage() {
                     <p className="text-xs text-medical-400 font-medium">
                       Teléfono
                     </p>
-                    <p className="font-semibold">{patient.phone || "—"}</p>
+                    <p className="font-semibold">
+                      {formatPhone(patient.phone)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-medical-600">
