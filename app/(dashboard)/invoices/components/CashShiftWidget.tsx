@@ -37,6 +37,7 @@ export function CashShiftWidget() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [balanceInput, setBalanceInput] = useState("");
+    const [justification, setJustification] = useState("");
 
     const { data: cashShift, isLoading } = useQuery({
         queryKey: ["currentCashShift"],
@@ -58,12 +59,13 @@ export function CashShiftWidget() {
     });
 
     const closeMutation = useMutation({
-        mutationFn: (balance: number) => closeCashShift(balance),
+        mutationFn: (data: { balance: number; justification?: string }) => closeCashShift(data.balance, data.justification),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
             toast.success("Caja Diaria cerrada exitosamente");
             setIsModalOpen(false);
             setBalanceInput("");
+            setJustification("");
             router.refresh();
         },
         onError: () => toast.error("Error al cerrar la caja diaria"),
@@ -78,7 +80,15 @@ export function CashShiftWidget() {
         }
 
         if (isOpen) {
-            closeMutation.mutate(balance);
+            const isDiscrepancy = cashShift?.expected_balance !== undefined &&
+                Math.abs(balance - cashShift.expected_balance) > 0.01;
+
+            if (isDiscrepancy && (!justification || justification.length < 10)) {
+                toast.error("Debe ingresar una justificación detallada (min 10 caracteres) por el descuadre.");
+                return;
+            }
+
+            closeMutation.mutate({ balance, justification: isDiscrepancy ? justification : undefined });
         } else {
             openMutation.mutate(balance);
         }
@@ -126,7 +136,7 @@ export function CashShiftWidget() {
                                         <p className="text-2xl font-black text-emerald-700">{formatCurrency(cashShift.expected_balance || 0)}</p>
                                     </div>
                                     <div className="flex flex-col gap-1 text-xs text-muted">
-                                        <p>Apertura: {formatLocalDateTime(cashShift.opened_at)}</p>
+                                        <p>Apertura: {formatLocalDateTime(cashShift.opening_time)}</p>
                                         <p>Monto Inicial: <span className="font-semibold text-foreground">{formatCurrency(cashShift.opening_balance || 0)}</span></p>
                                     </div>
                                 </div>
@@ -196,6 +206,23 @@ export function CashShiftWidget() {
                                         <span className="text-foreground">Total Esperado:</span>
                                         <span className="text-emerald-600">{formatCurrency(cashShift.expected_balance)}</span>
                                     </div>
+                                </div>
+                            )}
+
+                            {isOpen && cashShift?.expected_balance !== undefined && Math.abs(parseFloat(balanceInput || "0") - cashShift.expected_balance) > 0.01 && balanceInput && (
+                                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-sm font-semibold text-red-800 flex items-center gap-2 mb-2">
+                                        <AlertCircle className="w-4 h-4" /> Descuadre Detectado
+                                    </p>
+                                    <p className="text-xs text-red-700 mb-3">El monto físico difiere del sistema. Justifique el descuadre obligatoriamente.</p>
+                                    <textarea
+                                        value={justification}
+                                        onChange={(e) => setJustification(e.target.value)}
+                                        placeholder="Ingrese el motivo del descuadre (ej. Gasto menor, error en vuelto)..."
+                                        className="flex min-h-[80px] w-full rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-foreground overflow-auto"
+                                        required
+                                        minLength={10}
+                                    />
                                 </div>
                             )}
                         </div>

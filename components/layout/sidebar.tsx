@@ -75,7 +75,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { hasAnyRole } = useAuth();
+  const { user, hasAnyRole } = useAuth();
 
   const filteredItems = navItems.filter((item) => hasAnyRole(item.roles));
   const homeHref = "/dashboard";
@@ -129,6 +129,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 pathname === item.href ||
                 (item.href !== homeHref && pathname.startsWith(item.href));
               const Icon = item.icon;
+
+              if (item.href === "/invoices" && (user as any)?.role?.slug === "doctor") {
+                return null;
+              }
 
               return (
                 <li key={item.href}>

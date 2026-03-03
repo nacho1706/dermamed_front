@@ -18,9 +18,10 @@ export async function openCashShift(openingBalance: number): Promise<CashShift> 
     return response.data.data;
 }
 
-export async function closeCashShift(closingBalance: number): Promise<CashShift> {
+export async function closeCashShift(closingBalance: number, justification?: string): Promise<CashShift> {
     const response = await api.post<{ data: CashShift }>("/cash-shifts/close", {
         closing_balance: closingBalance,
+        justification: justification,
     });
     return response.data.data;
 }

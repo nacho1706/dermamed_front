@@ -245,8 +245,8 @@ export interface CashShift {
   id: number;
   opening_balance: number;
   closing_balance: number | null;
-  opened_at: string;
-  closed_at: string | null;
+  opening_time: string;
+  closing_time: string | null;
   opened_by_user_id: number;
   closed_by_user_id: number | null;
   expected_balance?: number;

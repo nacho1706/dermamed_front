@@ -169,7 +169,14 @@ function PaymentModal({
       toast.success("Pago registrado correctamente");
       onClose();
     },
-    onError: () => toast.error("Error al registrar el pago"),
+    onError: (error: any) => {
+      if (error.response?.status === 422) {
+        const message = error.response.data?.message || "El monto del pago no puede superar el saldo pendiente.";
+        toast.error(`Error: ${message}`);
+      } else {
+        toast.error("Error al registrar el pago");
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -515,7 +522,10 @@ export default function InvoicesPage() {
 
   const pageMontoFacturado = invoices
     .filter((inv) => inv.status !== "cancelled")
-    .reduce((sum, inv) => sum + Number(inv.total), 0);
+    .reduce((sum, inv) => {
+      const paidAmount = inv.payments?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+      return sum + paidAmount;
+    }, 0);
   const pagePendientes = invoices.filter((inv) => inv.status === "pending").length;
   const pagePagadas = invoices.filter((inv) => inv.status === "paid").length;
 
@@ -661,6 +671,9 @@ export default function InvoicesPage() {
                   <th className="text-left font-semibold text-muted px-4 py-3">
                     Tipo
                   </th>
+                  <th className="text-right font-semibold text-muted px-4 py-3 whitespace-nowrap">
+                    Pagado / Anticipo
+                  </th>
                   <th className="text-right font-semibold text-muted px-4 py-3">
                     Total
                   </th>
@@ -689,6 +702,9 @@ export default function InvoicesPage() {
                     </td>
                     <td className="px-4 py-3">
                       {inv.voucher_type?.name || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-emerald-600">
+                      {formatCurrency(inv.payments?.reduce((acc, p) => acc + Number(p.amount), 0) || 0)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium">
                       {formatCurrency(inv.total)}
@@ -721,7 +737,7 @@ export default function InvoicesPage() {
                             onClick={() => openEdit(inv)}
                             disabled={
                               inv.status === "paid" ||
-                              (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opened_at)))
+                              (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opening_time)))
                             }
                           >
                             <FileText className="w-4 h-4 mr-2" />

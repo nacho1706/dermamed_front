@@ -241,12 +241,12 @@ export function InvoiceFormModal({
                         description: item.description,
                         quantity: item.quantity,
                         unit_price: Number(item.unit_price),
-                        product_id: item.product_id,
-                        service_id: item.service_id,
-                        executor_doctor_id: item.executor_doctor_id,
+                        product_id: item.product_id ? item.product_id : null,
+                        service_id: item.service_id ? item.service_id : null,
+                        executor_doctor_id: item.executor_doctor_id ? item.executor_doctor_id : null,
                     })) as any || [],
                     payments: invoice.payments?.map((payment) => ({
-                        payment_method_id: payment.payment_method?.id || 1, // Fallback safely
+                        payment_method_id: payment.payment_method?.id || 1,
                         amount: Number(payment.amount),
                     })) || [],
                 });
@@ -260,9 +260,9 @@ export function InvoiceFormModal({
                             description: "",
                             quantity: 1,
                             unit_price: 0,
-                            product_id: "",
-                            service_id: "",
-                            executor_doctor_id: "",
+                            product_id: null,
+                            service_id: null,
+                            executor_doctor_id: null,
                         } as any,
                     ],
                     payments: [],
@@ -275,11 +275,11 @@ export function InvoiceFormModal({
     }, [isOpen, invoice, form]);
 
     // Compute Subtotal Dynamically
-    const items = form.watch("items");
-    const subtotal = items.reduce(
-        (sum, item) => sum + (item.quantity || 0) * (item.unit_price || 0),
+    const watchedItems = form.watch("items");
+    const subtotal = watchedItems?.reduce(
+        (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unit_price || 0)),
         0
-    );
+    ) || 0;
 
     const payments = form.watch("payments");
     const totalPaid = payments?.reduce(
@@ -292,9 +292,9 @@ export function InvoiceFormModal({
         form.setValue(`items.${index}.type`, type);
         form.setValue(`items.${index}.description`, "");
         form.setValue(`items.${index}.unit_price`, 0);
-        form.setValue(`items.${index}.product_id`, "" as any);
-        form.setValue(`items.${index}.service_id`, "" as any);
-        form.setValue(`items.${index}.executor_doctor_id`, "" as any);
+        form.setValue(`items.${index}.product_id`, null);
+        form.setValue(`items.${index}.service_id`, null);
+        form.setValue(`items.${index}.executor_doctor_id`, null);
     };
 
     const handleProductSelect = (index: number, productId: number) => {
@@ -320,6 +320,7 @@ export function InvoiceFormModal({
         mutationFn: createInvoice,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
             toast.success("Factura creada correctamente");
             onClose();
             router.refresh();
@@ -336,6 +337,7 @@ export function InvoiceFormModal({
         mutationFn: (data: { id: number; payload: Partial<Invoice> }) => updateInvoice(data.id, data.payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
             toast.success("Factura actualizada correctamente");
             onClose();
             router.refresh();
@@ -366,10 +368,18 @@ export function InvoiceFormModal({
                 unit_price: i.unit_price,
                 subtotal: i.quantity * i.unit_price, // Backend checks this
             })),
-            payments: data.payments?.map((p) => ({
-                payment_method_id: p.payment_method_id,
-                amount: p.amount,
-            })),
+            payments: data.payments?.map((p) => {
+                // Determine if payment is cash
+                const isCash = paymentMethods?.find(m => m.id === p.payment_method_id)?.name?.toLowerCase().includes("efectivo");
+
+                // If it is cash and the amount is implicitly overpaying the subtotal, cap it mathematically
+                const amountToSend = isCash ? Math.min(p.amount, subtotal) : p.amount;
+
+                return {
+                    payment_method_id: p.payment_method_id,
+                    amount: amountToSend,
+                };
+            }),
         };
 
         if (invoice) {
@@ -772,9 +782,9 @@ export function InvoiceFormModal({
                                             description: "",
                                             quantity: 1,
                                             unit_price: 0,
-                                            product_id: "",
-                                            service_id: "",
-                                            executor_doctor_id: "",
+                                            product_id: null,
+                                            service_id: null,
+                                            executor_doctor_id: null,
                                         } as any)
                                     }
                                     className="w-full border-dashed"
@@ -789,100 +799,107 @@ export function InvoiceFormModal({
                             </div>
 
                             {/* Payments Array */}
-                            <div className="space-y-4 pt-6 border-t">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Pagos Recibidos (Opcional)
-                                    </h3>
-                                </div>
-
-                                {paymentFields.map((field, index) => (
-                                    <div key={field.id} className="flex gap-4 items-end bg-surface-secondary/10 p-3 rounded-lg">
-                                        <div className="flex-1">
-                                            <FormField
-                                                control={form.control}
-                                                name={`payments.${index}.payment_method_id`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Método de Pago</FormLabel>
-                                                        <Select
-                                                            onValueChange={(val) =>
-                                                                field.onChange(parseInt(val))
-                                                            }
-                                                            value={
-                                                                field.value ? field.value.toString() : undefined
-                                                            }
-                                                        >
-                                                            <FormControl>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Seleccionar..." />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent>
-                                                                {paymentMethods?.map((pm) => (
-                                                                    <SelectItem
-                                                                        key={pm.id}
-                                                                        value={pm.id.toString()}
-                                                                    >
-                                                                        {pm.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <FormField
-                                                control={form.control}
-                                                name={`payments.${index}.amount`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Monto</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                type="number"
-                                                                min="0.01"
-                                                                step="0.01"
-                                                                {...field}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={() => removePayment(index)}
-                                            className="text-muted hover:text-danger mb-1"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </Button>
+                            {!invoice && (
+                                <div className="space-y-4 pt-6 border-t">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Pagos Recibidos (Opcional)
+                                        </h3>
                                     </div>
-                                ))}
 
-                                {paymentFields.length === 0 && (
-                                    <p className="text-sm text-muted italic">Sin pagos iniciales. Se registrará como pendiente.</p>
-                                )}
+                                    {paymentFields.map((field, index) => (
+                                        <div key={field.id} className="flex gap-4 items-end bg-surface-secondary/10 p-3 rounded-lg">
+                                            <div className="flex-1">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`payments.${index}.payment_method_id`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Método de Pago</FormLabel>
+                                                            <Select
+                                                                onValueChange={(val) =>
+                                                                    field.onChange(parseInt(val))
+                                                                }
+                                                                value={
+                                                                    field.value ? field.value.toString() : undefined
+                                                                }
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Seleccionar..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    {paymentMethods?.map((pm) => (
+                                                                        <SelectItem
+                                                                            key={pm.id}
+                                                                            value={pm.id.toString()}
+                                                                        >
+                                                                            {pm.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`payments.${index}.amount`}
+                                                    render={({ field }) => {
+                                                        const methodId = form.watch(`payments.${index}.payment_method_id`);
+                                                        const isCash = paymentMethods?.find((m) => m.id === methodId)?.name?.toLowerCase().includes("efectivo");
+                                                        return (
+                                                            <FormItem>
+                                                                <FormLabel>Monto</FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0.01"
+                                                                        step="0.01"
+                                                                        max={isCash ? undefined : (subtotal > 0 ? subtotal : undefined)}
+                                                                        {...field}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                onClick={() => removePayment(index)}
+                                                className="text-muted hover:text-danger mb-1"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </Button>
+                                        </div>
+                                    ))}
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        appendPayment({
-                                            payment_method_id: "",
-                                            amount: subtotal - totalPaid > 0 ? subtotal - totalPaid : 0,
-                                        } as any)
-                                    }
-                                >
-                                    <Plus className="w-4 h-4 mr-2" /> Agregar Pago
-                                </Button>
-                            </div>
+                                    {paymentFields.length === 0 && (
+                                        <p className="text-sm text-muted italic">Sin pagos iniciales. Se registrará como pendiente.</p>
+                                    )}
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            appendPayment({
+                                                payment_method_id: "",
+                                                amount: subtotal - totalPaid > 0 ? subtotal - totalPaid : 0,
+                                            } as any)
+                                        }
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" /> Agregar Pago
+                                    </Button>
+                                </div>
+                            )}
 
                             {/* Totals & Submit */}
                             <div className="flex flex-col items-end pt-6 border-t gap-1 mt-6">
@@ -901,6 +918,14 @@ export function InvoiceFormModal({
                                             {formatCurrency(subtotal - totalPaid > 0 ? subtotal - totalPaid : 0)}
                                         </span>
                                     </div>
+                                    {totalPaid > subtotal && (
+                                        <div className="flex justify-between text-lg items-center mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                                            <span className="text-emerald-800 font-bold">Vuelto a entregar:</span>
+                                            <span className="font-extrabold text-emerald-700">
+                                                {formatCurrency(totalPaid - subtotal)}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex justify-end gap-3 mt-6">
