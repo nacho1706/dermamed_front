@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type UserFilters } from "@/services/users";
 import {
-  getUsers,
-  updateUser,
-  deleteUser,
-  inviteUser,
-  resendInvite,
-  type UserFilters,
-} from "@/services/users";
-import { getRoles } from "@/services/roles";
+  useUsers,
+  useUsersKpi,
+  useInviteUser,
+  useUpdateUser,
+  useDeleteUser,
+  useResendInvite,
+} from "@/hooks/queries/useUsers";
+import { useRoles } from "@/hooks/queries/useRoles";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Card, CardBody } from "@/components/ui/card";
@@ -89,10 +89,11 @@ function StatusBadge({ user }: { user: User }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.is_active
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-red-50 text-red-700 border-red-200"
-        }`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+        user.is_active
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-red-50 text-red-700 border-red-200"
+      }`}
     >
       {user.is_active ? "Activo" : "Inactivo"}
     </span>
@@ -146,7 +147,6 @@ function UserFormModal({
   user?: User;
   roles: Role[];
 }) {
-  const queryClient = useQueryClient();
   const isEdit = !!user;
 
   const [name, setName] = useState("");
@@ -156,7 +156,6 @@ function UserFormModal({
   const [cuit, setCuit] = useState("");
   const [isActive, setIsActive] = useState(true);
 
-  // Check if the "doctor" role is selected (by name, not hardcoded ID)
   const doctorRole = roles.find((r) => r.name === "doctor");
   const isDoctorSelected = doctorRole
     ? roleIds.includes(doctorRole.id.toString())
@@ -182,28 +181,9 @@ function UserFormModal({
     }
   }, [isOpen, user]);
 
-  const inviteMut = useMutation({
-    mutationFn: inviteUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      sileo.success({ title: "Invitación enviada", description: "El usuario recibirá un correo con el enlace de activación." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo enviar la invitación." }),
-  });
+  const inviteMut = useInviteUser();
 
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
-      updateUser(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      sileo.success({ title: "Usuario actualizado", description: "Los cambios fueron guardados correctamente." });
-      onClose();
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo actualizar el usuario." }),
-  });
+  const updateMut = useUpdateUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,10 +202,10 @@ function UserFormModal({
       // Logic only for edit
       data.cuit = cuit || null;
       data.is_active = isActive;
-      updateMut.mutate({ id: user.id, data });
+      updateMut.mutate({ id: user.id, data }, { onSuccess: onClose });
     } else {
       // Logic only for invite
-      inviteMut.mutate(data);
+      inviteMut.mutate(data, { onSuccess: onClose });
     }
   };
 
@@ -334,12 +314,14 @@ function UserFormModal({
                 <button
                   type="button"
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${isActive ? "bg-brand-600" : "bg-gray-200"
-                    }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    isActive ? "bg-brand-600" : "bg-gray-200"
+                  }`}
                 >
                   <span
-                    className={`${isActive ? "translate-x-6" : "translate-x-1"
-                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    className={`${
+                      isActive ? "translate-x-6" : "translate-x-1"
+                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                   />
                 </button>
               </div>
@@ -385,7 +367,6 @@ function UserFormModal({
 // ─── Users Page ─────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const router = useRouter();
 
@@ -400,67 +381,23 @@ export default function UsersPage() {
 
   // ── All hooks must be declared before any conditional returns ──────────────
 
-  // Fetch roles dynamically from API (no hardcoded IDs)
-  const { data: roles = [] } = useQuery({
-    queryKey: ["roles"],
-    queryFn: getRoles,
+  const { data: roles = [] } = useRoles();
+
+  const { data, isLoading } = useUsers({
+    name: debouncedSearch || undefined,
+    role: roleFilter !== "all" ? roleFilter : undefined,
+    pagina: page,
+    cantidad: 10,
   });
 
-  // Main users query — filter by role name (string), not role_id
-  const { data, isLoading } = useQuery({
-    queryKey: ["users", debouncedSearch, roleFilter, page],
-    queryFn: () =>
-      getUsers({
-        name: debouncedSearch || undefined,
-        role: roleFilter !== "all" ? roleFilter : undefined,
-        pagina: page,
-        cantidad: 10,
-      }),
-  });
+  const { data: totalUsersData } = useUsersKpi("total");
+  const { data: activeUsersData } = useUsersKpi("active");
+  const { data: doctorsData } = useUsersKpi("doctors");
+  const { data: receptionistsData } = useUsersKpi("receptionists");
+  const { data: managersData } = useUsersKpi("managers");
 
-  // KPI Queries — filter by role name (string)
-  const { data: totalUsersData } = useQuery({
-    queryKey: ["users-kpi", "total"],
-    queryFn: () => getUsers({ cantidad: 1 }),
-  });
-
-  const { data: activeUsersData } = useQuery({
-    queryKey: ["users-kpi", "active"],
-    queryFn: () => getUsers({ is_active: true, cantidad: 1 }),
-  });
-
-  const { data: doctorsData } = useQuery({
-    queryKey: ["users-kpi", "doctors"],
-    queryFn: () => getUsers({ role: "doctor", cantidad: 1 }),
-  });
-
-  const { data: receptionistsData } = useQuery({
-    queryKey: ["users-kpi", "receptionists"],
-    queryFn: () => getUsers({ role: "receptionist", cantidad: 1 }),
-  });
-
-  const { data: managersData } = useQuery({
-    queryKey: ["users-kpi", "managers"],
-    queryFn: () => getUsers({ role: "clinic_manager", cantidad: 1 }),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["users-kpi"] });
-      sileo.success({ title: "Usuario eliminado", description: "El usuario fue eliminado correctamente." });
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo eliminar el usuario." }),
-  });
-
-  const resendMut = useMutation({
-    mutationFn: resendInvite,
-    onSuccess: () => {
-      sileo.success({ title: "Invitación reenviada", description: "El correo de invitación fue reenviado correctamente." });
-    },
-    onError: () => sileo.error({ title: "Error", description: "No se pudo reenviar la invitación." }),
-  });
+  const deleteMut = useDeleteUser();
+  const resendMut = useResendInvite();
 
   React.useEffect(() => {
     if (!hasRole("clinic_manager")) {
@@ -740,7 +677,9 @@ export default function UsersPage() {
       <ConfirmDialog
         isOpen={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete !== null && deleteMut.mutate(confirmDelete)}
+        onConfirm={() =>
+          confirmDelete !== null && deleteMut.mutate(confirmDelete)
+        }
         title="Eliminar usuario"
         description="¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer."
         confirmLabel="Eliminar"

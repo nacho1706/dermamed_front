@@ -66,8 +66,8 @@ export interface Role {
 export interface User {
   id: number;
   name: string;
-  first_name?: string;
-  last_name?: string;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string;
   cuit: string | null;
   specialty: string | null;
