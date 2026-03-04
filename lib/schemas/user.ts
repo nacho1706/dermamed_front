@@ -14,8 +14,12 @@ export const UserSchema = z.object({
   cuit: z.string().nullable(),
   specialty: z.string().nullable(),
   roles: z.array(RoleSchema),
-  is_active: z.boolean(),
-  status: z.enum(["active", "pending_activation"]),
+  is_active: z.union([
+    z.boolean(),
+    z.number().transform((v) => v === 1),
+    z.string().transform((v) => v === "1" || v === "true"),
+  ]),
+  status: z.enum(["active", "pending_activation"]).optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
