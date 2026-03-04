@@ -247,10 +247,29 @@ export interface CashShift {
   closing_balance: number | null;
   opening_time: string;
   closing_time: string | null;
+  status?: string;
   opened_by_user_id: number;
   closed_by_user_id: number | null;
   expected_balance?: number;
   total_incomes?: number;
+  total_expenses?: number;
+  expenses?: CashExpense[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashExpensePayload {
+  amount: number;
+  description: string;
+  cash_shift_id: number;
+}
+
+export interface CashExpense {
+  id: number;
+  cash_shift_id: number;
+  user_id: number;
+  amount: number;
+  description: string;
   created_at: string;
   updated_at: string;
 }
