@@ -378,10 +378,10 @@ export function AppointmentRow({
 
   const opacityClass =
     appointment.status === "cancelled"
-      ? "opacity-50 bg-surface-secondary/30 hover:opacity-100"
+      ? "opacity-50 bg-slate-50 hover:opacity-100"
       : appointment.status === "completed" || appointment.status === "no_show"
         ? "opacity-60 hover:opacity-100"
-        : "hover:bg-surface-secondary/50";
+        : "hover:bg-slate-50";
 
   const delayedClass = isDelayed
     ? "bg-amber-50 border-l-4 border-amber-400"
@@ -392,25 +392,25 @@ export function AppointmentRow({
       className={`transition-opacity transition-colors ${opacityClass} ${delayedClass}`}
     >
       <td className="px-6 py-3.5 whitespace-nowrap">
-        <span className="text-sm font-medium text-foreground">{time}</span>
+        <span className="text-sm font-medium text-slate-900">{time}</span>
       </td>
       <td className="px-6 py-3.5 max-w-0 w-full truncate">
         <Link
           href={`/patients/${appointment.patient_id}`}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 group/patient"
         >
           <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">
             {initials}
           </div>
           <div className="min-w-0">
             <span
-              className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors truncate block"
+              className="text-sm font-medium text-slate-900 group-hover/patient:text-brand-600 transition-colors truncate block"
               title={patientName}
             >
               {patientName}
             </span>
             {appointment.doctor && (
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-xs text-slate-500 truncate">
                 con {appointment.doctor.name}
               </p>
             )}
@@ -422,17 +422,12 @@ export function AppointmentRow({
                 Sobreturno
               </span>
             )}
-            {appointment.patient && !appointment.patient.dni && (
-              <span className="text-[10px] text-warning font-medium block leading-tight">
-                ⚠️ Falta DNI
-              </span>
-            )}
           </div>
         </Link>
       </td>
       <td className="px-6 py-3.5 hidden md:table-cell max-w-0 w-full">
         <span
-          className="text-sm text-muted line-clamp-2 text-wrap"
+          className="text-sm text-slate-500 line-clamp-2 text-wrap"
           title={serviceName}
         >
           {serviceName}

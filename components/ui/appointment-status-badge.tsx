@@ -36,20 +36,20 @@ const statusConfig: Record<
   },
   no_show: {
     label: "Ausente",
-    dot: "bg-red-500", // Using destructive color for no show too
+    dot: "bg-red-600",
     bg: "bg-red-50 border-red-200",
-    text: "text-red-800",
+    text: "text-red-800 font-medium",
   },
-  // Compatibility with older variations if ever needed by types
+  // pending y confirmed se unifican visualmente con scheduled bajo "Programado"
   pending: {
-    label: "Pendiente",
+    label: "Programado",
     dot: "bg-blue-400",
     bg: "bg-blue-50 border-blue-200",
     text: "text-blue-800",
   },
   confirmed: {
-    label: "Confirmado",
-    dot: "bg-blue-500",
+    label: "Programado",
+    dot: "bg-blue-400",
     bg: "bg-blue-50 border-blue-200",
     text: "text-blue-800",
   },
