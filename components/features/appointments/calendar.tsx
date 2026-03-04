@@ -28,57 +28,59 @@ interface CalendarProps {
 
 const HOUR_HEIGHT = 72; // px per hour — more breathing room
 
+// ─── Estándar semántico de estados del calendario ─────────────────────────────
+// Programado (scheduled/pending/confirmed): bg-blue-50  text-blue-800
+// En Espera:   bg-amber-50   text-amber-700
+// En Consulta: bg-brand-50  text-brand-700
+// Finalizado:  bg-emerald-50 text-emerald-700
+// Cancelado:   bg-red-50     text-red-700
+// Ausente:     bg-red-50     text-red-700
+// Sobreturno:  border-l-4 border-l-purple-500 (override de borde, no fondo)
+
 const statusConfig: Record<
   string,
-  { bg: string; border: string; text: string; dot: string }
+  { bg: string; border: string; text: string }
 > = {
   scheduled: {
     bg: "bg-blue-50",
     border: "border-blue-200",
-    text: "text-blue-800",
-    dot: "bg-blue-400",
+    text: "text-blue-700",
   },
   in_waiting_room: {
     bg: "bg-amber-50",
     border: "border-amber-200",
-    text: "text-amber-800",
-    dot: "bg-amber-400 animate-pulse",
+    text: "text-amber-700",
   },
   in_progress: {
     bg: "bg-brand-50",
     border: "border-brand-200",
     text: "text-brand-700",
-    dot: "bg-brand-500",
   },
   completed: {
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     text: "text-emerald-700",
-    dot: "bg-emerald-500",
   },
   cancelled: {
-    bg: "bg-danger/10",
-    border: "border-danger/20",
-    text: "text-danger",
-    dot: "bg-danger",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
   },
   no_show: {
-    bg: "bg-danger/20",
-    border: "border-danger/30",
-    text: "text-danger",
-    dot: "bg-danger",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
   },
+  // pending y confirmed se unifican visualmente con scheduled bajo "Programado"
   pending: {
-    bg: "bg-warning/10",
-    border: "border-warning/20",
-    text: "text-warning",
-    dot: "bg-warning",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    text: "text-blue-700",
   },
   confirmed: {
-    bg: "bg-brand-500",
-    border: "border-brand-600",
-    text: "text-white",
-    dot: "bg-white",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    text: "text-blue-800",
   },
 };
 
@@ -86,7 +88,6 @@ const defaultStatus = {
   bg: "bg-neutral-50",
   border: "border-neutral-200",
   text: "text-neutral-700",
-  dot: "bg-neutral-400",
 };
 
 export function Calendar({

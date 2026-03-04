@@ -174,18 +174,18 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-slate-900">
             {greeting()}, {user?.name?.split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             {isDoctor
               ? "Resumen de su agenda médica para hoy."
               : "Resumen de actividad de la clínica."}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
           <CalendarDays className="w-4 h-4" />
-          <span className="capitalize">{todayDisplay}</span>
+          <span className="lowercase">{todayDisplay}</span>
         </div>
       </div>
 
@@ -297,12 +297,12 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">
+              <h2 className="text-base font-semibold text-slate-900">
                 {isDoctor ? "Mi Agenda del Día" : "Resumen Global del Día"}
               </h2>
               <Link
                 href="/appointments"
-                className="text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors"
+                className="text-sm text-slate-900 hover:text-brand-600 font-medium transition-colors"
               >
                 Ver Calendario Completo
               </Link>
@@ -315,10 +315,10 @@ export default function DashboardPage() {
               ) : sortedAppointments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <CalendarDays className="w-10 h-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted font-medium">
+                  <p className="text-sm text-slate-500 font-medium">
                     No hay turnos agendados para {isDoctor ? "usted" : ""} hoy
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     {isDoctor
                       ? "Disfrute su día libre."
                       : "Los turnos aparecerán aquí automáticamente."}
@@ -327,25 +327,25 @@ export default function DashboardPage() {
               ) : (
                 <table className="w-full table-fixed">
                   <thead>
-                    <tr className="border-b border-border/60">
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 w-[10%]">
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[10%]">
                         Hora
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 w-[30%]">
+                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[30%]">
                         Paciente
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 hidden md:table-cell w-[25%]">
+                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[25%]">
                         Tipo
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 w-[16%]">
+                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
                         Estado
                       </th>
-                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 w-[19%]">
+                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
                         Acción
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-slate-200">
                     {sortedAppointments.map((appointment: Appointment) => {
                       const DELAY_THRESHOLD_MINUTES = 15;
                       const isDelayed =
@@ -380,7 +380,7 @@ export default function DashboardPage() {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <h2 className="text-base font-semibold text-foreground">
+              <h2 className="text-base font-semibold text-slate-900">
                 Acciones Rápidas
               </h2>
             </CardHeader>
