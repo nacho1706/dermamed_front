@@ -103,7 +103,7 @@ export function AppointmentRow({
             <button
               onClick={handleStart}
               disabled={isStarting}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all disabled:opacity-50"
               title="Ingresar a Espera"
             >
               {isStarting ? (
@@ -185,7 +185,7 @@ export function AppointmentRow({
           mainAction = (
             <button
               onClick={() => toast.info("Módulo de caja en desarrollo")}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all"
               title="Cobrar"
             >
               <CircleDollarSign className="w-4 h-4" />
@@ -198,7 +198,7 @@ export function AppointmentRow({
             <button
               onClick={handleStart}
               disabled={isStarting}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all disabled:opacity-50"
               title="Ingresar a Espera (Llegó tarde)"
             >
               {isStarting ? (
@@ -237,7 +237,7 @@ export function AppointmentRow({
             <button
               onClick={handleStart}
               disabled={isStarting}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-emerald-600 hover:text-white hover:bg-emerald-500 transition-all disabled:opacity-50"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all disabled:opacity-50"
               title="Atender Directo"
             >
               {isStarting ? (
@@ -285,7 +285,7 @@ export function AppointmentRow({
             <button
               onClick={handleStart}
               disabled={isStarting}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-full text-emerald-600 hover:text-white hover:bg-emerald-500 border border-emerald-100 hover:border-emerald-500 transition-all duration-200 disabled:opacity-50 group/play"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-full text-success hover:text-white hover:bg-success/80 border border-success/20 hover:border-success/40 transition-all duration-200 disabled:opacity-50 group/play"
               title="Llamar / Iniciar"
             >
               {isStarting ? (
@@ -395,7 +395,7 @@ export function AppointmentRow({
         {appointment.is_overbook && (
           <div
             title="Sobreturno"
-            className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded bg-orange-100 text-orange-600 cursor-help transition-colors hover:bg-orange-200"
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning cursor-help transition-colors hover:bg-warning/20"
           >
             <AlertCircle className="w-3 h-3" />
           </div>
@@ -423,7 +423,7 @@ export function AppointmentRow({
               </p>
             )}
             {appointment.patient && !appointment.patient.dni && (
-              <span className="text-[10px] text-orange-600 font-medium block leading-tight">
+              <span className="text-[10px] text-warning font-medium block leading-tight">
                 ⚠️ Falta DNI
               </span>
             )}

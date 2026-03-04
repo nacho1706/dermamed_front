@@ -54,7 +54,7 @@ export function KpiCard({
         </div>
       </CardBody>
       {progress !== undefined && (
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-medical-100">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-brand-100">
           <div
             className={`h-full ${iconBg.replace("bg-", "bg-").replace("-50", "-500")} transition-all duration-500 ease-out`}
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}

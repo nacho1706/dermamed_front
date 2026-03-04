@@ -156,10 +156,10 @@ export function PatientForm({
   };
 
   return (
-    <Card className="max-w-3xl mx-auto border-medical-200/50 shadow-sm overflow-hidden">
-      <CardHeader className="bg-medical-50/50 border-b border-medical-100">
-        <h3 className="text-lg font-semibold text-medical-800">{title}</h3>
-        <p className="text-sm text-medical-600">
+    <Card className="max-w-3xl mx-auto border-border/50 shadow-sm overflow-hidden">
+      <CardHeader className="bg-surface-secondary/50 border-b border-border">
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <p className="text-sm text-muted">
           Completa los datos personales del paciente.
         </p>
       </CardHeader>
@@ -169,10 +169,10 @@ export function PatientForm({
           {/* ── Personal Info ── */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="bg-medical-100 p-1.5 rounded-lg">
-                <User className="h-4 w-4 text-medical-600" />
+              <div className="bg-brand-100 p-1.5 rounded-lg">
+                <User className="h-4 w-4 text-brand-600" />
               </div>
-              <h4 className="text-sm font-bold text-medical-700 uppercase tracking-wider">
+              <h4 className="text-sm font-bold text-brand-700 uppercase tracking-wider">
                 Datos Personales
               </h4>
             </div>
@@ -262,10 +262,10 @@ export function PatientForm({
           {/* ── Contact Info ── */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="bg-medical-100 p-1.5 rounded-lg">
-                <Phone className="h-4 w-4 text-medical-600" />
+              <div className="bg-brand-100 p-1.5 rounded-lg">
+                <Phone className="h-4 w-4 text-brand-600" />
               </div>
-              <h4 className="text-sm font-bold text-medical-700 uppercase tracking-wider">
+              <h4 className="text-sm font-bold text-brand-700 uppercase tracking-wider">
                 Contacto
               </h4>
             </div>
@@ -310,10 +310,10 @@ export function PatientForm({
           {/* ── Address ── */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="bg-medical-100 p-1.5 rounded-lg">
-                <MapPin className="h-4 w-4 text-medical-600" />
+              <div className="bg-brand-100 p-1.5 rounded-lg">
+                <MapPin className="h-4 w-4 text-brand-600" />
               </div>
-              <h4 className="text-sm font-bold text-medical-700 uppercase tracking-wider">
+              <h4 className="text-sm font-bold text-brand-700 uppercase tracking-wider">
                 Domicilio
               </h4>
             </div>
@@ -397,10 +397,10 @@ export function PatientForm({
           {/* ── Insurance ── */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="bg-medical-100 p-1.5 rounded-lg">
-                <Building className="h-4 w-4 text-medical-600" />
+              <div className="bg-brand-100 p-1.5 rounded-lg">
+                <Building className="h-4 w-4 text-brand-600" />
               </div>
-              <h4 className="text-sm font-bold text-medical-700 uppercase tracking-wider">
+              <h4 className="text-sm font-bold text-brand-700 uppercase tracking-wider">
                 Obra Social
               </h4>
             </div>
@@ -468,7 +468,7 @@ export function PatientForm({
           </div>
         </CardBody>
 
-        <CardFooter className="bg-medical-50/30 border-t border-medical-100 p-4 flex justify-end gap-3">
+        <CardFooter className="bg-surface-secondary/30 border-t border-border p-4 flex justify-end gap-3">
           <Button
             type="button"
             variant="outline"

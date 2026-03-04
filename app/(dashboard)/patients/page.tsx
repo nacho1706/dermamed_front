@@ -99,11 +99,11 @@ export default function PatientsPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-medical-900">
+            <h1 className="text-2xl font-bold text-brand-900">
               Gestión de Pacientes
             </h1>
             {data?.meta?.total !== undefined && (
-              <span className="bg-medical-100 text-medical-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-medical-200">
+              <span className="bg-brand-100 text-brand-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-brand-200">
                 {data.meta.total}{" "}
                 {data.meta.total === 1 ? "resultado" : "resultados"}
               </span>
@@ -118,7 +118,7 @@ export default function PatientsPage() {
             </Link>
           </div>
         </div>
-        <p className="text-medical-600">
+        <p className="text-muted">
           Administra las historias clínicas y turnos de tus pacientes.
         </p>
       </div>

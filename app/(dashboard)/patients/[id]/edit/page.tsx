@@ -55,7 +55,7 @@ export default function EditPatientPage() {
   if (!patient) {
     return (
       <div className="p-6 text-center">
-        <p className="text-medical-600 font-medium">Paciente no encontrado</p>
+        <p className="text-muted font-medium">Paciente no encontrado</p>
         <Link href="/patients" className="mt-4 inline-block">
           <Button variant="outline">Volver al listado</Button>
         </Link>
@@ -72,10 +72,8 @@ export default function EditPatientPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-medical-900">
-            Editar Paciente
-          </h1>
-          <p className="text-medical-600 font-medium">{patient.full_name}</p>
+          <h1 className="text-2xl font-bold text-brand-900">Editar Paciente</h1>
+          <p className="text-muted font-medium">{patient.full_name}</p>
         </div>
       </div>
 
