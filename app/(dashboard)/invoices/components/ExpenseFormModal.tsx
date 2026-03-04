@@ -74,8 +74,7 @@ export function ExpenseFormModal({
         onSuccess: () => {
             toast.success("Egreso registrado exitosamente.");
             queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
-            queryClient.invalidateQueries({ queryKey: ["cash-shift"] });
-            queryClient.invalidateQueries({ queryKey: ["cash-shift", "active"] });
+            queryClient.invalidateQueries({ queryKey: ["cashExpenses"] });
             reset();
             onClose();
         },
