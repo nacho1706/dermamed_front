@@ -24,9 +24,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { getAppointments } from "@/services/appointments";
 import { getPatients, createPatient } from "@/services/patients";
-import { getUsers } from "@/services/users";
-import { getServices } from "@/services/services";
+import { useUsers } from "@/hooks/queries/useUsers";
+import { useServices } from "@/hooks/queries/useServices";
 import { useAuth } from "@/contexts/auth-context";
+import { PatientSelector } from "./patient-selector";
 import {
   getDoctorAvailabilities,
   DoctorAvailability,
@@ -104,7 +105,7 @@ const appointmentSchema = z
     }
   });
 
-type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+export type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -137,15 +138,7 @@ export function AppointmentModal({
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  const {
-    control,
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<AppointmentFormValues>({
+  const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       patient_id: "",
@@ -163,6 +156,16 @@ export function AppointmentModal({
       _is_creating_patient: false,
     },
   });
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = form;
 
   const selectedServiceId = watch("service_id");
   const selectedTime = watch("time");
@@ -219,15 +222,8 @@ export function AppointmentModal({
     };
   }, [selectedDate, availabilityData]);
 
-  const { data: doctorsData } = useQuery({
-    queryKey: ["users", "doctors"],
-    queryFn: () => getUsers({ role: "doctor", cantidad: 100 }),
-  });
-
-  const { data: servicesData } = useQuery({
-    queryKey: ["services"],
-    queryFn: () => getServices(),
-  });
+  const { data: doctorsData } = useUsers({ role: "doctor", cantidad: 100 });
+  const { data: servicesData } = useServices();
 
   // Reset form on open/initialData change
   useEffect(() => {
@@ -423,149 +419,14 @@ export function AppointmentModal({
         >
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5 py-2">
-            {/* Patient Select */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="patient_id"
-                className="text-sm font-medium text-foreground"
-              >
-                Paciente
-              </Label>
-
-              {/* Combobox — hidden when in creation mode */}
-              {!isCreatingPatient && (
-                <Controller
-                  name="patient_id"
-                  control={control}
-                  render={({ field }) => (
-                    <CreatableAsyncCombobox
-                      value={field.value}
-                      onChange={(val) => field.onChange(val ? String(val) : "")}
-                      onCreateRequest={handleCreateRequest}
-                      fetchFn={async (search) => {
-                        const res = await getPatients({ search, cantidad: 10 });
-                        return res.data;
-                      }}
-                      placeholder="Seleccionar paciente"
-                      searchPlaceholder="Buscar por nombre, apellido o teléfono..."
-                      disabled={!!initialData || isReadOnly}
-                      selectedLabel={
-                        initialData?.patient
-                          ? `${initialData.patient.full_name}${initialData.patient.dni ? ` | DNI: ${initialData.patient.dni}` : ""}`
-                          : undefined
-                      }
-                      queryKey="appointment-modal-patient"
-                    />
-                  )}
-                />
-              )}
-
-              {(errors as any).patient_id && !isCreatingPatient && (
-                <p className="text-xs text-danger font-medium">
-                  {(errors as any).patient_id.message}
-                </p>
-              )}
-
-              {/* ─── Inline "Express" Patient Creation Form ───────────────── */}
-              {isCreatingPatient && (
-                <div
-                  className={cn(
-                    "rounded-[var(--radius-md)] border border-brand-200 bg-brand-50/40 p-4 space-y-3",
-                    "animate-in slide-in-from-top-2 duration-200",
-                  )}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <UserPlus className="h-4 w-4 text-brand-600" />
-                      <span className="text-sm font-semibold text-brand-700">
-                        Registro Exprés
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSwitchToSearch}
-                      className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
-                    >
-                      <ChevronLeft className="h-3 w-3" />
-                      Buscar existente
-                    </button>
-                  </div>
-
-                  {/* Name row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-foreground">
-                        Nombre *
-                      </Label>
-                      <Input
-                        {...register("new_patient_first_name")}
-                        placeholder="Ej: Juan"
-                        className="h-9 text-sm"
-                      />
-                      {errors.new_patient_first_name && (
-                        <p className="text-[11px] text-danger">
-                          {errors.new_patient_first_name.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-foreground">
-                        Apellido *
-                      </Label>
-                      <Input
-                        {...register("new_patient_last_name")}
-                        placeholder="Ej: Pérez"
-                        className="h-9 text-sm"
-                      />
-                      {errors.new_patient_last_name && (
-                        <p className="text-[11px] text-danger">
-                          {errors.new_patient_last_name.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* DNI + Phone row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-foreground">DNI *</Label>
-                      <Input
-                        {...register("new_patient_dni", {
-                          onChange: (e) => {
-                            e.target.value = e.target.value
-                              .replace(/\D/g, "")
-                              .slice(0, 8);
-                          },
-                        })}
-                        placeholder="Ej: 30452758"
-                        maxLength={8}
-                        inputMode="numeric"
-                        className="h-9 text-sm"
-                      />
-                      {errors.new_patient_dni && (
-                        <p className="text-[11px] text-danger">
-                          {errors.new_patient_dni.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-foreground">
-                        Teléfono{" "}
-                        <span className="text-muted font-normal">
-                          (opcional)
-                        </span>
-                      </Label>
-                      <Input
-                        {...register("new_patient_phone")}
-                        placeholder="Ej: 3813193828"
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <PatientSelector
+              form={form}
+              isCreatingPatient={isCreatingPatient}
+              handleCreateRequest={handleCreateRequest}
+              handleSwitchToSearch={handleSwitchToSearch}
+              initialData={initialData}
+              isReadOnly={isReadOnly}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               {/* Doctor Select */}
