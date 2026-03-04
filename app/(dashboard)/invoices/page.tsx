@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
 import { Wallet, FileText, DollarSign, Clock, CheckCircle2, MoreVertical, Plus, Receipt, Eye, Trash2, AlertCircle, History, MinusCircle } from "lucide-react";
-import { getCurrentCashShift } from "@/services/cash-shifts";
+import { getCurrentCashShift, getExpenses } from "@/services/cash-shifts";
 import { InvoiceFormModal } from "./components/InvoiceFormModal";
 import { CashShiftWidget } from "./components/CashShiftWidget";
 import { InvoiceHistoryModal } from "./components/InvoiceHistoryModal";
@@ -491,32 +491,16 @@ export default function InvoicesPage() {
       getInvoices({
         pagina: page,
         cantidad: 10,
-        // We are searching by patient name via backend usually, or we need to filter locally?
-        // The service interface usually maps search to specific fields.
-        // Assuming backend handles "search" or we need to pass patient_id?
-        // Wait, the interface has patient_id.
-        // It's likely the backend supports a general "search" param or we filter by patient name if the backend supports it.
-        // I will assume for now I can't search by string unless I added it.
-        // But let's look at `products` -> `name`. `patients` -> `first_name`.
-        // `invoices` usually don't have a "name".
-        // So search likely needs to be removed OR I assume the backend accepts "search" for patient name.
-        // Reviewing `invoices.ts` I created: `InvoiceFilters` has `patient_id`.
-        // So search box is tricky. I'll disable search by text for now or implement patient filter.
-        // Actually, let's keep it simple: Filter by Status.
-        // If I want to search by patient, I should use a patient selector filter, not a text input unless backend supports it.
-        // But standard requirements say "Búsqueda por paciente".
-        // I'll assume I should use a text input and maybe the backend ignores it if not implemented,
-        // OR I should use a Patient Select for filtering. created `InvoiceFilters` has `patient_id`.
-        // I will use a Patient Autocomplete for filter instead of text input to be safe,
-        // OR just pass it and hope backend logic I can't see handles it (risky).
-        // Let's check `services/invoices.ts` again. I defined `EntityFilters` as `InvoiceFilters`.
-        // It has `patient_id?: number`. It does NOT have `search?: string`.
-        // So I must filter by Patient ID.
-        // Replacing Search Input with Patient Filter dropdown would be better.
-        // However, generic search bar is in UI. I'll implement a "Filter by Patient" dropdown.
         status: statusFilter === "all" ? undefined : statusFilter,
       }),
   });
+
+  // Persistent expenses query — independent of active shift state
+  const { data: expensesData } = useQuery({
+    queryKey: ["cashExpenses"],
+    queryFn: () => getExpenses(),
+  });
+  const allExpenses = expensesData ?? [];
 
   const invoices = data?.data || [];
   const totalPages = data?.meta?.last_page ?? 1;
@@ -669,7 +653,7 @@ export default function InvoicesPage() {
             type InvoiceRow = { _type: "invoice" } & typeof invoices[0];
             type Row = ExpenseRow | InvoiceRow;
 
-            const expenseRows: ExpenseRow[] = (cashShift?.expenses ?? []).map((e) => ({
+            const expenseRows: ExpenseRow[] = allExpenses.map((e) => ({
               _type: "expense" as const,
               id: e.id,
               amount: e.amount,

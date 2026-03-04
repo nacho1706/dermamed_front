@@ -26,7 +26,8 @@ const exportToCsv = (shifts: any[]) => {
         "Cierre",
         "Usuario",
         "Inicial",
-        "Ingresos Efvo",
+        "Ingresos Efvo.",
+        "Egresos Efvo.",
         "Cierre Real",
     ];
 
@@ -36,6 +37,7 @@ const exportToCsv = (shifts: any[]) => {
         shift.opened_by ? `${shift.opened_by.first_name || shift.opened_by.name} ${shift.opened_by.last_name || ""}`.trim() : "Usuario",
         shift.opening_balance || 0,
         shift.total_incomes || 0,
+        shift.total_expenses || 0,
         shift.closing_balance || "No cerrado",
     ]);
 
@@ -78,7 +80,7 @@ export function CashShiftHistoryModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto w-[90vw]">
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto w-[95vw]">
                 <DialogHeader>
                     <div className="flex justify-between items-start gap-4">
                         <div className="flex-1">
@@ -87,7 +89,7 @@ export function CashShiftHistoryModal({
                                 Historial de Cajas Diarias
                             </DialogTitle>
                             <DialogDescription>
-                                Visualice el histórico de aperturas y cierres de caja.
+                                Visualice el histórico de aperturas, cierres, ingresos y egresos de caja.
                             </DialogDescription>
                         </div>
                         {shifts.length > 0 && (
@@ -124,7 +126,8 @@ export function CashShiftHistoryModal({
                                         <th className="px-4 py-3 text-left font-medium text-muted">Cierre</th>
                                         <th className="px-4 py-3 text-left font-medium text-muted">Usuario</th>
                                         <th className="px-4 py-3 text-right font-medium text-muted">Inicial</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted">Ingresos (Efvo.)</th>
+                                        <th className="px-4 py-3 text-right font-medium text-muted whitespace-nowrap">Ingresos (Efvo.)</th>
+                                        <th className="px-4 py-3 text-right font-medium text-muted whitespace-nowrap">Egresos (Efvo.)</th>
                                         <th className="px-4 py-3 text-right font-medium text-muted">Cierre Real</th>
                                     </tr>
                                 </thead>
@@ -149,21 +152,28 @@ export function CashShiftHistoryModal({
                                                 <td className="px-4 py-3 truncate max-w-[120px]">
                                                     {shift.opened_by ? `${shift.opened_by.first_name || shift.opened_by.name} ${shift.opened_by.last_name || ''}`.trim() : 'Usuario'}
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium font-mono text-xs">
+                                                <td className="px-4 py-3 text-right font-medium font-mono text-xs whitespace-nowrap">
                                                     {formatCurrency(shift.opening_balance)}
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium text-emerald-600 font-mono text-xs">
+                                                <td className="px-4 py-3 text-right font-medium text-emerald-600 font-mono text-xs whitespace-nowrap">
                                                     {formatCurrency(shift.total_incomes)}
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium text-blue-600 font-mono text-xs">
+                                                <td className="px-4 py-3 text-right font-medium text-red-600 font-mono text-xs whitespace-nowrap">
+                                                    {(shift.total_expenses ?? 0) > 0
+                                                        ? `-${formatCurrency(shift.total_expenses)}`
+                                                        : <span className="text-muted">—</span>
+                                                    }
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium text-blue-600 font-mono text-xs whitespace-nowrap">
                                                     {shift.closing_balance ? formatCurrency(shift.closing_balance) : '—'}
                                                 </td>
                                             </tr>
                                             {expandedRows[shift.id] && (
                                                 <tr className="bg-surface-secondary/5">
-                                                    <td colSpan={7} className="p-0 border-t border-border focus-within:ring-2 ring-inset">
-                                                        <div className="p-4 border-l-4 border-l-brand-500 shadow-inner">
-                                                            <div className="flex flex-col gap-2 mb-4">
+                                                    <td colSpan={8} className="p-0 border-t border-border">
+                                                        <div className="p-4 border-l-4 border-l-brand-500 shadow-inner space-y-4">
+                                                            {/* Metadata */}
+                                                            <div className="flex flex-col gap-2">
                                                                 <p className="text-sm font-medium text-muted">
                                                                     Cerrado por: <span className="text-foreground">{shift.closed_by_name || 'Desconocido'}</span>
                                                                 </p>
@@ -174,37 +184,79 @@ export function CashShiftHistoryModal({
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center justify-between mb-3 pt-2 border-t border-border/50">
-                                                                <h4 className="font-semibold text-sm">Detalle de Cobros</h4>
-                                                            </div>
-                                                            {!shift.payments || shift.payments.length === 0 ? (
-                                                                <p className="text-sm text-muted italic">No hay cobros registrados en esta caja.</p>
-                                                            ) : (
-                                                                <div className="bg-surface rounded-md border border-border overflow-hidden">
-                                                                    <table className="w-full text-xs">
-                                                                        <thead className="bg-surface-secondary">
-                                                                            <tr>
-                                                                                <th className="px-3 py-2 text-left font-medium text-muted">Hora</th>
-                                                                                <th className="px-3 py-2 text-left font-medium text-muted">Factura #</th>
-                                                                                <th className="px-3 py-2 text-left font-medium text-muted">Método</th>
-                                                                                <th className="px-3 py-2 text-right font-medium text-muted">Monto</th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody className="divide-y divide-border">
-                                                                            {shift.payments.map((payment: any) => (
-                                                                                <tr key={payment.id} className="hover:bg-surface-secondary/20">
-                                                                                    <td className="px-3 py-2 whitespace-nowrap">{formatLocalDateTime(payment.payment_date || payment.created_at)}</td>
-                                                                                    <td className="px-3 py-2">
-                                                                                        {payment.invoice ? `FAC-${payment.invoice.id}` : '—'}
-                                                                                    </td>
-                                                                                    <td className="px-3 py-2">{payment.payment_method?.name || 'Local'}</td>
-                                                                                    <td className="px-3 py-2 text-right font-medium font-mono text-emerald-700">{formatCurrency(payment.amount)}</td>
-                                                                                </tr>
-                                                                            ))}
-                                                                        </tbody>
-                                                                    </table>
+
+                                                            {/* Detalle de Cobros */}
+                                                            <div>
+                                                                <div className="flex items-center justify-between mb-3 pt-2 border-t border-border/50">
+                                                                    <h4 className="font-semibold text-sm text-emerald-700">💵 Detalle de Cobros (Efectivo)</h4>
                                                                 </div>
-                                                            )}
+                                                                {!shift.payments || shift.payments.length === 0 ? (
+                                                                    <p className="text-sm text-muted italic">No hay cobros registrados en esta caja.</p>
+                                                                ) : (
+                                                                    <div className="bg-surface rounded-md border border-border overflow-hidden">
+                                                                        <table className="w-full text-xs">
+                                                                            <thead className="bg-surface-secondary">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-muted">Hora</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-muted">Factura #</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-muted">Método</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-muted">Monto</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-border">
+                                                                                {shift.payments.map((payment: any) => (
+                                                                                    <tr key={payment.id} className="hover:bg-surface-secondary/20">
+                                                                                        <td className="px-3 py-2 whitespace-nowrap">{formatLocalDateTime(payment.payment_date || payment.created_at)}</td>
+                                                                                        <td className="px-3 py-2">
+                                                                                            {payment.invoice ? `FAC-${payment.invoice.id}` : '—'}
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2">{payment.payment_method?.name || 'Local'}</td>
+                                                                                        <td className="px-3 py-2 text-right font-medium font-mono text-emerald-700">{formatCurrency(payment.amount)}</td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Detalle de Egresos */}
+                                                            <div>
+                                                                <div className="flex items-center justify-between mb-3 pt-2 border-t border-border/50">
+                                                                    <h4 className="font-semibold text-sm text-red-600">📤 Detalle de Egresos</h4>
+                                                                    {(shift.total_expenses ?? 0) > 0 && (
+                                                                        <span className="text-xs font-mono font-semibold text-red-600">
+                                                                            Total: -{formatCurrency(shift.total_expenses)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {!shift.expenses || shift.expenses.length === 0 ? (
+                                                                    <p className="text-sm text-muted italic">No hay egresos registrados en esta caja.</p>
+                                                                ) : (
+                                                                    <div className="bg-surface rounded-md border border-red-100 overflow-hidden">
+                                                                        <table className="w-full text-xs">
+                                                                            <thead className="bg-red-50/60">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-muted">Hora</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-muted">Concepto</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-muted">Monto</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-red-100">
+                                                                                {shift.expenses.map((expense: any) => (
+                                                                                    <tr key={expense.id} className="hover:bg-red-50/30">
+                                                                                        <td className="px-3 py-2 whitespace-nowrap text-muted">{formatLocalDateTime(expense.created_at)}</td>
+                                                                                        <td className="px-3 py-2 text-slate-700 font-medium">{expense.description}</td>
+                                                                                        <td className="px-3 py-2 text-right font-medium font-mono text-red-600 whitespace-nowrap">
+                                                                                            -{formatCurrency(expense.amount)}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                 </tr>

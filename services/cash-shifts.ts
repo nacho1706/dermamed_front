@@ -35,3 +35,14 @@ export async function createExpense(data: CashExpensePayload): Promise<CashExpen
     const response = await api.post<{ data: CashExpense }>("/cash-expenses", data);
     return response.data.data;
 }
+
+/**
+ * Fetch all expenses from the API, optionally filtered by date (YYYY-MM-DD).
+ * This is the persistent source — works regardless of whether the shift is open or closed.
+ */
+export async function getExpenses(params?: { date?: string }): Promise<CashExpense[]> {
+    const response = await api.get<{ data: CashExpense[] }>("/cash-expenses", {
+        params: params?.date ? { date: params.date } : undefined,
+    });
+    return response.data.data ?? [];
+}
