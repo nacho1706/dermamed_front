@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { useUpdateAppointment } from "@/hooks/queries/useAppointments";
 import {
   Play,
   ArrowRight,
@@ -19,7 +20,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { Appointment } from "@/types";
 import { AppointmentStatusBadge } from "@/components/ui/appointment-status-badge";
-import { updateAppointment } from "@/services/appointments";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,18 +56,8 @@ export function AppointmentRow({
     : "P";
   const serviceName = appointment.service?.name || "Consulta";
 
+  const { mutateAsync: updateAppointment } = useUpdateAppointment();
   const [isStarting, setIsStarting] = React.useState(false);
-
-  // function handleCompletedClick was unused directly in original component, removing unused
-  //   const handleCompletedClick = () => {
-  //     if (appointment.medical_record?.id) {
-  //       router.push(
-  //         `/patients/${appointment.patient_id}/medical-records/${appointment.medical_record.id}`,
-  //       );
-  //     } else {
-  //       toast.error("No se encontró el registro médico para este turno.");
-  //     }
-  //   };
 
   const handleStart = async () => {
     if (hasConflict && onStartConflict) {
@@ -79,35 +69,23 @@ export function AppointmentRow({
     try {
       if (isDoctor) {
         // Doctor: start consultation, redirect to medical record
-        await updateAppointment(appointment.id, { status: "in_progress" });
-        queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        toast.success("Consulta iniciada correctamente");
+        await updateAppointment({
+          id: appointment.id,
+          data: { status: "in_progress" },
+        });
         router.push(
           `/patients/${appointment.patient_id}/medical-records/new?appointment_id=${appointment.id}`,
         );
       } else {
         // Receptionist/Manager: move to waiting room, no redirect
-        await updateAppointment(appointment.id, { status: "in_waiting_room" });
-        queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        toast.success("Paciente ingresado a sala de espera");
+        await updateAppointment({
+          id: appointment.id,
+          data: { status: "in_waiting_room" },
+        });
         setIsStarting(false);
       }
     } catch (error: any) {
       setIsStarting(false);
-
-      const responseData = error.response?.data;
-      let message = isDoctor
-        ? "Error al iniciar la consulta"
-        : "Error al ingresar a sala de espera";
-
-      if (responseData?.errors) {
-        const firstKey = Object.keys(responseData.errors)[0];
-        message = responseData.errors[firstKey][0];
-      } else if (responseData?.message) {
-        message = responseData.message;
-      }
-
-      toast.error(message);
     }
   };
 
@@ -141,17 +119,10 @@ export function AppointmentRow({
               {isDelayed && (
                 <DropdownMenuItem
                   onClick={async () => {
-                    try {
-                      await updateAppointment(appointment.id, {
-                        status: "no_show",
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: ["appointments"],
-                      });
-                      toast.success("Turno marcado como ausente");
-                    } catch (e) {
-                      toast.error("Error al marcar como ausente");
-                    }
+                    await updateAppointment({
+                      id: appointment.id,
+                      data: { status: "no_show" },
+                    });
                   }}
                 >
                   Marcar Ausente
@@ -162,17 +133,10 @@ export function AppointmentRow({
                 className="text-danger focus:text-danger focus:bg-danger/10"
                 onClick={async () => {
                   if (confirm("¿Estás seguro de cancelar este turno?")) {
-                    try {
-                      await updateAppointment(appointment.id, {
-                        status: "cancelled",
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: ["appointments"],
-                      });
-                      toast.success("Turno cancelado");
-                    } catch (e) {
-                      toast.error("Error al cancelar el turno");
-                    }
+                    await updateAppointment({
+                      id: appointment.id,
+                      data: { status: "cancelled" },
+                    });
                   }
                 }}
               >
@@ -187,17 +151,10 @@ export function AppointmentRow({
             <>
               <DropdownMenuItem
                 onClick={async () => {
-                  try {
-                    await updateAppointment(appointment.id, {
-                      status: "scheduled",
-                    });
-                    queryClient.invalidateQueries({
-                      queryKey: ["appointments"],
-                    });
-                    toast.success("Ingreso deshecho correctamente");
-                  } catch (error) {
-                    toast.error("Error al deshacer el ingreso");
-                  }
+                  await updateAppointment({
+                    id: appointment.id,
+                    data: { status: "scheduled" },
+                  });
                 }}
               >
                 Deshacer Ingreso
@@ -207,17 +164,10 @@ export function AppointmentRow({
                 className="text-danger focus:text-danger focus:bg-danger/10"
                 onClick={async () => {
                   if (confirm("¿Estás seguro de cancelar este turno?")) {
-                    try {
-                      await updateAppointment(appointment.id, {
-                        status: "cancelled",
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: ["appointments"],
-                      });
-                      toast.success("Turno cancelado");
-                    } catch (e) {
-                      toast.error("Error al cancelar el turno");
-                    }
+                    await updateAppointment({
+                      id: appointment.id,
+                      data: { status: "cancelled" },
+                    });
                   }
                 }}
               >
@@ -264,15 +214,10 @@ export function AppointmentRow({
           mainAction = (
             <button
               onClick={async () => {
-                try {
-                  await updateAppointment(appointment.id, {
-                    status: "scheduled",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                  toast.success("Turno restaurado correctamente");
-                } catch (error) {
-                  toast.error("Error al restaurar el turno");
-                }
+                await updateAppointment({
+                  id: appointment.id,
+                  data: { status: "scheduled" },
+                });
               }}
               className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-brand-600 hover:text-white hover:bg-brand-500 transition-all"
               title="Restaurar Turno"
@@ -308,17 +253,10 @@ export function AppointmentRow({
               {isDelayed && (
                 <DropdownMenuItem
                   onClick={async () => {
-                    try {
-                      await updateAppointment(appointment.id, {
-                        status: "no_show",
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: ["appointments"],
-                      });
-                      toast.success("Turno marcado como ausente");
-                    } catch (e) {
-                      toast.error("Error al marcar como ausente");
-                    }
+                    await updateAppointment({
+                      id: appointment.id,
+                      data: { status: "no_show" },
+                    });
                   }}
                 >
                   Marcar Ausente
@@ -329,17 +267,10 @@ export function AppointmentRow({
                 className="text-danger focus:text-danger focus:bg-danger/10"
                 onClick={async () => {
                   if (confirm("¿Estás seguro de cancelar este turno?")) {
-                    try {
-                      await updateAppointment(appointment.id, {
-                        status: "cancelled",
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: ["appointments"],
-                      });
-                      toast.success("Turno cancelado");
-                    } catch (e) {
-                      toast.error("Error al cancelar el turno");
-                    }
+                    await updateAppointment({
+                      id: appointment.id,
+                      data: { status: "cancelled" },
+                    });
                   }
                 }}
               >
@@ -367,15 +298,10 @@ export function AppointmentRow({
           kebabMenu = (
             <DropdownMenuItem
               onClick={async () => {
-                try {
-                  await updateAppointment(appointment.id, {
-                    status: "scheduled",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                  toast.success("Turno devuelto a recepción");
-                } catch (error) {
-                  toast.error("Error al devolver el turno a recepción");
-                }
+                await updateAppointment({
+                  id: appointment.id,
+                  data: { status: "scheduled" },
+                });
               }}
             >
               Devolver a Recepción
@@ -396,15 +322,10 @@ export function AppointmentRow({
           kebabMenu = (
             <DropdownMenuItem
               onClick={async () => {
-                try {
-                  await updateAppointment(appointment.id, {
-                    status: "in_waiting_room",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                  toast.success("Turno devuelto a sala de espera");
-                } catch (error) {
-                  toast.error("Error al devolver el turno a sala de espera");
-                }
+                await updateAppointment({
+                  id: appointment.id,
+                  data: { status: "in_waiting_room" },
+                });
               }}
             >
               Devolver a Sala de Espera
