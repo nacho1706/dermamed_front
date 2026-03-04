@@ -12,21 +12,21 @@ const statusConfig: Record<
   },
   in_waiting_room: {
     label: "En Espera",
-    dot: "bg-amber-400 animate-pulse", // Changed to amber/warning
+    dot: "bg-amber-400 animate-pulse",
     bg: "bg-amber-50 border-amber-200",
     text: "text-amber-800",
   },
   in_progress: {
     label: "En Consulta",
-    dot: "bg-emerald-500", // Changed to emerald/success
-    bg: "bg-emerald-50 border-emerald-200",
-    text: "text-emerald-800",
+    dot: "bg-brand-500",
+    bg: "bg-brand-50 border-brand-200",
+    text: "text-brand-700",
   },
   completed: {
     label: "Finalizado",
-    dot: "bg-slate-400", // Changed to muted/gray
-    bg: "bg-slate-50 border-slate-200",
-    text: "text-slate-700",
+    dot: "bg-emerald-500",
+    bg: "bg-emerald-50 border-emerald-200",
+    text: "text-emerald-700",
   },
   cancelled: {
     label: "Cancelado",

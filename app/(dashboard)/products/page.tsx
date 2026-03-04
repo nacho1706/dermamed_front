@@ -173,7 +173,7 @@ export default function ProductsPage() {
         }
       });
       // Only reset page if caller didn't explicitly set it
-      if (!('page' in params)) {
+      if (!("page" in params)) {
         sp.delete("page");
       }
       router.replace(`?${sp.toString()}`, { scroll: false });
@@ -279,7 +279,11 @@ export default function ProductsPage() {
   const isShowingTrashed = urlTrashed === "true";
 
   // Count active URL filters
-  const activeFilterCount = [urlBrandId, urlSort, urlTrashed === "true" ? "1" : ""].filter(Boolean).length;
+  const activeFilterCount = [
+    urlBrandId,
+    urlSort,
+    urlTrashed === "true" ? "1" : "",
+  ].filter(Boolean).length;
 
   const handleExportCSV = () => {
     if (products.length === 0) {
@@ -464,20 +468,22 @@ export default function ProductsPage() {
               });
               setPage(1);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${isShowingLowStock
-              ? "bg-amber-50 border-amber-200 text-amber-800"
-              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
+              isShowingLowStock
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+            }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             Stock Bajo
           </button>
           <button
             onClick={() => setIsFiltersOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${activeFilterCount > 0
-              ? "bg-brand-50 border-brand-200 text-brand-700"
-              : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
+              activeFilterCount > 0
+                ? "bg-brand-50 border-brand-200 text-brand-700"
+                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+            }`}
           >
             <Filter className="w-3.5 h-3.5" />
             Filtros
@@ -545,22 +551,22 @@ export default function ProductsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                  <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
                     Producto
                   </th>
-                  <th className="text-left text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3 hidden md:table-cell">
+                  <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 hidden md:table-cell">
                     Marca
                   </th>
-                  <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                  <th className="text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
                     Stock
                   </th>
-                  <th className="text-right text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                  <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
                     Precio
                   </th>
-                  <th className="text-center text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                  <th className="text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
                     Estado
                   </th>
-                  <th className="text-right text-xs font-semibold uppercase tracking-wider text-muted px-6 py-3">
+                  <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
                     Acciones
                   </th>
                 </tr>
@@ -600,10 +606,11 @@ export default function ProductsPage() {
                       {/* Stock */}
                       <td className="px-6 py-3.5 text-center">
                         <span
-                          className={`text-sm font-semibold ${product.stock <= product.min_stock
-                            ? "text-danger"
-                            : "text-foreground"
-                            }`}
+                          className={`text-sm font-semibold ${
+                            product.stock <= product.min_stock
+                              ? "text-danger"
+                              : "text-foreground"
+                          }`}
                         >
                           {product.stock} un.
                         </span>
@@ -712,10 +719,11 @@ export default function ProductsPage() {
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${urlPage === pageNum
-                      ? "bg-brand-600 text-white"
-                      : "border border-border hover:bg-surface-secondary"
-                      }`}
+                    className={`w-8 h-8 text-xs font-medium rounded-[var(--radius-md)] transition-all ${
+                      urlPage === pageNum
+                        ? "bg-brand-600 text-white"
+                        : "border border-border hover:bg-surface-secondary"
+                    }`}
                   >
                     {pageNum}
                   </button>

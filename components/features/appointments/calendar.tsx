@@ -33,28 +33,28 @@ const statusConfig: Record<
   { bg: string; border: string; text: string; dot: string }
 > = {
   scheduled: {
-    bg: "bg-brand-500",
-    border: "border-brand-600",
-    text: "text-white",
-    dot: "bg-white",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    text: "text-blue-800",
+    dot: "bg-blue-400",
   },
   in_waiting_room: {
-    bg: "bg-warning",
-    border: "border-warning/80",
-    text: "text-white",
-    dot: "bg-white animate-pulse",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-800",
+    dot: "bg-amber-400 animate-pulse",
   },
   in_progress: {
-    bg: "bg-success",
-    border: "border-success/80",
-    text: "text-white",
-    dot: "bg-white",
+    bg: "bg-brand-50",
+    border: "border-brand-200",
+    text: "text-brand-700",
+    dot: "bg-brand-500",
   },
   completed: {
-    bg: "bg-muted/40",
-    border: "border-muted/60",
-    text: "text-white",
-    dot: "bg-white",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    dot: "bg-emerald-500",
   },
   cancelled: {
     bg: "bg-danger/10",
@@ -332,9 +332,11 @@ export function Calendar({
                           className={cn(
                             "absolute rounded-md px-2 py-1 text-xs border cursor-pointer",
                             "transition-all hover:z-20 hover:shadow-md hover:-translate-y-0.5",
+                            config.bg,
+                            config.text,
                             apt.is_overbook
-                              ? "bg-warning hover:bg-warning/80 border-warning/90 text-white shadow-sm"
-                              : cn(config.bg, config.border, config.text),
+                              ? "border-l-4 border-l-purple-500 shadow-sm"
+                              : config.border,
                           )}
                           style={style}
                           onClick={(e) => {
@@ -343,14 +345,6 @@ export function Calendar({
                           }}
                         >
                           <div className="flex items-center gap-1 overflow-hidden">
-                            {apt.is_overbook && (
-                              <span
-                                className="text-[10px] flex-shrink-0"
-                                aria-hidden="true"
-                              >
-                                ⚠️
-                              </span>
-                            )}
                             <span className="font-semibold text-xs truncate">
                               {apt.patient?.first_name} {apt.patient?.last_name}
                             </span>

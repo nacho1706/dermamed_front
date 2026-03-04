@@ -99,7 +99,9 @@ export default function PatientDetailPage() {
   if (!patient) {
     return (
       <div className="p-6 text-center">
-        <p className="text-medical-600 font-medium">Paciente no encontrado</p>
+        <p className="text-muted-foreground font-medium">
+          Paciente no encontrado
+        </p>
         <Link href="/patients" className="mt-4 inline-block">
           <Button variant="outline">Volver al listado</Button>
         </Link>
@@ -169,97 +171,99 @@ export default function PatientDetailPage() {
               </div>
 
               <div className="w-full mt-6 space-y-4 text-left border-t border-brand-100 pt-6">
-                <div className="flex items-start gap-3 text-sm text-brand-600">
-                  <div className="bg-brand-50 p-2 rounded-lg text-brand-500 mt-0.5">
+                <div className="flex items-start gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground mt-0.5">
                     <CreditCard className="h-4 w-4" />
                   </div>
                   <div className="space-y-1">
                     <div>
-                      <p className="text-xs text-medical-400 font-medium">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         DNI
                       </p>
-                      <p className="font-semibold">{patient.dni || "—"}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {patient.dni || "—"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-medical-400 font-medium">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         CUIT/CUIL
                       </p>
-                      <p className="text-sm text-medical-600">
+                      <p className="text-sm font-semibold text-foreground">
                         {patient.cuit || "No registrado"}
                       </p>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-center gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-medical-400 font-medium">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Fecha de Nacimiento
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-sm font-semibold text-foreground">
                       {patient.birth_date
                         ? formatDate(patient.birth_date)
                         : "—"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-center gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-medical-400 font-medium">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Teléfono
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatPhone(patient.phone)}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-center gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-medical-400 font-medium">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Email
                     </p>
-                    <p className="font-semibold truncate max-w-[180px]">
+                    <p className="text-sm font-semibold text-foreground truncate max-w-[180px]">
                       {patient.email || "—"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-center gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground">
                     <MapPin className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-medical-400 font-medium">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Dirección
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-sm font-semibold text-foreground">
                       {patient.full_address || "—"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500">
+                <div className="flex items-center gap-3 text-sm text-foreground">
+                  <div className="bg-surface-secondary p-2 rounded-lg text-muted-foreground">
                     <Building className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-medical-400 font-medium">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Obra Social
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-sm font-semibold text-foreground">
                       {patient.insurance_provider || "Particular"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="w-full mt-6 pt-6 border-t border-medical-100">
+              <div className="w-full mt-6 pt-6 border-t border-border">
                 <Button
                   variant="outline"
                   className="w-full text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
@@ -283,7 +287,7 @@ export default function PatientDetailPage() {
                     className={`px-6 py-4 text-sm font-bold transition-colors ${
                       activeTab === "historial"
                         ? "border-b-2 border-brand-600 text-brand-900 bg-brand-50/50"
-                        : "text-brand-400 hover:text-brand-600"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Historial Clínico
@@ -294,7 +298,7 @@ export default function PatientDetailPage() {
                   className={`px-6 py-4 text-sm font-bold transition-colors ${
                     activeTab === "turnos"
                       ? "border-b-2 border-brand-600 text-brand-900 bg-brand-50/50"
-                      : "text-brand-400 hover:text-brand-600"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Turnos
@@ -305,8 +309,8 @@ export default function PatientDetailPage() {
               {isDoctor && activeTab === "historial" && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-medical-800 flex items-center gap-2">
-                      <ClipboardList className="h-5 w-5 text-medical-500" />
+                    <h3 className="font-bold text-foreground flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5 text-muted-foreground" />
                       Registros Médicos
                     </h3>
                     <Button
@@ -326,19 +330,19 @@ export default function PatientDetailPage() {
                       <Spinner />
                     </div>
                   ) : !recordsData?.data?.length ? (
-                    <div className="relative pl-8 space-y-12 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-medical-100">
+                    <div className="relative pl-8 space-y-12 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
                       <div className="relative">
-                        <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-medical-100 border-4 border-white flex items-center justify-center">
-                          <Clock className="h-3 w-3 text-medical-600" />
+                        <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-surface-secondary border-4 border-surface flex items-center justify-center">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-medical-500 uppercase">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Sin registros aún
                           </p>
-                          <h4 className="text-md font-bold text-medical-900 mt-1">
+                          <h4 className="text-base font-semibold text-foreground mt-1">
                             El historial del paciente está vacío
                           </h4>
-                          <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-dashed border-medical-200">
+                          <p className="text-sm text-foreground/90 leading-relaxed mt-2 bg-surface p-4 rounded-xl border border-dashed border-border">
                             Comienza registrando la primera consulta o estudio
                             realizado por el paciente.
                           </p>
@@ -346,25 +350,25 @@ export default function PatientDetailPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="relative pl-8 space-y-8 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-medical-100">
+                    <div className="relative pl-8 space-y-8 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
                       {recordsData.data.map((record) => (
                         <div key={record.id} className="relative">
-                          <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-medical-100 border-4 border-white flex items-center justify-center">
-                            <Stethoscope className="h-3 w-3 text-medical-600" />
+                          <div className="absolute -left-[2.15rem] top-1 h-7 w-7 rounded-full bg-surface-secondary border-4 border-surface flex items-center justify-center">
+                            <Stethoscope className="h-3 w-3 text-muted-foreground" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-medical-500 uppercase">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                               {formatLocalDate(
                                 record.date || record.created_at,
                               )}
                             </p>
-                            <h4 className="text-md font-bold text-medical-900 mt-1">
+                            <h4 className="text-base font-semibold text-foreground mt-1">
                               Consulta
                               {record.doctor
                                 ? ` — Dr. ${record.doctor.name}`
                                 : ""}
                             </h4>
-                            <p className="text-sm text-medical-600 mt-2 bg-white p-4 rounded-xl border border-medical-100 line-clamp-3 overflow-hidden">
+                            <p className="text-sm text-foreground/90 leading-relaxed mt-2 bg-surface p-4 rounded-xl border border-border line-clamp-3 overflow-hidden">
                               {record.content}
                             </p>
                             <Link
@@ -376,7 +380,7 @@ export default function PatientDetailPage() {
                             </Link>
 
                             {record.appointment?.service && (
-                              <p className="text-xs text-medical-400 mt-2">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">
                                 Servicio: {record.appointment.service.name}
                               </p>
                             )}
@@ -396,16 +400,16 @@ export default function PatientDetailPage() {
                     </div>
                   ) : !appointmentsData?.data?.length ? (
                     <div className="text-center py-8">
-                      <div className="bg-medical-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Calendar className="h-6 w-6 text-medical-300" />
+                      <div className="bg-surface-secondary w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Calendar className="h-6 w-6 text-muted-foreground" />
                       </div>
-                      <p className="text-sm font-medium text-medical-600">
+                      <p className="text-sm font-semibold text-foreground">
                         No hay turnos programados
                       </p>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="mt-2 text-medical-500 hover:text-medical-700"
+                        className="mt-2 text-muted-foreground hover:text-foreground"
                         onClick={() => router.push("/calendar")}
                       >
                         Agendar ahora
@@ -417,23 +421,27 @@ export default function PatientDetailPage() {
                         return (
                           <div
                             key={apt.id}
-                            className="flex items-center justify-between p-4 rounded-xl border border-medical-100 hover:bg-medical-50/30 transition-colors"
+                            className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-surface-secondary/50 transition-colors"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="bg-medical-50 p-2.5 rounded-lg">
-                                <Calendar className="h-4 w-4 text-medical-500" />
+                              <div className="bg-surface-secondary p-2.5 rounded-lg">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
                               </div>
                               <div>
-                                <p className="text-sm font-semibold text-medical-900">
+                                <p className="text-sm font-semibold text-foreground">
                                   {formatLocalDate(apt.scheduled_start_at)}{" "}
-                                  <span className="text-medical-500 font-normal">
+                                  <span className="text-muted-foreground font-medium">
                                     {formatLocalTime(apt.scheduled_start_at)} –{" "}
                                     {formatLocalTime(apt.scheduled_end_at)}
                                   </span>
                                 </p>
-                                <p className="text-xs text-medical-500 mt-0.5">
-                                  {apt.doctor ? `Dr. ${apt.doctor.name}` : ""}
-                                  {apt.service ? ` · ${apt.service.name}` : ""}
+                                <p className="text-xs font-medium text-foreground/80 mt-0.5 capitalize">
+                                  {apt.doctor
+                                    ? `Dr. ${apt.doctor.name.toLowerCase()}`
+                                    : ""}
+                                  {apt.service
+                                    ? ` · ${apt.service.name.toLowerCase()}`
+                                    : ""}
                                 </p>
                               </div>
                             </div>

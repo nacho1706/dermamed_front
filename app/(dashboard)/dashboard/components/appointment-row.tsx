@@ -355,7 +355,7 @@ export function AppointmentRow({
     }
 
     return (
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 w-max ml-auto">
         {mainAction}
         {kebabMenu && (
           <DropdownMenu modal={false}>
@@ -391,15 +391,7 @@ export function AppointmentRow({
     <tr
       className={`transition-opacity transition-colors ${opacityClass} ${delayedClass}`}
     >
-      <td className="px-6 py-3.5 whitespace-nowrap relative">
-        {appointment.is_overbook && (
-          <div
-            title="Sobreturno"
-            className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning cursor-help transition-colors hover:bg-warning/20"
-          >
-            <AlertCircle className="w-3 h-3" />
-          </div>
-        )}
+      <td className="px-6 py-3.5 whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">{time}</span>
       </td>
       <td className="px-6 py-3.5 max-w-0 w-full truncate">
@@ -421,6 +413,14 @@ export function AppointmentRow({
               <p className="text-[10px] text-muted-foreground truncate">
                 con {appointment.doctor.name}
               </p>
+            )}
+            {appointment.is_overbook && (
+              <span
+                title="Sobreturno"
+                className="inline-flex items-center justify-center px-1.5 py-0.5 mt-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 uppercase tracking-widest w-fit"
+              >
+                Sobreturno
+              </span>
             )}
             {appointment.patient && !appointment.patient.dni && (
               <span className="text-[10px] text-warning font-medium block leading-tight">

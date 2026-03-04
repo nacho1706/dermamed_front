@@ -64,19 +64,19 @@ export function PatientList({
           <table className="w-full text-left border-collapse table-fixed">
             <thead className="border-b border-border/60">
               <tr>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted/80 uppercase tracking-[0.05em] w-[35%]">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[35%]">
                   Paciente
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted/80 uppercase tracking-[0.05em] w-[17%]">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[17%]">
                   DNI
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted/80 uppercase tracking-[0.05em] w-[22%]">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[22%]">
                   Contacto
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted/80 uppercase tracking-[0.05em] w-[14%]">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[14%]">
                   Obra Social
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted/80 uppercase tracking-[0.05em] text-right w-[12%]">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] text-right w-[12%]">
                   Acción
                 </th>
               </tr>
@@ -120,12 +120,12 @@ export function PatientList({
                         <div className="ml-4 min-w-0">
                           <Link
                             href={`/patients/${patient.id}`}
-                            className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors block truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]"
+                            className="text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors block truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]"
                             title={patient.full_name}
                           >
                             {patient.full_name}
                           </Link>
-                          <div className="text-[11px] text-muted/70 mt-0.5">
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
                             Registrado el {formatDate(patient.created_at)}
                           </div>
                         </div>
