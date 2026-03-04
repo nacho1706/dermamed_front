@@ -53,6 +53,25 @@
 
 ---
 
+## Patrones de Arquitectura Frontend
+
+### 1. Data Layer Centralizado (TanStack Query)
+
+- **Regla**: NUNCA coloques llamadas directas a `useQuery` o `useMutation` (Lógica _fetching_ cruda) enrutadas directamente a los componentes de UI complejos o modales masivos.
+- **Acción**: Extrae siempre la comunicación a Custom Hooks centralizados (ej. `hooks/queries/usePatients.ts`, `hooks/mutations/useAppointments.ts`) promoviendo reutilización natural y allanando el camino para usar _Optimistic Updates_.
+
+### 2. Escalabilidad en Formularios (React Hook Form + FormProvider)
+
+- **Regla**: Evita la construcción de formularios o _Modales de Formularios_ de alto volumen en un único archivo, recurriendo al peligroso _prop-drilling_ transversal.
+- **Acción**: Desacopla formularios grandes (ej. Facturas o Fichas Clínicas) dividiendo la UI visual. Acto seguido, aprovecha el patrón envolvente `<FormProvider>` que orquesta la raíz e invoca el estado compartido implícitamente mediante `const {...} = useFormContext()` desde adentro del árbol.
+
+### 3. Zod Schemas como Contrato Estricto
+
+- **Regla**: Todo campo debe ser validado y poseer tipos inferidos estructuralmente mediante `z.infer`. No redactes tipos abstractos y constructores sueltos paralelos al formulario.
+- **Acción**: Delega las lógicas robustas de esquemas `z.object({...})` a ficheros como `[entidad]-schema.ts` dedicados que certifiquen el flujo predecible como una robusta fuente de la verdad para el `zodResolver`.
+
+---
+
 > **Antes de modificar componentes UI**, leé el skill `interface-design` en `.agent/skills/interface-design/SKILL.md`.
 > **Antes de escribir lógica React/Next.js**, leé el skill `vercel-react-best-practices` en `.agent/skills/vercel-react-best-practices/SKILL.md`.
 
@@ -171,3 +190,5 @@ Borders-only con subtle shadows en elevated surfaces (modals, dropdowns). Sin dr
 
 - **Problema**: Usar `dark:` en clases de Tailwind causa backgrounds negros en macOS dark mode → **Solución**: No usar `dark:` nunca. La app es light-mode only.
 - **Problema**: Componentes con colores hardcodeados (`bg-white`, `text-gray-900`) → **Solución**: Siempre usar tokens del design system (`bg-surface`, `text-foreground`).
+- **Problema**: Errores en tiempo de compilación por inconsistencias de Tailwin v4 al actualizar archivos de forma progresiva → **Solución**: Al estar modernizando y estandarizando, dejar configuradas las alertas de colores _hardcoded_ en `warn` en el ESLint minimizando falsos positivos e intervenciones fallidas del build pipeline hasta terminar de limpiar al 100%.
+- **Problema**: Acoplamiento al particionar UI sucia ("Buscar y Reemplazar" nocivo) → **Solución**: La regla cardinal dicta que antes de empezar a segmentar UI de Vistas/Modales gigantes, se debe asentar, testear y asegurar la capa de datos global ("Data Layer" / hooks y queries). Recién con la fuente de fetch predecible procedemos a fracturar la UI visual asegurando un _prop-drilling_ nulo.
