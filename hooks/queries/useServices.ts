@@ -54,8 +54,13 @@ export function useCreateService() {
 export function useUpdateService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
-      updateService(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<import("@/types").Service>;
+    }) => updateService(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
       queryClient.invalidateQueries({ queryKey: ["services", variables.id] });

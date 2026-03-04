@@ -9,6 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -68,7 +69,13 @@ export function CashShiftWidget() {
             setJustification("");
             router.refresh();
         },
-        onError: () => toast.error("Error al cerrar la caja diaria"),
+        onError: (error: any) => {
+            const msg =
+                error.response?.data?.message ||
+                error.response?.data?.errors?.cash_shift?.[0] ||
+                "Error al cerrar la caja diaria";
+            toast.error(msg);
+        },
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -168,6 +175,7 @@ export function CashShiftWidget() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{isOpen ? 'Cerrar Caja Diaria' : 'Abrir Caja Diaria'}</DialogTitle>
+                        <DialogDescription className="hidden">Agrega el monto para gestionar la caja diaria</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div>
@@ -220,9 +228,10 @@ export function CashShiftWidget() {
                                         onChange={(e) => setJustification(e.target.value)}
                                         placeholder="Ingrese el motivo del descuadre (ej. Gasto menor, error en vuelto)..."
                                         className="flex min-h-[80px] w-full rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-foreground overflow-auto"
-                                        required
-                                        minLength={10}
                                     />
+                                    {isOpen && cashShift?.expected_balance !== undefined && Math.abs(parseFloat(balanceInput || "0") - cashShift.expected_balance) > 0.01 && (!justification || justification.length < 10) && (
+                                        <span className="text-red-500 text-sm mt-1 block">Completa este campo (min. 10 caracteres).</span>
+                                    )}
                                 </div>
                             )}
                         </div>
