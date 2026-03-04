@@ -28,6 +28,8 @@ import { useUsers } from "@/hooks/queries/useUsers";
 import { useServices } from "@/hooks/queries/useServices";
 import { useAuth } from "@/contexts/auth-context";
 import { PatientSelector } from "./patient-selector";
+import { DoctorSelector } from "./doctor-selector";
+import { ServiceSelector } from "./service-selector";
 import {
   getDoctorAvailabilities,
   DoctorAvailability,
@@ -223,7 +225,7 @@ export function AppointmentModal({
   }, [selectedDate, availabilityData]);
 
   const { data: doctorsData } = useUsers({ role: "doctor", cantidad: 100 });
-  const { data: servicesData } = useServices();
+  const { data: servicesData } = useServices({ cantidad: 100 });
 
   // Reset form on open/initialData change
   useEffect(() => {
@@ -429,67 +431,17 @@ export function AppointmentModal({
             />
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Doctor Select */}
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="doctor_id"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Médico
-                </Label>
-                <Controller
-                  name="doctor_id"
-                  control={control}
-                  render={({ field }) => (
-                    <FilterableSelect
-                      value={field.value}
-                      onChange={(val) => field.onChange(val ? String(val) : "")}
-                      options={(doctorsData?.data || []).map((d) => ({
-                        label: `Dr. ${d.name}`,
-                        value: String(d.id),
-                      }))}
-                      placeholder="Seleccionar médico"
-                      disabled={isDoctor || isReadOnly}
-                    />
-                  )}
-                />
-                {errors.doctor_id && (
-                  <p className="text-xs text-danger font-medium">
-                    {errors.doctor_id.message}
-                  </p>
-                )}
-              </div>
+              <DoctorSelector
+                form={form}
+                doctors={doctorsData?.data || []}
+                disabled={isDoctor || isReadOnly}
+              />
 
-              {/* Service Select */}
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="service_id"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Servicio
-                </Label>
-                <Controller
-                  name="service_id"
-                  control={control}
-                  render={({ field }) => (
-                    <FilterableSelect
-                      value={field.value}
-                      onChange={(val) => field.onChange(val ? String(val) : "")}
-                      options={(servicesData?.data || []).map((s) => ({
-                        label: `${s.name} (${s.duration_minutes} min)`,
-                        value: String(s.id),
-                      }))}
-                      placeholder="Seleccionar servicio"
-                      disabled={isReadOnly}
-                    />
-                  )}
-                />
-                {errors.service_id && (
-                  <p className="text-xs text-danger font-medium">
-                    {errors.service_id.message}
-                  </p>
-                )}
-              </div>
+              <ServiceSelector
+                form={form}
+                services={servicesData?.data || []}
+                disabled={isReadOnly}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -19,7 +19,7 @@ export const UserSchema = z.object({
     z.number().transform((v) => v === 1),
     z.string().transform((v) => v === "1" || v === "true"),
   ]),
-  status: z.enum(["active", "pending_activation"]),
+  status: z.enum(["active", "pending_activation"]).optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
