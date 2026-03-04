@@ -59,34 +59,34 @@ export function PatientList({
         </div>
       </div>
 
-      <Card className="overflow-hidden border-border/40 shadow-sm ring-1 ring-border/5">
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse table-fixed">
-            <thead className="border-b border-border/60">
+            <thead className="border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[35%]">
+                <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider w-[35%]">
                   Paciente
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[17%]">
+                <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider w-[17%]">
                   DNI
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[22%]">
+                <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider w-[22%]">
                   Contacto
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] w-[14%]">
+                <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider w-[14%]">
                   Obra Social
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] text-right w-[12%]">
+                <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider text-right w-[12%]">
                   Acción
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60 bg-surface">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center">
                     <Spinner size="lg" className="mx-auto" />
-                    <p className="mt-2 text-sm text-muted">
+                    <p className="mt-2 text-sm text-slate-500">
                       Cargando pacientes...
                     </p>
                   </td>
@@ -94,13 +94,13 @@ export function PatientList({
               ) : patients.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center">
-                    <div className="bg-surface-secondary w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div className="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Search className="h-6 w-6 text-brand-300" />
                     </div>
-                    <p className="text-foreground/90 font-medium">
+                    <p className="text-slate-700 font-medium">
                       No se encontraron pacientes
                     </p>
-                    <p className="text-sm text-muted mt-1">
+                    <p className="text-sm text-slate-500 mt-1">
                       Intenta con otros términos de búsqueda.
                     </p>
                   </td>
@@ -109,7 +109,7 @@ export function PatientList({
                 patients.map((patient) => (
                   <tr
                     key={patient.id}
-                    className="hover:bg-surface-secondary/40 transition-colors group"
+                    className="hover:bg-slate-50 transition-colors group"
                   >
                     <td className="px-6 py-4 max-w-0 w-full truncate">
                       <div className="flex items-center">
@@ -120,33 +120,33 @@ export function PatientList({
                         <div className="ml-4 min-w-0">
                           <Link
                             href={`/patients/${patient.id}`}
-                            className="text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors block truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]"
+                            className="text-sm font-semibold text-slate-900 hover:text-brand-600 transition-colors block truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]"
                             title={patient.full_name}
                           >
                             {patient.full_name}
                           </Link>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                          <div className="text-xs text-slate-400 mt-0.5">
                             Registrado el {formatDate(patient.created_at)}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-foreground/90 font-medium">
+                      <div className="text-sm text-slate-900 font-medium">
                         {patient.dni || "—"}
                       </div>
                       {patient.cuit && (
-                        <div className="text-[11px] text-muted mt-0.5">
+                        <div className="text-xs text-slate-500 mt-0.5">
                           CUIL: {patient.cuit}
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 max-w-0 w-full truncate">
-                      <div className="text-sm text-foreground/90">
+                      <div className="text-sm text-slate-700">
                         {patient.phone || "—"}
                       </div>
                       <div
-                        className="text-xs text-muted truncate"
+                        className="text-xs text-slate-500 truncate"
                         title={patient.email || ""}
                       >
                         {patient.email || "—"}
@@ -163,7 +163,7 @@ export function PatientList({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-muted hover:text-foreground hover:bg-surface-secondary"
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700 hover:bg-slate-100"
                             title="Editar Datos"
                           >
                             <Edit className="h-4 w-4" />
@@ -179,8 +179,8 @@ export function PatientList({
         </div>
 
         {meta && meta.last_page > 1 && (
-          <div className="px-6 py-4 bg-surface-secondary/50 border-t border-border flex items-center justify-between">
-            <div className="text-sm text-muted">
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <div className="text-sm text-slate-500">
               Mostrando <span className="font-semibold">{meta.from}</span> a{" "}
               <span className="font-semibold">{meta.to}</span> de{" "}
               <span className="font-semibold">{meta.total}</span> pacientes

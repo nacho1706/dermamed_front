@@ -384,8 +384,8 @@ export function AppointmentRow({
         : "hover:bg-slate-50";
 
   const delayedClass = isDelayed
-    ? "bg-amber-50 border-l-4 border-amber-400"
-    : "border-l-4 border-transparent";
+    ? "border-l-4 border-l-amber-400"
+    : "border-l-4 border-l-transparent";
 
   return (
     <tr
