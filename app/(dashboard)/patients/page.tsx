@@ -99,11 +99,11 @@ export default function PatientsPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-brand-900">
+            <h1 className="text-2xl font-bold text-slate-900">
               Gestión de Pacientes
             </h1>
             {data?.meta?.total !== undefined && (
-              <span className="bg-brand-100 text-brand-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-brand-200">
+              <span className="text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-slate-500">
                 {data.meta.total}{" "}
                 {data.meta.total === 1 ? "resultado" : "resultados"}
               </span>

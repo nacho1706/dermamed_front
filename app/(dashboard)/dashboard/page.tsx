@@ -302,7 +302,7 @@ export default function DashboardPage() {
               </h2>
               <Link
                 href="/appointments"
-                className="text-sm text-slate-900 hover:text-brand-600 font-medium transition-colors"
+                className="text-sm text-slate-500 hover:text-brand-600 font-medium transition-colors"
               >
                 Ver Calendario Completo
               </Link>
