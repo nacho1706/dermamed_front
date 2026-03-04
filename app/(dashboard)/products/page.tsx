@@ -551,22 +551,22 @@ export default function ProductsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3">
                     Producto
                   </th>
-                  <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3 hidden md:table-cell">
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 hidden md:table-cell">
                     Marca
                   </th>
-                  <th className="text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
+                  <th className="text-center text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3">
                     Stock
                   </th>
-                  <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
+                  <th className="text-right text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3">
                     Precio
                   </th>
-                  <th className="text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
+                  <th className="text-center text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3">
                     Estado
                   </th>
-                  <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground px-6 py-3">
+                  <th className="text-right text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3">
                     Acciones
                   </th>
                 </tr>
