@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { CashShift } from "@/types";
+import type { CashShift, CashExpense, CashExpensePayload } from "@/types";
 
 export async function getCurrentCashShift(): Promise<CashShift | null> {
     try {
@@ -29,4 +29,9 @@ export async function closeCashShift(closingBalance: number, justification?: str
 export async function getCashShifts(params?: { pagina?: number }): Promise<any> {
     const response = await api.get("/cash-shifts", { params: { page: params?.pagina } });
     return response.data;
+}
+
+export async function createExpense(data: CashExpensePayload): Promise<CashExpense> {
+    const response = await api.post<{ data: CashExpense }>("/cash-expenses", data);
+    return response.data.data;
 }

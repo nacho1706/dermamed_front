@@ -34,11 +34,12 @@ import {
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
-import { Wallet, FileText, DollarSign, Clock, CheckCircle2, MoreVertical, Plus, Receipt, Eye, Trash2, AlertCircle, History } from "lucide-react";
+import { Wallet, FileText, DollarSign, Clock, CheckCircle2, MoreVertical, Plus, Receipt, Eye, Trash2, AlertCircle, History, MinusCircle } from "lucide-react";
 import { getCurrentCashShift } from "@/services/cash-shifts";
 import { InvoiceFormModal } from "./components/InvoiceFormModal";
 import { CashShiftWidget } from "./components/CashShiftWidget";
 import { InvoiceHistoryModal } from "./components/InvoiceHistoryModal";
+import { ExpenseFormModal } from "./components/ExpenseFormModal";
 import type { Invoice, Patient } from "@/types";
 import {
   DropdownMenu,
@@ -455,6 +456,7 @@ export default function InvoicesPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -569,15 +571,26 @@ export default function InvoicesPage() {
             Gestión de comprobantes, cobros y pagos de pacientes.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setSelectedInvoice(undefined);
-            setIsFormOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Factura
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setIsExpenseModalOpen(true)}
+            disabled={!cashShift || cashShift.status !== "open"}
+            className="text-red-600 border-red-300 hover:bg-red-50"
+          >
+            <MinusCircle className="w-4 h-4 mr-2" />
+            Registrar Egreso
+          </Button>
+          <Button
+            onClick={() => {
+              setSelectedInvoice(undefined);
+              setIsFormOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Factura
+          </Button>
+        </div>
       </div>
 
       <CashShiftWidget />
@@ -650,139 +663,188 @@ export default function InvoicesPage() {
             <div className="flex justify-center py-20">
               <Spinner size="lg" />
             </div>
-          ) : invoices.length === 0 ? (
-            <div className="text-center py-20 text-muted">
-              <FileText className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p>No se encontraron facturas</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-surface-secondary/50 border-b border-border">
-                <tr>
-                  <th className="text-left font-semibold text-muted px-4 py-3">
-                    Nº
-                  </th>
-                  <th className="text-left font-semibold text-muted px-4 py-3">
-                    Fecha
-                  </th>
-                  <th className="text-left font-semibold text-muted px-4 py-3">
-                    Paciente
-                  </th>
-                  <th className="text-left font-semibold text-muted px-4 py-3">
-                    Tipo
-                  </th>
-                  <th className="text-right font-semibold text-muted px-4 py-3 whitespace-nowrap">
-                    Pagado / Anticipo
-                  </th>
-                  <th className="text-right font-semibold text-muted px-4 py-3">
-                    Total
-                  </th>
-                  <th className="text-center font-semibold text-muted px-4 py-3">
-                    Estado
-                  </th>
-                  <th className="text-right font-semibold text-muted px-4 py-3">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-surface-secondary/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs">{inv.id}</td>
-                    <td className="px-4 py-3">
-                      {formatLocalDateTime(inv.created_at)}
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      {inv.patient
-                        ? `${inv.patient.first_name} ${inv.patient.last_name}`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {inv.voucher_type?.name || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-emerald-600">
-                      {formatCurrency(inv.payments?.reduce((acc, p) => acc + Number(p.amount), 0) || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium">
-                      {formatCurrency(inv.total)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(inv.status)}`}
-                      >
-                        {getStatusLabel(inv.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDetail(inv)}
-                        title="Ver Detalle"
-                        className="p-2"
-                      >
-                        <Eye className="w-4 h-4 text-muted hover:text-foreground" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="p-2">
-                            <MoreVertical className="w-4 h-4 text-muted hover:text-foreground" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openEdit(inv)}
-                            disabled={
-                              inv.status === "paid" ||
-                              (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opening_time)))
-                            }
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            Editar Factura
-                          </DropdownMenuItem>
-                          {(inv.status === "pending" || inv.status === "draft") && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedInvoice(inv);
-                                setIsPaymentOpen(true);
-                              }}
-                            >
-                              <DollarSign className="w-4 h-4 mr-2 text-emerald-600" />
-                              Registrar Pago
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedInvoice(inv);
-                              setIsHistoryOpen(true);
-                            }}
-                          >
-                            <History className="w-4 h-4 mr-2 text-blue-600" />
-                            Ver Historial
-                          </DropdownMenuItem>
-                          {!isReceptionist && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(inv.id)}
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
+          ) : (() => {
+            // ─── Construir Libro Diario unificado ───────────────────────
+            type ExpenseRow = { _type: "expense"; id: number; amount: number; description: string; created_at: string };
+            type InvoiceRow = { _type: "invoice" } & typeof invoices[0];
+            type Row = ExpenseRow | InvoiceRow;
+
+            const expenseRows: ExpenseRow[] = (cashShift?.expenses ?? []).map((e) => ({
+              _type: "expense" as const,
+              id: e.id,
+              amount: e.amount,
+              description: e.description,
+              created_at: e.created_at,
+            }));
+
+            const invoiceRows: InvoiceRow[] = invoices.map((inv) => ({ _type: "invoice" as const, ...inv }));
+
+            const combined: Row[] = [...invoiceRows, ...expenseRows].sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+
+            if (combined.length === 0) {
+              return (
+                <div className="text-center py-20 text-muted">
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                  <p>No se encontraron registros</p>
+                </div>
+              );
+            }
+
+            return (
+              <table className="w-full text-sm">
+                <thead className="bg-surface-secondary/50 border-b border-border">
+                  <tr>
+                    <th className="text-left font-semibold text-muted px-4 py-3">Nº</th>
+                    <th className="text-left font-semibold text-muted px-4 py-3">Fecha</th>
+                    <th className="text-left font-semibold text-muted px-4 py-3">Paciente / Concepto</th>
+                    <th className="text-left font-semibold text-muted px-4 py-3">Tipo</th>
+                    <th className="text-right font-semibold text-muted px-4 py-3 whitespace-nowrap">Pagado / Monto</th>
+                    <th className="text-right font-semibold text-muted px-4 py-3">Total</th>
+                    <th className="text-center font-semibold text-muted px-4 py-3">Estado</th>
+                    <th className="text-right font-semibold text-muted px-4 py-3">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {combined.map((row) => {
+                    if (row._type === "expense") {
+                      return (
+                        <tr
+                          key={`expense-${row.id}`}
+                          className="hover:bg-red-50/30 transition-colors bg-red-50/10"
+                        >
+                          <td className="px-4 py-3 font-mono text-xs text-red-400">—</td>
+                          <td className="px-4 py-3 text-muted text-xs">
+                            {formatLocalDateTime(row.created_at)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700 font-medium text-xs max-w-[200px] truncate">
+                            {row.description}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200 hover:bg-red-50 transition-colors">
+                              Egreso de Caja
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-red-600 font-mono whitespace-nowrap">
+                            -{formatCurrency(row.amount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-red-600 font-mono whitespace-nowrap">
+                            -{formatCurrency(row.amount)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border text-red-700 bg-red-50 border-red-200">
+                              Completado
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {/* Sin acciones para egresos */}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    // Invoice row
+                    const inv = row;
+                    return (
+                      <tr
+                        key={`invoice-${inv.id}`}
+                        className="hover:bg-surface-secondary/30 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-mono text-xs">{inv.id}</td>
+                        <td className="px-4 py-3">
+                          {formatLocalDateTime(inv.created_at)}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {inv.patient
+                            ? `${inv.patient.first_name} ${inv.patient.last_name}`
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {inv.voucher_type?.name || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-emerald-600">
+                          {formatCurrency(inv.payments?.reduce((acc, p) => acc + Number(p.amount), 0) || 0)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">
+                          {formatCurrency(inv.total)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(inv.status)}`}
+                          >
+                            {getStatusLabel(inv.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDetail(inv)}
+                            title="Ver Detalle"
+                            className="p-2"
+                          >
+                            <Eye className="w-4 h-4 text-muted hover:text-foreground" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="p-2">
+                                <MoreVertical className="w-4 h-4 text-muted hover:text-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => openEdit(inv)}
+                                disabled={
+                                  inv.status === "paid" ||
+                                  (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opening_time)))
+                                }
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                Editar Factura
+                              </DropdownMenuItem>
+                              {(inv.status === "pending" || inv.status === "draft") && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedInvoice(inv);
+                                    setIsPaymentOpen(true);
+                                  }}
+                                >
+                                  <DollarSign className="w-4 h-4 mr-2 text-emerald-600" />
+                                  Registrar Pago
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedInvoice(inv);
+                                  setIsHistoryOpen(true);
+                                }}
+                              >
+                                <History className="w-4 h-4 mr-2 text-blue-600" />
+                                Ver Historial
+                              </DropdownMenuItem>
+                              {!isReceptionist && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(inv.id)}
+                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Eliminar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
 
         {/* Pagination logic similar to products... logic omitted for brevity as it's standard */}
@@ -835,6 +897,13 @@ export default function InvoicesPage() {
         onClose={() => setIsHistoryOpen(false)}
         invoiceId={selectedInvoice?.id}
       />
+      {cashShift && (
+        <ExpenseFormModal
+          isOpen={isExpenseModalOpen}
+          onClose={() => setIsExpenseModalOpen(false)}
+          cashShiftId={cashShift.id}
+        />
+      )}
     </div>
   );
 }

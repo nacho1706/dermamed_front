@@ -256,6 +256,12 @@ export function CashShiftWidget() {
                         {formatCurrency(cashShift.total_incomes || 0)}
                       </span>
                     </div>
+                    {(cashShift.total_expenses ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm text-red-600 font-medium">
+                        <span>Egresos registrados:</span>
+                        <span>- {formatCurrency(cashShift.total_expenses || 0)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t border-border">
                     <span className="text-foreground">Total Esperado:</span>
@@ -290,7 +296,7 @@ export function CashShiftWidget() {
                       cashShift?.expected_balance !== undefined &&
                       Math.abs(
                         parseFloat(balanceInput || "0") -
-                          cashShift.expected_balance,
+                        cashShift.expected_balance,
                       ) > 0.01 &&
                       (!justification || justification.length < 10) && (
                         <span className="text-danger text-sm mt-1 block">
