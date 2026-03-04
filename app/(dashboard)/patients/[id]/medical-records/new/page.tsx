@@ -217,11 +217,11 @@ function MedicalRecordFormContent() {
   if (!patient) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center h-64">
-        <User className="h-12 w-12 text-medical-300 mb-4" />
-        <h2 className="text-xl font-bold text-medical-800">
+        <User className="h-12 w-12 text-brand-300 mb-4" />
+        <h2 className="text-xl font-bold text-foreground">
           Paciente no encontrado
         </h2>
-        <p className="text-medical-500 mt-2">
+        <p className="text-muted mt-2">
           El paciente que intentas acceder no existe o fue eliminado.
         </p>
         <Button
@@ -250,10 +250,10 @@ function MedicalRecordFormContent() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-medical-900">
+            <h1 className="text-2xl font-bold text-brand-900">
               Nueva Evolución Clínica
             </h1>
-            <p className="text-sm text-medical-500 flex items-center gap-2">
+            <p className="text-sm text-brand-500 flex items-center gap-2">
               <User className="h-4 w-4" />
               Paciente: {patient.full_name}
             </p>
@@ -264,31 +264,29 @@ function MedicalRecordFormContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient Context Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-medical-200 shadow-sm bg-medical-50/50">
-            <CardHeader className="pb-3 border-b border-medical-100">
-              <CardTitle className="text-sm font-semibold text-medical-800 flex items-center gap-2">
-                <User className="h-4 w-4 text-medical-500" />
+          <Card className="border-brand-200 shadow-sm bg-surface-secondary/50">
+            <CardHeader className="pb-3 border-b border-brand-100">
+              <CardTitle className="text-sm font-semibold text-brand-800 flex items-center gap-2">
+                <User className="h-4 w-4 text-brand-500" />
                 Datos del Paciente
               </CardTitle>
             </CardHeader>
             <CardBody className="p-4 space-y-3 text-sm">
               <div className="flex justify-between items-center py-1">
-                <span className="text-medical-500 font-medium">Nombre</span>
-                <span className="font-semibold text-medical-900">
+                <span className="text-brand-500 font-medium">Nombre</span>
+                <span className="font-semibold text-brand-900">
                   {patient.full_name}
                 </span>
               </div>
-              <div className="flex justify-between items-center py-1 border-t border-medical-100">
-                <span className="text-medical-500 font-medium">DNI/CUIT</span>
-                <span className="font-medium text-medical-700">
+              <div className="flex justify-between items-center py-1 border-t border-brand-100">
+                <span className="text-brand-500 font-medium">DNI/CUIT</span>
+                <span className="font-medium text-brand-700">
                   {patient.cuit || "—"}
                 </span>
               </div>
-              <div className="flex justify-between items-center py-1 border-t border-medical-100">
-                <span className="text-medical-500 font-medium">
-                  Obra Social
-                </span>
-                <span className="font-medium text-medical-700">
+              <div className="flex justify-between items-center py-1 border-t border-brand-100">
+                <span className="text-brand-500 font-medium">Obra Social</span>
+                <span className="font-medium text-brand-700">
                   {patient.insurance_provider || "Particular"}
                 </span>
               </div>
@@ -316,10 +314,10 @@ function MedicalRecordFormContent() {
 
         {/* Main Form Area */}
         <div className="lg:col-span-2">
-          <Card className="border-medical-200 shadow-sm">
-            <CardHeader className="border-b border-medical-100 bg-white">
-              <CardTitle className="text-lg font-bold text-medical-900 flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-medical-600" />
+          <Card className="border-brand-200 shadow-sm">
+            <CardHeader className="border-b border-brand-100 bg-surface">
+              <CardTitle className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-brand-600" />
                 Detalle Clínico
               </CardTitle>
             </CardHeader>
@@ -330,17 +328,17 @@ function MedicalRecordFormContent() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="date" className="text-medical-700">
+                    <Label htmlFor="date" className="text-brand-700">
                       Fecha de Registro
                     </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Calendar className="h-4 w-4 text-medical-400" />
+                        <Calendar className="h-4 w-4 text-brand-400" />
                       </div>
                       <Input
                         id="date"
                         type="date"
-                        className={`pl-10 border-medical-200 focus:border-medical-400 focus:ring-medical-400 ${appointmentId ? "bg-medical-50 text-medical-500 cursor-not-allowed" : ""}`}
+                        className={`pl-10 border-brand-200 focus:border-brand-400 focus:ring-brand-400 ${appointmentId ? "bg-surface-secondary text-muted cursor-not-allowed" : ""}`}
                         readOnly={!!appointmentId}
                         {...form.register("date")}
                       />
@@ -354,13 +352,13 @@ function MedicalRecordFormContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="content" className="text-medical-700">
+                  <Label htmlFor="content" className="text-brand-700">
                     Evolución Médica
                   </Label>
                   <Textarea
                     id="content"
                     placeholder="Escriba los detalles de la consulta, síntomas, diagnóstico y tratamiento aquí..."
-                    className="min-h-[300px] border-medical-200 focus:border-medical-400 focus:ring-medical-400 resize-y p-4 text-base leading-relaxed"
+                    className="min-h-[300px] border-brand-200 focus:border-brand-400 focus:ring-brand-400 resize-y p-4 text-base leading-relaxed"
                     {...form.register("content")}
                   />
                   {form.formState.errors.content && (
@@ -370,7 +368,7 @@ function MedicalRecordFormContent() {
                   )}
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-medical-100 gap-3">
+                <div className="flex justify-end pt-4 border-t border-brand-100 gap-3">
                   <Button
                     type="button"
                     variant="outline"

@@ -44,10 +44,8 @@ export default function NewPatientPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-medical-900">
-            Nuevo Paciente
-          </h1>
-          <p className="text-medical-600">
+          <h1 className="text-2xl font-bold text-brand-900">Nuevo Paciente</h1>
+          <p className="text-muted">
             Completa el formulario para registrar un nuevo paciente.
           </p>
         </div>

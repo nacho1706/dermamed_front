@@ -42,11 +42,11 @@ function ReadOnlyMedicalRecordContent() {
   if (!record) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center h-64">
-        <ClipboardList className="h-12 w-12 text-medical-300 mb-4" />
-        <h2 className="text-xl font-bold text-medical-800">
+        <ClipboardList className="h-12 w-12 text-brand-300 mb-4" />
+        <h2 className="text-xl font-bold text-foreground">
           Registro Médico no encontrado
         </h2>
-        <p className="text-medical-500 mt-2">
+        <p className="text-muted mt-2">
           El registro médico que intentas acceder no existe o no está
           disponible.
         </p>
@@ -77,7 +77,7 @@ function ReadOnlyMedicalRecordContent() {
             Volver al perfil
           </Button>
         </div>
-        <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-200">
+        <div className="bg-success/10 text-success px-3 py-1 rounded-full text-xs font-semibold border border-success/20">
           Registro Finalizado
         </div>
       </div>
@@ -85,50 +85,50 @@ function ReadOnlyMedicalRecordContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Context Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-medical-200 shadow-sm bg-medical-50/50">
-            <CardHeader className="pb-3 border-b border-medical-100">
-              <CardTitle className="text-sm font-semibold text-medical-800 flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-medical-500" />
+          <Card className="border-brand-200 shadow-sm bg-surface-secondary/50">
+            <CardHeader className="pb-3 border-b border-brand-100">
+              <CardTitle className="text-sm font-semibold text-brand-800 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-brand-500" />
                 Detalles del Registro
               </CardTitle>
             </CardHeader>
             <CardBody className="p-4 space-y-4 text-sm">
               <div className="space-y-1">
-                <span className="text-xs text-medical-400 font-medium uppercase tracking-wider">
+                <span className="text-xs text-brand-400 font-medium uppercase tracking-wider">
                   Fecha de la Evolución
                 </span>
-                <div className="flex items-center gap-2 font-semibold text-medical-900">
-                  <Calendar className="w-4 h-4 text-medical-500" />
+                <div className="flex items-center gap-2 font-semibold text-brand-900">
+                  <Calendar className="w-4 h-4 text-brand-500" />
                   {formatLocalDate(record.date)}
                 </div>
               </div>
 
-              <div className="space-y-1 pt-3 border-t border-medical-100">
-                <span className="text-xs text-medical-400 font-medium uppercase tracking-wider">
+              <div className="space-y-1 pt-3 border-t border-brand-100">
+                <span className="text-xs text-brand-400 font-medium uppercase tracking-wider">
                   Paciente
                 </span>
-                <div className="flex items-center gap-2 font-medium text-medical-800">
-                  <User className="w-4 h-4 text-medical-500" />
+                <div className="flex items-center gap-2 font-medium text-brand-800">
+                  <User className="w-4 h-4 text-brand-500" />
                   {record.patient?.full_name || "Desconocido"}
                 </div>
               </div>
 
-              <div className="space-y-1 pt-3 border-t border-medical-100">
-                <span className="text-xs text-medical-400 font-medium uppercase tracking-wider">
+              <div className="space-y-1 pt-3 border-t border-brand-100">
+                <span className="text-xs text-brand-400 font-medium uppercase tracking-wider">
                   Profesional
                 </span>
-                <div className="flex items-center gap-2 font-medium text-medical-800">
-                  <Stethoscope className="w-4 h-4 text-medical-500" />
+                <div className="flex items-center gap-2 font-medium text-brand-800">
+                  <Stethoscope className="w-4 h-4 text-brand-500" />
                   {record.doctor ? `Dr. ${record.doctor.name}` : "Sistema"}
                 </div>
               </div>
 
               {record.appointment?.service && (
-                <div className="space-y-1 pt-3 border-t border-medical-100">
-                  <span className="text-xs text-medical-400 font-medium uppercase tracking-wider">
+                <div className="space-y-1 pt-3 border-t border-brand-100">
+                  <span className="text-xs text-brand-400 font-medium uppercase tracking-wider">
                     Servicio Vinculado
                   </span>
-                  <div className="font-medium text-medical-800">
+                  <div className="font-medium text-brand-800">
                     {record.appointment.service.name}
                   </div>
                 </div>
@@ -139,14 +139,14 @@ function ReadOnlyMedicalRecordContent() {
 
         {/* Clinical Content */}
         <div className="lg:col-span-2">
-          <Card className="border-medical-200 shadow-sm h-full">
-            <CardHeader className="border-b border-medical-100 bg-white">
-              <CardTitle className="text-lg font-bold text-medical-900 flex items-center gap-2">
+          <Card className="border-brand-200 shadow-sm h-full">
+            <CardHeader className="border-b border-brand-100 bg-surface">
+              <CardTitle className="text-lg font-bold text-brand-900 flex items-center gap-2">
                 Evolución Médica
               </CardTitle>
             </CardHeader>
-            <CardBody className="p-8 bg-white min-h-[400px]">
-              <div className="prose prose-sm max-w-none text-medical-800 leading-relaxed whitespace-pre-wrap">
+            <CardBody className="p-8 bg-surface min-h-[400px]">
+              <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap">
                 {record.content}
               </div>
             </CardBody>

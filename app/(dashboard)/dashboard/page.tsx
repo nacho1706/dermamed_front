@@ -328,19 +328,19 @@ export default function DashboardPage() {
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-border/60">
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[12%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted/80 px-6 py-3 w-[12%]">
                         Hora
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[25%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted/80 px-6 py-3 w-[25%]">
                         Paciente
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 hidden md:table-cell w-[25%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted/80 px-6 py-3 hidden md:table-cell w-[25%]">
                         Tipo
                       </th>
-                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[24%]">
+                      <th className="text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted/80 px-6 py-3 w-[24%]">
                         Estado
                       </th>
-                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-medical-600/80 px-6 py-3 w-[14%]">
+                      <th className="text-right text-[11px] font-bold uppercase tracking-[0.05em] text-muted/80 px-6 py-3 w-[14%]">
                         Acción
                       </th>
                     </tr>

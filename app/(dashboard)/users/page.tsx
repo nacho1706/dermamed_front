@@ -64,7 +64,7 @@ const ROLE_STYLES: Record<string, string> = {
 
 function RoleBadge({ role }: { role: Role }) {
   const style =
-    ROLE_STYLES[role.name] ?? "bg-gray-50 text-gray-700 border-gray-200";
+    ROLE_STYLES[role.name] ?? "bg-surface-secondary text-muted border-border";
   const label = ROLE_LABELS[role.name] ?? role.name;
 
   return (
@@ -326,7 +326,7 @@ function UserFormModal({
                   type="button"
                   onClick={() => setIsActive(!isActive)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
-                    isActive ? "bg-brand-600" : "bg-gray-200"
+                    isActive ? "bg-brand-600" : "bg-border"
                   }`}
                 >
                   <span
@@ -470,8 +470,8 @@ export default function UsersPage() {
           label="Total Usuarios"
           value={totalUsersData?.meta?.total ?? "..."}
           icon={Users}
-          iconBg="bg-gray-100"
-          iconColor="text-gray-600"
+          iconBg="bg-surface-secondary"
+          iconColor="text-muted"
         />
         <KpiCard
           label="Doctores"
@@ -611,7 +611,9 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <StatusBadge user={user} />
+                      <StatusBadge
+                        user={{ ...user, status: user.status ?? "active" }}
+                      />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -631,7 +633,12 @@ export default function UsersPage() {
                           size="sm"
                           className="h-8 w-8 p-0"
                           title="Editar"
-                          onClick={() => handleEdit(user)}
+                          onClick={() =>
+                            handleEdit({
+                              ...user,
+                              status: user.status ?? "active",
+                            })
+                          }
                         >
                           <Pencil className="w-4 h-4 text-muted hover:text-foreground" />
                         </Button>

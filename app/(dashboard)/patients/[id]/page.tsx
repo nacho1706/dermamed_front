@@ -118,16 +118,16 @@ export default function PatientDetailPage() {
             </Button>
           </Link>
           <div className="flex flex-col">
-            <div className="flex items-center gap-2 text-sm text-medical-500">
-              <Link href="/patients" className="hover:text-medical-700">
+            <div className="flex items-center gap-2 text-sm text-brand-500">
+              <Link href="/patients" className="hover:text-brand-700">
                 Pacientes
               </Link>
               <span>/</span>
-              <span className="font-medium text-medical-800">
+              <span className="font-medium text-brand-800">
                 {patient.full_name}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-medical-900">
+            <h1 className="text-2xl font-bold text-brand-900">
               {patient.full_name}
             </h1>
           </div>
@@ -155,22 +155,22 @@ export default function PatientDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Info Card */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-medical-200/60 shadow-sm">
+          <Card className="border-brand-200/60 shadow-sm">
             <CardBody className="p-6 flex flex-col items-center text-center">
-              <div className="h-24 w-24 rounded-full bg-medical-100 flex items-center justify-center text-medical-700 text-3xl font-bold border-2 border-medical-200 mb-4">
+              <div className="h-24 w-24 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-3xl font-bold border-2 border-brand-200 mb-4">
                 {patient.first_name[0]}
                 {patient.last_name[0]}
               </div>
-              <h2 className="text-xl font-bold text-medical-900">
+              <h2 className="text-xl font-bold text-brand-900">
                 {patient.full_name}
               </h2>
-              <div className="mt-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-medical-50 text-medical-600 border border-medical-100 uppercase tracking-wider">
+              <div className="mt-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-600 border border-brand-100 uppercase tracking-wider">
                 ID: PAC-2024-{String(patient.id).padStart(3, "0")}
               </div>
 
-              <div className="w-full mt-6 space-y-4 text-left border-t border-medical-100 pt-6">
-                <div className="flex items-start gap-3 text-sm text-medical-600">
-                  <div className="bg-medical-50 p-2 rounded-lg text-medical-500 mt-0.5">
+              <div className="w-full mt-6 space-y-4 text-left border-t border-brand-100 pt-6">
+                <div className="flex items-start gap-3 text-sm text-brand-600">
+                  <div className="bg-brand-50 p-2 rounded-lg text-brand-500 mt-0.5">
                     <CreditCard className="h-4 w-4" />
                   </div>
                   <div className="space-y-1">
@@ -274,16 +274,16 @@ export default function PatientDetailPage() {
 
         {/* Main Content (History & Appointments) */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-medical-200/60 shadow-sm">
-            <CardHeader className="p-1 border-b border-medical-100 bg-white">
+          <Card className="border-brand-200/60 shadow-sm">
+            <CardHeader className="p-1 border-b border-brand-100 bg-surface">
               <div className="flex">
                 {isDoctor && (
                   <button
                     onClick={() => setActiveTab("historial")}
                     className={`px-6 py-4 text-sm font-bold transition-colors ${
                       activeTab === "historial"
-                        ? "border-b-2 border-medical-600 text-medical-900 bg-medical-50/50"
-                        : "text-medical-400 hover:text-medical-600"
+                        ? "border-b-2 border-brand-600 text-brand-900 bg-brand-50/50"
+                        : "text-brand-400 hover:text-brand-600"
                     }`}
                   >
                     Historial Clínico
@@ -293,8 +293,8 @@ export default function PatientDetailPage() {
                   onClick={() => setActiveTab("turnos")}
                   className={`px-6 py-4 text-sm font-bold transition-colors ${
                     activeTab === "turnos"
-                      ? "border-b-2 border-medical-600 text-medical-900 bg-medical-50/50"
-                      : "text-medical-400 hover:text-medical-600"
+                      ? "border-b-2 border-brand-600 text-brand-900 bg-brand-50/50"
+                      : "text-brand-400 hover:text-brand-600"
                   }`}
                 >
                   Turnos

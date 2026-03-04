@@ -33,50 +33,50 @@ const statusConfig: Record<
   { bg: string; border: string; text: string; dot: string }
 > = {
   scheduled: {
-    bg: "bg-blue-500",
-    border: "border-blue-600",
+    bg: "bg-brand-500",
+    border: "border-brand-600",
     text: "text-white",
     dot: "bg-white",
   },
   in_waiting_room: {
-    bg: "bg-amber-400", // New amber/warning color
-    border: "border-amber-500",
-    text: "text-amber-900",
+    bg: "bg-warning",
+    border: "border-warning/80",
+    text: "text-white",
     dot: "bg-white animate-pulse",
   },
   in_progress: {
-    bg: "bg-emerald-500", // New emerald/success color
-    border: "border-emerald-600",
+    bg: "bg-success",
+    border: "border-success/80",
     text: "text-white",
     dot: "bg-white",
   },
   completed: {
-    bg: "bg-slate-400 opacity-60", // New mute color
-    border: "border-slate-500",
+    bg: "bg-muted/40",
+    border: "border-muted/60",
     text: "text-white",
-    dot: "bg-slate-100",
+    dot: "bg-white",
   },
   cancelled: {
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-    dot: "bg-red-400",
+    bg: "bg-danger/10",
+    border: "border-danger/20",
+    text: "text-danger",
+    dot: "bg-danger",
   },
   no_show: {
-    bg: "bg-red-100",
-    border: "border-red-300",
-    text: "text-red-800",
-    dot: "bg-red-500",
+    bg: "bg-danger/20",
+    border: "border-danger/30",
+    text: "text-danger",
+    dot: "bg-danger",
   },
   pending: {
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-800",
-    dot: "bg-amber-400",
+    bg: "bg-warning/10",
+    border: "border-warning/20",
+    text: "text-warning",
+    dot: "bg-warning",
   },
   confirmed: {
-    bg: "bg-blue-500",
-    border: "border-blue-600",
+    bg: "bg-brand-500",
+    border: "border-brand-600",
     text: "text-white",
     dot: "bg-white",
   },
@@ -265,8 +265,8 @@ export function Calendar({
                       }}
                     >
                       <div className="flex items-center">
-                        <div className="h-2.5 w-2.5 rounded-full bg-red-500 -ml-1 shadow-sm" />
-                        <div className="flex-1 border-t-2 border-red-500" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-danger -ml-1 shadow-sm" />
+                        <div className="flex-1 border-t-2 border-danger" />
                       </div>
                     </div>
                   )}
@@ -333,7 +333,7 @@ export function Calendar({
                             "absolute rounded-md px-2 py-1 text-xs border cursor-pointer",
                             "transition-all hover:z-20 hover:shadow-md hover:-translate-y-0.5",
                             apt.is_overbook
-                              ? "bg-orange-500 hover:bg-orange-600 border-orange-600 text-white shadow-sm"
+                              ? "bg-warning hover:bg-warning/80 border-warning/90 text-white shadow-sm"
                               : cn(config.bg, config.border, config.text),
                           )}
                           style={style}

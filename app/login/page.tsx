@@ -72,7 +72,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-[var(--shadow-xl)] border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="shadow-[var(--shadow-xl)] border-0 bg-surface/80 backdrop-blur-sm">
           <CardBody className="p-6 sm:p-8">
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-foreground">
@@ -84,7 +84,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-[var(--radius-md)] bg-red-50 border border-red-200 text-sm text-danger">
+              <div className="mb-4 p-3 rounded-[var(--radius-md)] bg-danger/10 border border-danger/20 text-sm text-danger">
                 {error}
               </div>
             )}
