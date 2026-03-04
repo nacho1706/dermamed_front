@@ -10,7 +10,7 @@ import type { Patient } from "@/types";
 export interface CreatableAsyncComboboxProps {
   value?: string | number | null;
   onChange: (value: string | number | null, item?: Patient) => void;
-  onCreateRequest: (searchText: string) => void;
+  onCreateRequest?: (searchText: string) => void;
   fetchFn: (search: string) => Promise<Patient[]>;
   selectedLabel?: string | React.ReactNode;
   placeholder?: string;
@@ -139,7 +139,7 @@ export function CreatableAsyncCombobox({
   const handleCreateClick = useCallback(() => {
     setIsSearching(false);
     setInputValue("");
-    onCreateRequest(debouncedSearch || inputValue);
+    onCreateRequest?.(debouncedSearch || inputValue);
   }, [onCreateRequest, debouncedSearch, inputValue]);
 
   const showDropdown = isSearching && inputValue.length > 0;
@@ -253,21 +253,23 @@ export function CreatableAsyncCombobox({
                 : null}
 
               {/* Separator if there are results */}
-              {data && data.length > 0 && (
+              {data && data.length > 0 && onCreateRequest && (
                 <li className="h-px bg-border/50 my-1 mx-1" />
               )}
 
-              {/* Fixed "Create" option — always visible when typing */}
-              <li
-                onClick={handleCreateClick}
-                className="flex items-center gap-2 px-2.5 py-2.5 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors text-brand-600 hover:bg-brand-50"
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                <span className="font-medium truncate">
-                  Crear paciente{" "}
-                  {debouncedSearch ? `"${debouncedSearch}"` : "nuevo"}
-                </span>
-              </li>
+              {/* Fixed "Create" option — only visible if onCreateRequest is provided */}
+              {onCreateRequest && (
+                <li
+                  onClick={handleCreateClick}
+                  className="flex items-center gap-2 px-2.5 py-2.5 text-sm rounded-[var(--radius-sm)] cursor-pointer transition-colors text-brand-600 hover:bg-brand-50"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="font-medium truncate">
+                    Crear paciente{" "}
+                    {debouncedSearch ? `"${debouncedSearch}"` : "nuevo"}
+                  </span>
+                </li>
+              )}
             </ul>
           )}
         </div>
