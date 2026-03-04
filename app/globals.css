@@ -81,6 +81,7 @@
   --color-surface-secondary: var(--surface-secondary);
   --color-border: var(--border);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);
