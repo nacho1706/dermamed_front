@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { getPatients } from "@/services/patients";
 import { PatientList } from "@/components/features/patients/patient-list";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
+import {
+  PatientFiltersDrawer,
+  type PatientFilterValues,
+} from "./PatientFiltersDrawer";
 import { Button } from "@/components/ui/button";
-import { Upload, Download, Plus, MoreHorizontal } from "lucide-react";
+import { Upload, Download, Plus, MoreHorizontal, Filter } from "lucide-react";
 import { sileo } from "sileo";
 import type { Patient } from "@/types";
 import Link from "next/link";
@@ -17,28 +22,114 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Suspense } from "react";
 
-export default function PatientsPage() {
+// ─── Inner component that uses searchParams ──────────────────────────────────
+
+function PatientsPageInner() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ── URL-derived state ──────────────────────────────────────────────────
+  const urlSearch = searchParams.get("search") || "";
+  const urlPage = parseInt(searchParams.get("page") || "1", 10);
+  const urlInsurance = searchParams.get("insurance_provider") || "";
+  const urlProvince = searchParams.get("province") || "";
+  const urlSort = searchParams.get("sort") || "";
+
+  const [search, setSearch] = useState(urlSearch);
+  const [page, setPage] = useState(urlPage);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  // ── Debounced search — prevents saturating the backend on every keystroke ──
-  const debouncedSearch = useDebounce(search, 500);
+  // Debounced search passed to the query
+  const debouncedSearch = useDebounce(search, 0); // already debounced by GlobalSearchInput
 
-  // ── All hooks above any conditional returns ────────────────────────────────
+  // ── Helper: sync state to URL ──────────────────────────────────────────
+  const updateUrl = useCallback(
+    (params: Record<string, string | undefined>) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      Object.entries(params).forEach(([k, v]) => {
+        if (v) sp.set(k, v);
+        else sp.delete(k);
+      });
+      if (!("page" in params)) sp.delete("page");
+      router.replace(`?${sp.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // ── Active filter count badge ──────────────────────────────────────────
+  const activeFilterCount = [urlInsurance, urlProvince, urlSort].filter(
+    Boolean,
+  ).length;
+
+  // ── TanStack Query ─────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
-    queryKey: ["patients", debouncedSearch, page],
+    queryKey: [
+      "patients",
+      debouncedSearch,
+      page,
+      urlInsurance,
+      urlProvince,
+      urlSort,
+    ],
     queryFn: () =>
       getPatients({
-        search: debouncedSearch,
+        search: debouncedSearch || undefined,
         pagina: page,
         cantidad: 10,
+        insurance_provider: urlInsurance || undefined,
+        province: urlProvince || undefined,
+        sort: urlSort || undefined,
       }),
   });
 
-  // ── CSV Export ─────────────────────────────────────────────────────────────
+  // Collect unique insurance providers from current page to populate drawer
+  const insuranceProviders = Array.from(
+    new Set(
+      (data?.data || [])
+        .map((p) => p.insurance_provider)
+        .filter((v): v is string => Boolean(v)),
+    ),
+  ).sort();
+
+  // ── Handlers ──────────────────────────────────────────────────────────
+
+  const handleSearch = useCallback(
+    (val: string) => {
+      setSearch(val);
+      setPage(1);
+      updateUrl({ search: val || undefined });
+    },
+    [updateUrl],
+  );
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    updateUrl({ page: newPage > 1 ? String(newPage) : undefined });
+  };
+
+  const handleApplyFilters = (filters: PatientFilterValues) => {
+    updateUrl({
+      insurance_provider: filters.insurance_provider,
+      province: filters.province,
+      sort: filters.sort,
+    });
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    updateUrl({
+      insurance_provider: undefined,
+      province: undefined,
+      sort: undefined,
+    });
+    setPage(1);
+  };
+
+  // ── CSV Export ─────────────────────────────────────────────────────────
   const handleExportCSV = () => {
     const patients: Patient[] = data?.data || [];
     if (patients.length === 0) {
@@ -88,12 +179,6 @@ export default function PatientsPage() {
     });
   };
 
-  // ── Search & page reset handler ────────────────────────────────────────────
-  const handleSearch = (val: string) => {
-    setSearch(val);
-    setPage(1);
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-1">
@@ -127,7 +212,9 @@ export default function PatientsPage() {
         data={data}
         isLoading={isLoading}
         onSearch={handleSearch}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
+        onOpenFilters={() => setIsFiltersOpen(true)}
+        activeFilterCount={activeFilterCount}
         secondaryActions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -151,6 +238,21 @@ export default function PatientsPage() {
           </DropdownMenu>
         }
       />
+
+      {/* Filters Drawer */}
+      <PatientFiltersDrawer
+        isOpen={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        filters={{
+          insurance_provider: urlInsurance,
+          province: urlProvince,
+          sort: urlSort,
+        }}
+        onApply={handleApplyFilters}
+        onClear={handleClearFilters}
+        insuranceProviders={insuranceProviders}
+      />
+
       <BulkImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
@@ -162,5 +264,15 @@ export default function PatientsPage() {
         }
       />
     </div>
+  );
+}
+
+// ─── Suspense wrapper (required for useSearchParams) ─────────────────────────
+
+export default function PatientsPage() {
+  return (
+    <Suspense>
+      <PatientsPageInner />
+    </Suspense>
   );
 }

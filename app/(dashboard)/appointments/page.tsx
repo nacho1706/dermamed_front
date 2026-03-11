@@ -40,6 +40,9 @@ export default function AppointmentsPage() {
   const { user, hasRole, activeRole } = useAuth();
   const router = useRouter();
 
+  // A "pure doctor" is someone who has the doctor role but is NOT clinic_manager or receptionist
+  const isPureDoctor = hasRole("doctor") && !hasRole("clinic_manager") && !hasRole("receptionist");
+
   // Date range for current week view
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -74,6 +77,8 @@ export default function AppointmentsPage() {
   const { data: doctorsData } = useQuery({
     queryKey: ["users", "doctors"],
     queryFn: () => getUsers({ role: "doctor" }),
+    // Doctors don't need to see other doctors' list; skip the query
+    enabled: !isPureDoctor,
   });
 
   // Mutations
@@ -181,26 +186,28 @@ export default function AppointmentsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Doctor Filter */}
-          <div className="w-[220px]">
-            <Select
-              value={selectedDoctorId}
-              onValueChange={setSelectedDoctorId}
-            >
-              <SelectTrigger>
-                <Stethoscope className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
-                <SelectValue placeholder="Filtrar por médico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los médicos</SelectItem>
-                {doctorsData?.data.map((doctor: User) => (
-                  <SelectItem key={doctor.id} value={String(doctor.id)}>
-                    Dr. {doctor.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Doctor Filter — only for non-pure doctors (managers, receptionists) */}
+          {!isPureDoctor && (
+            <div className="w-[220px]">
+              <Select
+                value={selectedDoctorId}
+                onValueChange={setSelectedDoctorId}
+              >
+                <SelectTrigger>
+                  <Stethoscope className="h-4 w-4 mr-2 text-muted flex-shrink-0" />
+                  <SelectValue placeholder="Filtrar por médico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los médicos</SelectItem>
+                  {doctorsData?.data.map((doctor: User) => (
+                    <SelectItem key={doctor.id} value={String(doctor.id)}>
+                      Dr. {doctor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <Button
             onClick={() => {

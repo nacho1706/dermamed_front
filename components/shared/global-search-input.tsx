@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,16 @@ export function GlobalSearchInput({
   const [value, setValue] = useState("");
   const debouncedValue = useDebounce(value, 400);
 
+  // Store onSearch in a ref so the effect never re-runs just because the
+  // parent passed a new inline function reference (which happens on every render).
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    onSearch(debouncedValue);
-  }, [debouncedValue, onSearch]);
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  useEffect(() => {
+    onSearchRef.current(debouncedValue);
+  }, [debouncedValue]); // ← only re-run when the debounced value actually changes
 
   return (
     <div className={`relative ${className || ""}`}>

@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
     label: "Productos",
     href: "/products",
     icon: Package,
-    roles: ["clinic_manager", "receptionist"],
+    roles: ["clinic_manager", "receptionist", "doctor"],
   },
   {
     label: "Facturación",

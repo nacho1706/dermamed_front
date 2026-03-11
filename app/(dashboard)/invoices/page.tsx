@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 import {
   getInvoices,
   createInvoice,
@@ -33,10 +35,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
 import { Wallet, FileText, DollarSign, Clock, CheckCircle2, MoreVertical, Plus, Receipt, Eye, Trash2, AlertCircle, History, MinusCircle } from "lucide-react";
 import { getCurrentCashShift, getExpenses } from "@/services/cash-shifts";
-import { InvoiceFormModal } from "./components/InvoiceFormModal";
+import { InvoiceFormModal, type InvoicePrefillData } from "./components/InvoiceFormModal";
 import { CashShiftWidget } from "./components/CashShiftWidget";
 import { InvoiceHistoryModal } from "./components/InvoiceHistoryModal";
 import { ExpenseFormModal } from "./components/ExpenseFormModal";
@@ -443,10 +444,11 @@ function InvoiceDetailModal({
 
 // ─── Main Page Component ────────────────────────────────────────────────────
 
-export default function InvoicesPage() {
+function InvoicesPageContent() {
   const queryClient = useQueryClient();
   const { activeRole } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -457,6 +459,23 @@ export default function InvoicesPage() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState<InvoicePrefillData | undefined>();
+
+  // Auto-open the form modal when coming from the "Cobrar" button
+  useEffect(() => {
+    const isPrefill = searchParams.get("prefill") === "1";
+    if (!isPrefill) return;
+    const patient_id = Number(searchParams.get("patient_id")) || undefined;
+    const service_id = Number(searchParams.get("service_id")) || undefined;
+    const appointment_id = Number(searchParams.get("appointment_id")) || undefined;
+    const doctor_id = Number(searchParams.get("doctor_id")) || undefined;
+    setPrefillData({ patient_id, service_id, appointment_id, doctor_id });
+    setSelectedInvoice(undefined);
+    setIsFormOpen(true);
+    // Clean up the URL without refreshing the page
+    router.replace("/invoices", { scroll: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -491,7 +510,7 @@ export default function InvoicesPage() {
       getInvoices({
         pagina: page,
         cantidad: 10,
-        status: statusFilter === "all" ? undefined : statusFilter,
+        status: statusFilter === "all" || statusFilter === "expense" ? undefined : statusFilter,
       }),
   });
 
@@ -532,6 +551,7 @@ export default function InvoicesPage() {
 
   const openEdit = (inv: Invoice) => {
     setSelectedInvoice(inv);
+    setPrefillData(undefined);
     setIsFormOpen(true);
   };
 
@@ -625,6 +645,7 @@ export default function InvoicesPage() {
                 <SelectItem value="pending">Pendiente</SelectItem>
                 <SelectItem value="paid">Pagada</SelectItem>
                 <SelectItem value="cancelled">Anulada</SelectItem>
+                <SelectItem value="expense">Egresos</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -663,7 +684,11 @@ export default function InvoicesPage() {
 
             const invoiceRows: InvoiceRow[] = invoices.map((inv) => ({ _type: "invoice" as const, ...inv }));
 
-            const combined: Row[] = [...invoiceRows, ...expenseRows].sort(
+            // T2: Apply expense filter client-side
+            const filteredInvoiceRows: InvoiceRow[] = statusFilter === "expense" ? [] : invoiceRows;
+            const filteredExpenseRows: ExpenseRow[] = statusFilter === "expense" ? expenseRows : (statusFilter === "all" ? expenseRows : []);
+
+            const combined: Row[] = [...filteredInvoiceRows, ...filteredExpenseRows].sort(
               (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
 
@@ -694,19 +719,20 @@ export default function InvoicesPage() {
                   {combined.map((row) => {
                     if (row._type === "expense") {
                       return (
+                        // T1: Row uses neutral styling — only the amount column is red
                         <tr
                           key={`expense-${row.id}`}
-                          className="hover:bg-red-50/30 transition-colors bg-red-50/10"
+                          className="hover:bg-surface-secondary/30 transition-colors"
                         >
-                          <td className="px-4 py-3 font-mono text-xs text-red-400">—</td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted">—</td>
                           <td className="px-4 py-3 text-muted text-xs">
                             {formatLocalDateTime(row.created_at)}
                           </td>
-                          <td className="px-4 py-3 text-slate-700 font-medium text-xs max-w-[200px] truncate">
+                          <td className="px-4 py-3 text-foreground font-medium text-xs max-w-[200px] truncate">
                             {row.description}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200 hover:bg-red-50 transition-colors">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200">
                               Egreso de Caja
                             </span>
                           </td>
@@ -717,7 +743,7 @@ export default function InvoicesPage() {
                             -{formatCurrency(row.amount)}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border text-red-700 bg-red-50 border-red-200">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border text-slate-600 bg-slate-50 border-slate-200">
                               Completado
                             </span>
                           </td>
@@ -777,16 +803,7 @@ export default function InvoicesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => openEdit(inv)}
-                                disabled={
-                                  inv.status === "paid" ||
-                                  (isReceptionist && (!cashShift || new Date(inv.created_at) < new Date(cashShift.opening_time)))
-                                }
-                              >
-                                <FileText className="w-4 h-4 mr-2" />
-                                Editar Factura
-                              </DropdownMenuItem>
+                              {/* T3: Botón "Editar Factura" eliminado por seguridad */}
                               {(inv.status === "pending" || inv.status === "draft") && (
                                 <DropdownMenuItem
                                   onClick={() => {
@@ -862,8 +879,12 @@ export default function InvoicesPage() {
       {/* Modals */}
       <InvoiceFormModal
         isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
+        onClose={() => {
+          setIsFormOpen(false);
+          setPrefillData(undefined);
+        }}
         invoice={selectedInvoice}
+        prefillData={prefillData}
       />
       <InvoiceDetailModal
         isOpen={isDetailOpen}
@@ -889,5 +910,13 @@ export default function InvoicesPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function InvoicesPage() {
+  return (
+    <Suspense>
+      <InvoicesPageContent />
+    </Suspense>
   );
 }

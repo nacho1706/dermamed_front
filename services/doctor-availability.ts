@@ -13,6 +13,12 @@ export interface DoctorAvailability {
   };
 }
 
+export interface AvailabilitySlot {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
 export async function getDoctorAvailabilities(filters?: {
   doctor_id?: number;
   cantidad?: number;
@@ -21,5 +27,13 @@ export async function getDoctorAvailabilities(filters?: {
     "/doctor-availabilities",
     { params: filters },
   );
+  return response.data;
+}
+
+export async function syncDoctorAvailabilities(data: {
+  doctor_id: number;
+  availabilities: AvailabilitySlot[];
+}): Promise<{ success: boolean; message: string; data: DoctorAvailability[] }> {
+  const response = await api.put("/doctor-availabilities/sync", data);
   return response.data;
 }

@@ -184,7 +184,11 @@ export function AppointmentRow({
         case "completed":
           mainAction = (
             <button
-              onClick={() => toast.info("Módulo de caja en desarrollo")}
+              onClick={() =>
+                router.push(
+                  `/invoices?prefill=1&appointment_id=${appointment.id}&patient_id=${appointment.patient_id}&service_id=${appointment.service?.id ?? ''}&doctor_id=${appointment.doctor_id ?? ''}`
+                )
+              }
               className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all"
               title="Cobrar"
             >

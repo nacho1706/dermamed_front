@@ -306,6 +306,9 @@ export interface PatientFilters extends PaginationParams {
   dni?: string;
   cuit?: string;
   search?: string;
+  insurance_provider?: string;
+  province?: string;
+  sort?: string;
 }
 
 export interface AppointmentFilters extends PaginationParams {

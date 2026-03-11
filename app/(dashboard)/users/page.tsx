@@ -43,10 +43,13 @@ import {
   Trash2,
   Mail,
   Send,
+  Clock,
 } from "lucide-react";
 import type { User, Role } from "@/types";
+import { DoctorAvailabilityForm } from "@/components/features/DoctorAvailabilityForm";
 
 // ─── Role Display Config ────────────────────────────────────────────────────
+
 
 const ROLE_LABELS: Record<string, string> = {
   clinic_manager: "Dirección",
@@ -389,7 +392,8 @@ export default function UsersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
+  const [selectedDoctorName, setSelectedDoctorName] = useState<string>("");
   // ── All hooks must be declared before any conditional returns ──────────────
 
   const { data: roles = [] } = useRoles();
@@ -615,44 +619,58 @@ export default function UsersPage() {
                         user={{ ...user, status: user.status ?? "active" }}
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {user.status === "pending_activation" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {user.status === "pending_activation" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-brand-600 hover:text-brand-700"
+                              title="Reenviar invitación"
+                              onClick={() => handleResend(user.id)}
+                            >
+                              <Mail className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {user.roles?.some((r) => r.name === "doctor") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-brand-600 hover:text-brand-700"
+                              title="Configurar disponibilidad"
+                              onClick={() => {
+                                setSelectedDoctorId(user.id);
+                                setSelectedDoctorName(user.name);
+                              }}
+                            >
+                              <Clock className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-brand-600 hover:text-brand-700"
-                            title="Reenviar invitación"
-                            onClick={() => handleResend(user.id)}
+                            className="h-8 w-8 p-0"
+                            title="Editar"
+                            onClick={() =>
+                              handleEdit({
+                                ...user,
+                                status: user.status ?? "active",
+                              })
+                            }
                           >
-                            <Mail className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-muted hover:text-foreground" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title="Editar"
-                          onClick={() =>
-                            handleEdit({
-                              ...user,
-                              status: user.status ?? "active",
-                            })
-                          }
-                        >
-                          <Pencil className="w-4 h-4 text-muted hover:text-foreground" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Eliminar"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Eliminar"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
                   </tr>
                 ))}
               </tbody>
@@ -704,6 +722,30 @@ export default function UsersPage() {
         variant="danger"
         isLoading={deleteMut.isPending}
       />
+
+      {/* Doctor Availability Section — appears when clock icon is clicked */}
+      {selectedDoctorId && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 text-brand-600" />
+              Configurar Disponibilidad
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedDoctorId(null)}
+              className="text-muted text-xs"
+            >
+              Cerrar
+            </Button>
+          </div>
+          <DoctorAvailabilityForm
+            doctorId={selectedDoctorId}
+            doctorName={selectedDoctorName}
+          />
+        </div>
+      )}
     </div>
   );
 }

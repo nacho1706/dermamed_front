@@ -57,80 +57,81 @@ export function InvoicePaymentMethods({
       {paymentFields.map((field, index) => (
         <div
           key={field.id}
-          className="flex gap-4 items-end bg-surface-secondary/10 p-3 rounded-lg"
+          className="grid grid-cols-[1fr_140px_40px] items-end gap-3 bg-surface-secondary/10 p-3 rounded-lg"
         >
-          <div className="flex-1">
-            <FormField
-              control={control}
-              name={`payments.${index}.payment_method_id`}
-              render={({ field: formField }) => (
-                <FormItem>
-                  <FormLabel>Método de Pago</FormLabel>
-                  <Select
-                    onValueChange={(val) => formField.onChange(parseInt(val))}
-                    value={
-                      formField.value ? formField.value.toString() : undefined
-                    }
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {paymentMethods?.map((pm) => (
-                        <SelectItem key={pm.id} value={pm.id.toString()}>
-                          {pm.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* Método de Pago */}
+          <FormField
+            control={control}
+            name={`payments.${index}.payment_method_id`}
+            render={({ field: formField }) => (
+              <FormItem className="space-y-1">
+                <FormLabel>Método de Pago</FormLabel>
+                <Select
+                  onValueChange={(val) => formField.onChange(parseInt(val))}
+                  value={
+                    formField.value ? formField.value.toString() : undefined
+                  }
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {paymentMethods?.map((pm) => (
+                      <SelectItem key={pm.id} value={pm.id.toString()}>
+                        {pm.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Monto */}
+          <FormField
+            control={control}
+            name={`payments.${index}.amount`}
+            render={({ field: formField }) => {
+              const methodId = watch(`payments.${index}.payment_method_id`);
+              const isCash = paymentMethods
+                ?.find((m) => m.id === methodId)
+                ?.name?.toLowerCase()
+                .includes("efectivo");
+              return (
+                <FormItem className="space-y-1">
+                  <FormLabel>Monto</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      max={
+                        isCash
+                          ? undefined
+                          : subtotal > 0
+                            ? subtotal
+                            : undefined
+                      }
+                      {...formField}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-          </div>
-          <div className="flex-1">
-            <FormField
-              control={control}
-              name={`payments.${index}.amount`}
-              render={({ field: formField }) => {
-                const methodId = watch(`payments.${index}.payment_method_id`);
-                const isCash = paymentMethods
-                  ?.find((m) => m.id === methodId)
-                  ?.name?.toLowerCase()
-                  .includes("efectivo");
-                return (
-                  <FormItem>
-                    <FormLabel>Monto</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        max={
-                          isCash
-                            ? undefined
-                            : subtotal > 0
-                              ? subtotal
-                              : undefined
-                        }
-                        {...formField}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
-            />
-          </div>
+              );
+            }}
+          />
+
+          {/* Trash */}
           <Button
             type="button"
             variant="ghost"
             onClick={() => removePayment(index)}
-            className="text-muted hover:text-danger mb-1"
+            className="h-9 w-9 p-0 text-muted hover:text-danger self-end"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       ))}

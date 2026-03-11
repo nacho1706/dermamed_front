@@ -258,7 +258,7 @@ export default function ProductsPage() {
   React.useEffect(() => {
     if (
       activeRole &&
-      !["clinic_manager", "receptionist"].includes(activeRole.name)
+      !["clinic_manager", "receptionist", "doctor"].includes(activeRole.name)
     ) {
       router.push("/dashboard");
     }
@@ -266,9 +266,11 @@ export default function ProductsPage() {
 
   if (
     activeRole &&
-    !["clinic_manager", "receptionist"].includes(activeRole.name)
+    !["clinic_manager", "receptionist", "doctor"].includes(activeRole.name)
   )
     return null;
+
+  const isDoctor = activeRole?.name === "doctor";
 
   const products = data?.data || [];
   const totalPages = data?.meta?.last_page ?? 1;
@@ -385,19 +387,29 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="outline" onClick={() => handleMovement()}>
-            <ArrowUpDown className="w-4 h-4 mr-2" />
-            Registrar Movimiento
-          </Button>
-          <Button
-            onClick={() => {
-              setEditingProduct(undefined);
-              setIsFormOpen(true);
-            }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Producto
-          </Button>
+          {/* Doctor-only: withdrawal button */}
+          {isDoctor ? (
+            <Button onClick={() => handleMovement()}>
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              Retirar Insumo para Consultorio
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => handleMovement()}>
+                <ArrowUpDown className="w-4 h-4 mr-2" />
+                Registrar Movimiento
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditingProduct(undefined);
+                  setIsFormOpen(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Producto
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

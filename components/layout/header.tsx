@@ -126,13 +126,14 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               </div>
             )}
 
-            <button
+            <a
+              href="/profile"
               onClick={() => setDropdownOpen(false)}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-secondary transition-colors cursor-pointer"
             >
               <User className="w-4 h-4 text-muted" />
               Mi perfil
-            </button>
+            </a>
             <hr className="my-1 border-border" />
             <button
               onClick={handleLogout}

@@ -24,6 +24,8 @@ interface PatientListProps {
   isLoading: boolean;
   onSearch: (query: string) => void;
   onPageChange: (page: number) => void;
+  onOpenFilters?: () => void;
+  activeFilterCount?: number;
   secondaryActions?: React.ReactNode;
 }
 
@@ -32,6 +34,8 @@ export function PatientList({
   isLoading,
   onSearch,
   onPageChange,
+  onOpenFilters,
+  activeFilterCount = 0,
   secondaryActions,
 }: PatientListProps) {
   const patients = data?.data || [];
@@ -51,10 +55,22 @@ export function PatientList({
         </div>
 
         <div className="flex gap-2 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none">
-            <Filter className="h-4 w-4 mr-2" />
+          <button
+            onClick={onOpenFilters}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium border transition-all shrink-0 ${
+              activeFilterCount > 0
+                ? "bg-brand-50 border-brand-200 text-brand-700"
+                : "bg-surface border-border text-muted hover:border-[var(--border-hover)]"
+            }`}
+          >
+            <Filter className="h-4 w-4" />
             Filtros
-          </Button>
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-brand-600 text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
           {secondaryActions}
         </div>
       </div>
