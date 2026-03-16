@@ -181,17 +181,30 @@ export function AppointmentRow({
           // Sin acciones
           break;
 
-        case "completed":
+        case "completed": {
+          const isPaid = appointment.invoice?.status === "paid";
           mainAction = (
             <button
-              onClick={() => toast.info("Módulo de caja en desarrollo")}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all"
-              title="Cobrar"
+              onClick={() => {
+                if (isPaid) {
+                  toast.warning("Este turno ya fue facturado y pagado");
+                  return;
+                }
+                toast.info("Módulo de caja en desarrollo");
+              }}
+              disabled={isPaid}
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] transition-all ${
+                isPaid
+                  ? "text-muted-foreground opacity-50 cursor-not-allowed"
+                  : "text-success hover:text-white hover:bg-success/80"
+              }`}
+              title={isPaid ? "Turno ya facturado y pagado" : "Cobrar"}
             >
               <CircleDollarSign className="w-4 h-4" />
             </button>
           );
           break;
+        }
 
         case "no_show":
           mainAction = (

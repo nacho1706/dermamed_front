@@ -129,8 +129,16 @@ export interface Appointment {
   doctor?: User;
   service?: Service;
   medical_record?: MedicalRecord;
+  /** Resumen de factura vinculada (solo disponible para receptionist/manager) */
+  invoice?: InvoiceSummary;
   created_at?: string;
   updated_at?: string;
+}
+
+/** Versión ligera de Invoice expuesta en los endpoints de Appointment */
+export interface InvoiceSummary {
+  id: number;
+  status: string;
 }
 
 export interface Service {
