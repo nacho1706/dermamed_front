@@ -38,10 +38,16 @@ export function InvoiceFormModal({
   isOpen,
   onClose,
   invoice,
+  appointmentId,
+  preloadedPatient,
 }: {
   isOpen: boolean;
   onClose: () => void;
   invoice?: Invoice;
+  /** ID del turno a vincular en la nueva factura (viene del botón $ del dashboard) */
+  appointmentId?: number;
+  /** Paciente pre-cargado desde el turno */
+  preloadedPatient?: Patient | null;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -148,26 +154,47 @@ export function InvoiceFormModal({
             })) || [],
         });
       } else {
-        methods.reset({
-          patient_id: 0,
-          voucher_type_id: 0,
-          items: [
-            {
-              type: "service",
-              description: "",
-              quantity: 1,
-              unit_price: 0,
-              product_id: null,
-              service_id: null,
-              executor_doctor_id: null,
-            } as any,
-          ],
-          payments: [],
-        });
-        setSelectedPatient(null);
+        // Pre-cargar el paciente si viene del botón $ del dashboard
+        if (preloadedPatient) {
+          setSelectedPatient(preloadedPatient);
+          methods.reset({
+            patient_id: preloadedPatient.id,
+            voucher_type_id: 0,
+            items: [
+              {
+                type: "service",
+                description: "",
+                quantity: 1,
+                unit_price: 0,
+                product_id: null,
+                service_id: null,
+                executor_doctor_id: null,
+              } as any,
+            ],
+            payments: [],
+          });
+        } else {
+          methods.reset({
+            patient_id: 0,
+            voucher_type_id: 0,
+            items: [
+              {
+                type: "service",
+                description: "",
+                quantity: 1,
+                unit_price: 0,
+                product_id: null,
+                service_id: null,
+                executor_doctor_id: null,
+              } as any,
+            ],
+            payments: [],
+          });
+          setSelectedPatient(null);
+        }
       }
     }
-  }, [isOpen, isDataReady, invoice, methods]);
+  }, [isOpen, isDataReady, invoice, preloadedPatient, methods]);
 
   // Compute Derived State
   const watchedItems = methods.watch("items");
@@ -226,6 +253,8 @@ export function InvoiceFormModal({
       patient_id: data.patient_id,
       voucher_type_id: data.voucher_type_id,
       total: subtotal,
+      // Vincular el turno si viene del botón $ del dashboard
+      ...(appointmentId && !invoice ? { appointment_id: appointmentId } : {}),
       items: data.items.map((i) => ({
         product_id: i.product_id ? parseInt(i.product_id as any) : undefined,
         service_id: i.service_id ? parseInt(i.service_id as any) : undefined,

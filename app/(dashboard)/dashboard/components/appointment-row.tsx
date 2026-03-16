@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { useUpdateAppointment } from "@/hooks/queries/useAppointments";
+import { InvoiceFormModal } from "@/app/(dashboard)/invoices/components/InvoiceFormModal";
 import {
   Play,
   ArrowRight,
@@ -58,6 +59,7 @@ export function AppointmentRow({
 
   const { mutateAsync: updateAppointment } = useUpdateAppointment();
   const [isStarting, setIsStarting] = React.useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
 
   const handleStart = async () => {
     if (hasConflict && onStartConflict) {
@@ -190,7 +192,7 @@ export function AppointmentRow({
                   toast.warning("Este turno ya fue facturado y pagado");
                   return;
                 }
-                toast.info("Módulo de caja en desarrollo");
+                setIsInvoiceModalOpen(true);
               }}
               disabled={isPaid}
               className={`inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] transition-all ${
@@ -452,6 +454,12 @@ export function AppointmentRow({
       <td className="px-6 py-3.5 text-right">
         <div className="flex justify-end gap-2">{renderAction()}</div>
       </td>
+      <InvoiceFormModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        appointmentId={appointment.id}
+        preloadedPatient={appointment.patient ?? null}
+      />
     </tr>
   );
 }
