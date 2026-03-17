@@ -19,7 +19,7 @@ export interface UserFilters extends PaginationParams {
 export async function getUsers(
   params?: UserFilters,
 ): Promise<PaginatedResponse<User>> {
-  const apiParams: Record<string, unknown> = { ...params };
+  const apiParams: any = { ...params };
   if (apiParams.is_active !== undefined) {
     apiParams.is_active = apiParams.is_active ? 1 : 0;
   }
@@ -28,9 +28,7 @@ export async function getUsers(
     delete apiParams.cantidad;
   }
 
-  const response = await api.get<PaginatedResponse<User>>("/users", {
-    params: apiParams,
-  });
+  const response = await api.get<PaginatedResponse<User>>("/users", { params: apiParams });
   return response.data;
 }
 

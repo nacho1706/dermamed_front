@@ -27,7 +27,6 @@ import { getServices } from "@/services/services";
 import { getDoctors } from "@/services/doctors";
 import { getCurrentCashShift } from "@/services/cash-shifts";
 import type { Patient, Invoice } from "@/types";
-import { getPatient } from "@/services/patients";
 
 // Import extracted components and schemas
 import { InvoicePatientInfo } from "./invoice-patient-info";
@@ -35,23 +34,20 @@ import { InvoiceItemsManager } from "./invoice-items-manager";
 import { InvoicePaymentMethods } from "./invoice-payment-methods";
 import { invoiceSchema, type InvoiceFormValues } from "./invoice-schema";
 
-export interface InvoicePrefillData {
-  patient_id?: number;
-  service_id?: number;
-  appointment_id?: number;
-  doctor_id?: number;
-}
-
 export function InvoiceFormModal({
   isOpen,
   onClose,
   invoice,
-  prefillData,
+  appointmentId,
+  preloadedPatient,
 }: {
   isOpen: boolean;
   onClose: () => void;
   invoice?: Invoice;
-  prefillData?: InvoicePrefillData;
+  /** ID del turno a vincular en la nueva factura (viene del botón $ del dashboard) */
+  appointmentId?: number;
+  /** Paciente pre-cargado desde el turno */
+  preloadedPatient?: Patient | null;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -127,14 +123,6 @@ export function InvoiceFormModal({
     },
   });
 
-  // Fetch patient for prefill if needed
-  const prefillPatientId = prefillData?.patient_id;
-  const { data: prefillPatient } = useQuery({
-    queryKey: ["patient", prefillPatientId],
-    queryFn: () => getPatient(prefillPatientId!),
-    enabled: isOpen && !!prefillPatientId && !invoice,
-  });
-
   // Reset form when modal opens
   useEffect(() => {
     if (!isDataReady) return;
@@ -165,69 +153,48 @@ export function InvoiceFormModal({
               amount: Number(payment.amount),
             })) || [],
         });
-      } else if (prefillData) {
-        // Pre-fill from appointment "Cobrar" flow
-        const prefillServiceItem = prefillData.service_id
-          ? [{
-              type: "service" as const,
-              description: services.find(s => s.id === prefillData.service_id)?.name || "",
-              quantity: 1,
-              unit_price: services.find(s => s.id === prefillData.service_id)?.price
-                ? Number(services.find(s => s.id === prefillData.service_id)!.price)
-                : 0,
-              product_id: null,
-              service_id: prefillData.service_id.toString(),
-              executor_doctor_id: null,
-            } as any]
-          : [{
-              type: "service" as const,
-              description: "",
-              quantity: 1,
-              unit_price: 0,
-              product_id: null,
-              service_id: null,
-              executor_doctor_id: null,
-            } as any];
-
-        methods.reset({
-          patient_id: prefillData.patient_id || 0,
-          voucher_type_id: 0,
-          items: prefillServiceItem.map((item) => ({
-            ...item,
-            executor_doctor_id: prefillData.doctor_id ? prefillData.doctor_id.toString() : null,
-          })) as any,
-          payments: [],
-        });
-        setSelectedPatient(null); // will be set after prefillPatient loads
       } else {
-        methods.reset({
-          patient_id: 0,
-          voucher_type_id: 0,
-          items: [
-            {
-              type: "service",
-              description: "",
-              quantity: 1,
-              unit_price: 0,
-              product_id: null,
-              service_id: null,
-              executor_doctor_id: null,
-            } as any,
-          ],
-          payments: [],
-        });
-        setSelectedPatient(null);
+        // Pre-cargar el paciente si viene del botón $ del dashboard
+        if (preloadedPatient) {
+          setSelectedPatient(preloadedPatient);
+          methods.reset({
+            patient_id: preloadedPatient.id,
+            voucher_type_id: 0,
+            items: [
+              {
+                type: "service",
+                description: "",
+                quantity: 1,
+                unit_price: 0,
+                product_id: null,
+                service_id: null,
+                executor_doctor_id: null,
+              } as any,
+            ],
+            payments: [],
+          });
+        } else {
+          methods.reset({
+            patient_id: 0,
+            voucher_type_id: 0,
+            items: [
+              {
+                type: "service",
+                description: "",
+                quantity: 1,
+                unit_price: 0,
+                product_id: null,
+                service_id: null,
+                executor_doctor_id: null,
+              } as any,
+            ],
+            payments: [],
+          });
+          setSelectedPatient(null);
+        }
       }
     }
-  }, [isOpen, isDataReady, invoice, prefillData, methods, services]);
-
-  // When prefillPatient data loads, set it as selected patient
-  useEffect(() => {
-    if (prefillPatient && isOpen && !invoice) {
-      setSelectedPatient(prefillPatient);
-      methods.setValue("patient_id", prefillPatient.id);
-    }
-  }, [prefillPatient, isOpen, invoice, methods]);
+  }, [isOpen, isDataReady, invoice, preloadedPatient, methods]);
 
   // Compute Derived State
   const watchedItems = methods.watch("items");
@@ -286,6 +253,8 @@ export function InvoiceFormModal({
       patient_id: data.patient_id,
       voucher_type_id: data.voucher_type_id,
       total: subtotal,
+      // Vincular el turno si viene del botón $ del dashboard
+      ...(appointmentId && !invoice ? { appointment_id: appointmentId } : {}),
       items: data.items.map((i) => ({
         product_id: i.product_id ? parseInt(i.product_id as any) : undefined,
         service_id: i.service_id ? parseInt(i.service_id as any) : undefined,

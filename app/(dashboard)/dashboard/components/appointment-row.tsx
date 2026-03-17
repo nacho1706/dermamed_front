@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { useUpdateAppointment } from "@/hooks/queries/useAppointments";
+import { InvoiceFormModal } from "@/app/(dashboard)/invoices/components/InvoiceFormModal";
 import {
   Play,
   ArrowRight,
@@ -58,6 +59,7 @@ export function AppointmentRow({
 
   const { mutateAsync: updateAppointment } = useUpdateAppointment();
   const [isStarting, setIsStarting] = React.useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
 
   const handleStart = async () => {
     if (hasConflict && onStartConflict) {
@@ -181,21 +183,30 @@ export function AppointmentRow({
           // Sin acciones
           break;
 
-        case "completed":
+        case "completed": {
+          const isPaid = appointment.invoice?.status === "paid";
           mainAction = (
             <button
-              onClick={() =>
-                router.push(
-                  `/invoices?prefill=1&appointment_id=${appointment.id}&patient_id=${appointment.patient_id}&service_id=${appointment.service?.id ?? ''}&doctor_id=${appointment.doctor_id ?? ''}`
-                )
-              }
-              className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] text-success hover:text-white hover:bg-success/80 transition-all"
-              title="Cobrar"
+              onClick={() => {
+                if (isPaid) {
+                  toast.warning("Este turno ya fue facturado y pagado");
+                  return;
+                }
+                setIsInvoiceModalOpen(true);
+              }}
+              disabled={isPaid}
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] transition-all ${
+                isPaid
+                  ? "text-muted-foreground opacity-50 cursor-not-allowed"
+                  : "text-success hover:text-white hover:bg-success/80"
+              }`}
+              title={isPaid ? "Turno ya facturado y pagado" : "Cobrar"}
             >
               <CircleDollarSign className="w-4 h-4" />
             </button>
           );
           break;
+        }
 
         case "no_show":
           mainAction = (
@@ -443,6 +454,12 @@ export function AppointmentRow({
       <td className="px-6 py-3.5 text-right">
         <div className="flex justify-end gap-2">{renderAction()}</div>
       </td>
+      <InvoiceFormModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        appointmentId={appointment.id}
+        preloadedPatient={appointment.patient ?? null}
+      />
     </tr>
   );
 }

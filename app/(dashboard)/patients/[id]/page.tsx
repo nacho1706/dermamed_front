@@ -264,26 +264,13 @@ export default function PatientDetailPage() {
               </div>
 
               <div className="w-full mt-6 pt-6 border-t border-slate-200">
-                {patient.phone ? (
-                  <a
-                    href={`https://wa.me/${patient.phone.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-green-200 bg-white px-4 py-2 text-sm font-medium text-green-600 transition-colors hover:bg-green-50 hover:text-green-700"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Enviar WhatsApp
-                  </a>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full text-slate-400 border-slate-200 cursor-not-allowed"
-                    disabled
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Sin teléfono registrado
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="w-full text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Enviar WhatsApp
+                </Button>
               </div>
             </CardBody>
           </Card>
