@@ -137,24 +137,64 @@ export default function DashboardPage() {
     return waitTimeMins > 20;
   });
 
-  const sortedAppointments = [...appointments].sort((a, b) => {
-    const isABottom =
-      a.status === "completed" ||
-      a.status === "cancelled" ||
-      a.status === "no_show";
-    const isBBottom =
-      b.status === "completed" ||
-      b.status === "cancelled" ||
-      b.status === "no_show";
+  const sortedAppointments = React.useMemo(() => {
+    const list = [...appointments];
 
-    if (isABottom && !isBBottom) return 1;
-    if (!isABottom && isBBottom) return -1;
+    if (isDoctor) {
+      // Vista médico — 2 grupos con orden cronológico dentro de cada uno:
+      //   Grupo 0: NO finalizados (pending, confirmed, scheduled, in_waiting_room, in_progress)
+      //   Grupo 1: Finalizados (completed)
+      //   Grupo 2: cancelled / no_show — al fondo
+      const DOCTOR_ACTIVE = new Set([
+        "pending",
+        "confirmed",
+        "scheduled",
+        "in_waiting_room",
+        "in_progress",
+      ]);
+      const getDoctorGroup = (apt: (typeof list)[number]): number => {
+        if (DOCTOR_ACTIVE.has(apt.status)) return 0;
+        if (apt.status === "completed") return 1;
+        return 2; // cancelled, no_show
+      };
+      return list.sort((a, b) => {
+        const groupDiff = getDoctorGroup(a) - getDoctorGroup(b);
+        if (groupDiff !== 0) return groupDiff;
+        // Dentro del mismo grupo: orden cronológico ascendente
+        return (
+          new Date(a.scheduled_start_at).getTime() -
+          new Date(b.scheduled_start_at).getTime()
+        );
+      });
+    }
 
-    return (
-      new Date(a.scheduled_start_at).getTime() -
-      new Date(b.scheduled_start_at).getTime()
-    );
-  });
+    // Vista Recepción / Manager — 3 grupos estrictos:
+    //   Grupo 0: Activos (pending, confirmed, scheduled, in_waiting_room, in_progress)
+    //   Grupo 1: Completados sin cobrar (completed sin factura paid)
+    //   Grupo 2: Cobrados (completed + invoice paid) + cancelled + no_show
+    const ACTIVE_STATUSES = new Set([
+      "pending",
+      "confirmed",
+      "scheduled",
+      "in_waiting_room",
+      "in_progress",
+    ]);
+
+    const getGroup = (apt: (typeof list)[number]): number => {
+      if (ACTIVE_STATUSES.has(apt.status)) return 0;
+      if (apt.status === "completed" && apt.invoice?.status !== "paid") return 1;
+      return 2; // completed+paid, cancelled, no_show
+    };
+
+    return list.sort((a, b) => {
+      const groupDiff = getGroup(a) - getGroup(b);
+      if (groupDiff !== 0) return groupDiff;
+      return (
+        new Date(a.scheduled_start_at).getTime() -
+        new Date(b.scheduled_start_at).getTime()
+      );
+    });
+  }, [appointments, isDoctor]);
 
   const greeting = () => {
     const hour = new Date().getHours();

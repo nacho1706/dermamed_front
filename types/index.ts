@@ -149,6 +149,17 @@ export interface Service {
   duration_minutes: number;
 }
 
+export interface MedicalRecordAttachment {
+  id: number;
+  medical_record_id: number;
+  path: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MedicalRecord {
   id: number;
   date: string;
@@ -156,6 +167,9 @@ export interface MedicalRecord {
   patient?: Patient;
   doctor?: User;
   appointment?: Appointment;
+  attachments?: MedicalRecordAttachment[];
+  /** Disponible en el listado (index), viene del withCount del backend */
+  attachments_count?: number;
   created_at: string;
   updated_at: string;
 }

@@ -304,11 +304,14 @@ export function MovementModal({
   onClose,
   preselectedProduct,
   userId,
+  forceType,
 }: {
   isOpen: boolean;
   onClose: () => void;
   preselectedProduct?: Product;
   userId: number;
+  /** Si se pasa, el campo Tipo queda prefijado y oculto (ej. 'out' para doctores) */
+  forceType?: "in" | "out" | "adjustment";
 }) {
   const queryClient = useQueryClient();
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
@@ -362,7 +365,8 @@ export function MovementModal({
       reset({
         productId: preselectedProduct?.id || null,
         newProductName: "",
-        type: "in",
+        // Si forceType está activo, inicializar con ese tipo (ej. 'out' para retiro)
+        type: forceType ?? "in",
         reason: "",
         quantity: 1,
         notes: "",
@@ -374,7 +378,7 @@ export function MovementModal({
       });
       setIsCreatingProduct(false);
     }
-  }, [isOpen, preselectedProduct, reset]);
+  }, [isOpen, preselectedProduct, forceType, reset]);
 
   // Clear reason when type changes
   useEffect(() => {
@@ -645,22 +649,31 @@ export function MovementModal({
                 <Label className="text-sm font-medium text-foreground">
                   Tipo *
                 </Label>
-                <Controller
-                  name="type"
-                  control={control}
-                  render={({ field }) => (
-                    <FilterableSelect
-                      value={field.value}
-                      onChange={(val) => field.onChange(val as string)}
-                      options={[
-                        { value: "in", label: "Ingreso (+)" },
-                        { value: "out", label: "Retiro (-)" },
-                        { value: "adjustment", label: "Ajuste (±)" },
-                      ]}
-                      placeholder="Seleccionar tipo..."
-                    />
-                  )}
-                />
+                {/* Bug 3: si forceType está activo, mostrar badge de solo lectura */}
+                {forceType ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-sm rounded-[var(--radius-md)] border border-border bg-surface-secondary text-muted cursor-not-allowed">
+                    {forceType === "out" && "Retiro (-)"}
+                    {forceType === "in" && "Ingreso (+)"}
+                    {forceType === "adjustment" && "Ajuste (±)"}
+                  </div>
+                ) : (
+                  <Controller
+                    name="type"
+                    control={control}
+                    render={({ field }) => (
+                      <FilterableSelect
+                        value={field.value}
+                        onChange={(val) => field.onChange(val as string)}
+                        options={[
+                          { value: "in", label: "Ingreso (+)" },
+                          { value: "out", label: "Retiro (-)" },
+                          { value: "adjustment", label: "Ajuste (±)" },
+                        ]}
+                        placeholder="Seleccionar tipo..."
+                      />
+                    )}
+                  />
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-foreground">

@@ -27,6 +27,7 @@ import {
   Stethoscope,
   CreditCard,
   Eye,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -378,6 +379,17 @@ export default function PatientDetailPage() {
                               <Eye className="w-4 h-4" />
                               Ver registro completo
                             </Link>
+
+                            {/* Bug 3D: Indicador de fotos adjuntas */}
+                            {(record.attachments_count ?? 0) > 0 && (
+                              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-slate-700">
+                                <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                                {record.attachments_count}{" "}
+                                {record.attachments_count === 1
+                                  ? "foto adjunta"
+                                  : "fotos adjuntas"}
+                              </p>
+                            )}
 
                             {record.appointment?.service && (
                               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2">

@@ -222,6 +222,9 @@ export function InvoiceFormModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["currentCashShift"] });
+      // Invalida appointments para que el botón $ del dashboard refleje
+      // el nuevo estado de la factura (paid) sin necesitar F5.
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Factura creada correctamente");
       onClose();
       router.refresh();

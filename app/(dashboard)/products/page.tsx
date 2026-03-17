@@ -762,6 +762,8 @@ export default function ProductsPage() {
           onClose={() => setIsMovementOpen(false)}
           preselectedProduct={movementProduct}
           userId={activeRole.id}
+          // Bug 3: el doctor solo puede hacer retiros
+          forceType={isDoctor ? "out" : undefined}
         />
       )}
       <ProductFormModal

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,7 +13,11 @@ import {
   Clock,
   User,
   ClipboardList,
+  ImagePlus,
+  Paperclip,
+  Loader2,
 } from "lucide-react";
+import { uploadAttachments } from "@/services/medical-record-attachments";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +74,11 @@ function MedicalRecordFormContent() {
   const [isDiscardAlertOpen, setIsDiscardAlertOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
 
+  // Bug 3A: fotos pendientes de subir + estado de upload
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const draftKey = appointmentId
     ? `draft_appointment_${appointmentId}`
     : `draft_manual_record_${patientId}`;
@@ -93,8 +102,21 @@ function MedicalRecordFormContent() {
 
   const createRecordMutation = useMutation({
     mutationFn: createMedicalRecord,
-    onSuccess: async () => {
+    onSuccess: async (record) => {
       localStorage.removeItem(draftKey);
+
+      // Bug 3A: si hay fotos pendientes, subirlas ANTES de navegar.
+      // Mantener isUploading=true para que el botón siga deshabilitado.
+      if (pendingFiles.length > 0) {
+        setIsUploading(true);
+        try {
+          await uploadAttachments(record.id, pendingFiles);
+        } catch {
+          toast.error("Las fotos no se pudieron adjuntar. El registro fue guardado.");
+        } finally {
+          setIsUploading(false);
+        }
+      }
 
       try {
         if (appointmentId) {
@@ -368,27 +390,103 @@ function MedicalRecordFormContent() {
                   )}
                 </div>
 
+                {/* Bug 3A: selector de fotos */}
+                <div className="space-y-2 pt-2 border-t border-brand-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-brand-700">
+                      Fotos Adjuntas
+                    </span>
+                    {/* NO setear Content-Type — el browser genera el boundary */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0)
+                          setPendingFiles((prev) => [...prev, ...files]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="gap-1.5 text-xs"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      Agregar fotos
+                    </Button>
+                  </div>
+
+                  {pendingFiles.length > 0 && (
+                    <ul className="space-y-1">
+                      {pendingFiles.map((f, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-center justify-between text-xs text-slate-700"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Paperclip className="w-3 h-3 text-slate-400" />
+                            <span className="truncate max-w-[220px]">{f.name}</span>
+                            <span className="text-slate-400">
+                              ({Math.round(f.size / 1024)} KB)
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingFiles((prev) =>
+                                prev.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="text-slate-400 hover:text-red-600 ml-2"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {pendingFiles.length === 0 && (
+                    <p className="text-xs text-slate-400">
+                      JPG, PNG, WebP · máx. 8 MB por imagen
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex justify-end pt-4 border-t border-brand-100 gap-3">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleCancelClick}
-                    disabled={createRecordMutation.isPending}
+                    disabled={createRecordMutation.isPending || isUploading}
                   >
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={createRecordMutation.isPending}
+                    disabled={createRecordMutation.isPending || isUploading}
                     className="gap-2"
                   >
-                    {createRecordMutation.isPending ? (
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Subiendo fotos…
+                      </>
+                    ) : createRecordMutation.isPending ? (
                       <Spinner size="sm" />
                     ) : (
-                      <Save className="h-4 w-4" />
+                      <>
+                        <Save className="h-4 w-4" />
+                        Guardar Evolución
+                      </>
                     )}
-                    Guardar Evolución
                   </Button>
                 </div>
               </form>
