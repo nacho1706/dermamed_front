@@ -40,6 +40,8 @@ export function InvoiceFormModal({
   invoice,
   appointmentId,
   preloadedPatient,
+  preloadedService,
+  preloadedDoctorId,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +50,10 @@ export function InvoiceFormModal({
   appointmentId?: number;
   /** Paciente pre-cargado desde el turno */
   preloadedPatient?: Patient | null;
+  /** Servicio del turno para pre-rellenar el ítem */
+  preloadedService?: { id: number; name: string; price: number } | null;
+  /** ID del médico del turno para pre-rellenar el ítem */
+  preloadedDoctorId?: number | null;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -163,12 +169,12 @@ export function InvoiceFormModal({
             items: [
               {
                 type: "service",
-                description: "",
+                service_id: preloadedService?.id ?? null,
+                description: preloadedService?.name ?? "",
+                unit_price: preloadedService?.price ?? 0,
                 quantity: 1,
-                unit_price: 0,
                 product_id: null,
-                service_id: null,
-                executor_doctor_id: null,
+                executor_doctor_id: preloadedDoctorId ?? null,
               } as any,
             ],
             payments: [],
@@ -194,7 +200,7 @@ export function InvoiceFormModal({
         }
       }
     }
-  }, [isOpen, isDataReady, invoice, preloadedPatient, methods]);
+  }, [isOpen, isDataReady, invoice, preloadedPatient, preloadedService, preloadedDoctorId, methods]);
 
   // Compute Derived State
   const watchedItems = methods.watch("items");

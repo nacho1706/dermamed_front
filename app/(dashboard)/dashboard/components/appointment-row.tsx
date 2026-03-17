@@ -459,6 +459,12 @@ export function AppointmentRow({
         onClose={() => setIsInvoiceModalOpen(false)}
         appointmentId={appointment.id}
         preloadedPatient={appointment.patient ?? null}
+        preloadedService={appointment.service ? {
+          id: appointment.service.id,
+          name: appointment.service.name,
+          price: appointment.service.price ?? 0,
+        } : null}
+        preloadedDoctorId={appointment.doctor_id ?? null}
       />
     </tr>
   );
