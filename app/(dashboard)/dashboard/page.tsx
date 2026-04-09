@@ -220,6 +220,8 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500 mt-1">
             {isDoctor
               ? "Resumen de su agenda médica para hoy."
+              : isClinicManager
+              ? "Panel de gestión administrativa y financiera."
               : "Resumen de actividad de la clínica."}
           </p>
         </div>
@@ -270,29 +272,31 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            {/* Appointments Card: non-doctors */}
-            <KpiCard
-              label="Citas de Hoy"
-              value={isLoading ? "…" : totalAppointmentsToday}
-              icon={CalendarDays}
-              iconBg="bg-blue-50"
-              iconColor="text-info"
-              href="/appointments"
-            />
-
-            {/* Pending Card: non-doctors */}
-            <KpiCard
-              label="En espera"
-              value={isLoading ? "…" : pendingCount}
-              icon={Clock}
-              iconBg="bg-amber-50"
-              iconColor="text-warning"
-              badge={
-                pendingCount > 0
-                  ? { text: "activos", color: "text-amber-600" }
-                  : undefined
-              }
-            />
+            {/* Appointments & Pending Cards: only receptionist (not clinic_manager) */}
+            {!isClinicManager && (
+              <>
+                <KpiCard
+                  label="Citas de Hoy"
+                  value={isLoading ? "…" : totalAppointmentsToday}
+                  icon={CalendarDays}
+                  iconBg="bg-blue-50"
+                  iconColor="text-info"
+                  href="/appointments"
+                />
+                <KpiCard
+                  label="En espera"
+                  value={isLoading ? "…" : pendingCount}
+                  icon={Clock}
+                  iconBg="bg-amber-50"
+                  iconColor="text-warning"
+                  badge={
+                    pendingCount > 0
+                      ? { text: "activos", color: "text-amber-600" }
+                      : undefined
+                  }
+                />
+              </>
+            )}
           </>
         )}
 
@@ -333,118 +337,165 @@ export default function DashboardPage() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Day Summary — Takes 2 cols */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">
-                {isDoctor ? "Mi Agenda del Día" : "Resumen Global del Día"}
-              </h2>
-              <Link
-                href="/appointments"
-                className="text-sm text-slate-500 hover:text-brand-600 font-medium transition-colors"
-              >
-                Ver Calendario Completo
-              </Link>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              {isLoadingAppointments ? (
-                <div className="flex items-center justify-center py-16">
-                  <Spinner size="md" />
-                </div>
-              ) : sortedAppointments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <CalendarDays className="w-10 h-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-slate-500 font-medium">
-                    No hay turnos agendados para {isDoctor ? "usted" : ""} hoy
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {isDoctor
-                      ? "Disfrute su día libre."
-                      : "Los turnos aparecerán aquí automáticamente."}
-                  </p>
-                </div>
-              ) : (
-                <table className="w-full table-fixed">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[10%]">
-                        Hora
-                      </th>
-                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[30%]">
-                        Paciente
-                      </th>
-                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[25%]">
-                        Tipo
-                      </th>
-                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
-                        Estado
-                      </th>
-                      <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
-                        Acción
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {sortedAppointments.map((appointment: Appointment) => {
-                      const DELAY_THRESHOLD_MINUTES = 15;
-                      const isDelayed =
-                        appointment.status === "scheduled" &&
-                        Date.now() >
-                          new Date(appointment.scheduled_start_at).getTime() +
-                            DELAY_THRESHOLD_MINUTES * 60000;
+        {/* Day Summary — Hidden for clinic_manager, takes 2 cols for doctor/receptionist */}
+        {!isClinicManager && (
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-base font-semibold text-slate-900">
+                  {isDoctor ? "Mi Agenda del Día" : "Resumen Global del Día"}
+                </h2>
+                <Link
+                  href="/appointments"
+                  className="text-sm text-slate-500 hover:text-brand-600 font-medium transition-colors"
+                >
+                  Ver Calendario Completo
+                </Link>
+              </CardHeader>
+              <div className="overflow-x-auto">
+                {isLoadingAppointments ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Spinner size="md" />
+                  </div>
+                ) : sortedAppointments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <CalendarDays className="w-10 h-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-slate-500 font-medium">
+                      No hay turnos agendados para {isDoctor ? "usted" : ""} hoy
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {isDoctor
+                        ? "Disfrute su día libre."
+                        : "Los turnos aparecerán aquí automáticamente."}
+                    </p>
+                  </div>
+                ) : (
+                  <table className="w-full table-fixed">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[10%]">
+                          Hora
+                        </th>
+                        <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[30%]">
+                          Paciente
+                        </th>
+                        <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[25%]">
+                          Tipo
+                        </th>
+                        <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
+                          Estado
+                        </th>
+                        <th className="text-left text-xs font-medium uppercase tracking-wider text-slate-500 px-6 py-3 w-[20%]">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sortedAppointments.map((appointment: Appointment) => {
+                        const DELAY_THRESHOLD_MINUTES = 15;
+                        const isDelayed =
+                          appointment.status === "scheduled" &&
+                          Date.now() >
+                            new Date(appointment.scheduled_start_at).getTime() +
+                              DELAY_THRESHOLD_MINUTES * 60000;
 
-                      return (
-                        <AppointmentRow
-                          key={appointment.id}
-                          appointment={appointment}
-                          onEdit={() => {
-                            setSelectedAppointment(appointment);
-                            setIsAppointmentModalOpen(true);
-                          }}
-                          hasConflict={!!activeAppointment}
-                          onStartConflict={() => setIsConflictModalOpen(true)}
-                          isDelayed={isDelayed}
-                        />
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </Card>
-        </div>
+                        return (
+                          <AppointmentRow
+                            key={appointment.id}
+                            appointment={appointment}
+                            onEdit={() => {
+                              setSelectedAppointment(appointment);
+                              setIsAppointmentModalOpen(true);
+                            }}
+                            hasConflict={!!activeAppointment}
+                            onStartConflict={() => setIsConflictModalOpen(true)}
+                            isDelayed={isDelayed}
+                          />
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
 
-        {/* Sidebar — Quick Actions + Stock Alerts */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <h2 className="text-base font-semibold text-slate-900">
-                Acciones Rápidas
-              </h2>
-            </CardHeader>
-            <CardBody className="space-y-2">
-              <QuickAction
-                label="Nuevo Turno"
-                icon={Plus}
-                onClick={() => setIsAppointmentModalOpen(true)}
-                variant="primary"
-              />
-              <button
-                onClick={() => setIsImmediateModalOpen(true)}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 group bg-brand-50 border border-brand-100 hover:border-brand-300 hover:bg-brand-100/60 hover:shadow-[var(--shadow-sm)]"
-              >
-                <div className="w-8 h-8 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 bg-brand-100">
-                  <UserRoundCheck className="w-4 h-4 text-brand-600" />
-                </div>
-                <span className="text-sm font-medium flex-1 text-brand-700 text-left">
-                  Atención Inmediata
-                </span>
-                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-brand-400" />
-              </button>
-            </CardBody>
-          </Card>
+        {/* Sidebar — Quick Actions (hidden for clinic_manager) + Admin links (clinic_manager only) */}
+        <div className={isClinicManager ? "lg:col-span-3" : ""}>
+          <div className="space-y-6">
+            {/* Quick Actions: only receptionist and doctor */}
+            {!isClinicManager && (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Acciones Rápidas
+                  </h2>
+                </CardHeader>
+                <CardBody className="space-y-2">
+                  <QuickAction
+                    label="Nuevo Turno"
+                    icon={Plus}
+                    onClick={() => setIsAppointmentModalOpen(true)}
+                    variant="primary"
+                  />
+                  <button
+                    onClick={() => setIsImmediateModalOpen(true)}
+                    className="flex items-center gap-3 w-full px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 group bg-brand-50 border border-brand-100 hover:border-brand-300 hover:bg-brand-100/60 hover:shadow-[var(--shadow-sm)]"
+                  >
+                    <div className="w-8 h-8 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 bg-brand-100">
+                      <UserRoundCheck className="w-4 h-4 text-brand-600" />
+                    </div>
+                    <span className="text-sm font-medium flex-1 text-brand-700 text-left">
+                      Atención Inmediata
+                    </span>
+                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-brand-400" />
+                  </button>
+                </CardBody>
+              </Card>
+            )}
+
+            {/* Admin Quick Links: only clinic_manager */}
+            {isClinicManager && (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Accesos Rápidos
+                  </h2>
+                </CardHeader>
+                <CardBody className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Link
+                    href="/invoices"
+                    className="flex flex-col items-center gap-2 p-4 rounded-[var(--radius-lg)] bg-emerald-50 border border-emerald-100 hover:bg-emerald-100/60 hover:border-emerald-300 transition-all group"
+                  >
+                    <FileText className="w-6 h-6 text-emerald-600" />
+                    <span className="text-xs font-medium text-emerald-700">Facturación</span>
+                  </Link>
+                  <Link
+                    href="/products"
+                    className="flex flex-col items-center gap-2 p-4 rounded-[var(--radius-lg)] bg-blue-50 border border-blue-100 hover:bg-blue-100/60 hover:border-blue-300 transition-all group"
+                  >
+                    <Package className="w-6 h-6 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-700">Productos</span>
+                  </Link>
+                  <Link
+                    href="/services"
+                    className="flex flex-col items-center gap-2 p-4 rounded-[var(--radius-lg)] bg-violet-50 border border-violet-100 hover:bg-violet-100/60 hover:border-violet-300 transition-all group"
+                  >
+                    <Search className="w-6 h-6 text-violet-600" />
+                    <span className="text-xs font-medium text-violet-700">Servicios</span>
+                  </Link>
+                  <Link
+                    href="/users"
+                    className="flex flex-col items-center gap-2 p-4 rounded-[var(--radius-lg)] bg-slate-50 border border-slate-200 hover:bg-slate-100/60 hover:border-slate-300 transition-all group"
+                  >
+                    <Users className="w-6 h-6 text-slate-600" />
+                    <span className="text-xs font-medium text-slate-700">Usuarios</span>
+                  </Link>
+                </CardBody>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
 

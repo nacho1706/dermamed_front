@@ -34,13 +34,13 @@ const navItems: NavItem[] = [
     label: "Pacientes",
     href: "/patients",
     icon: Users,
-    roles: ["clinic_manager", "receptionist", "doctor"],
+    roles: ["receptionist", "doctor"],
   },
   {
     label: "Turnos",
     href: "/appointments",
     icon: CalendarDays,
-    roles: ["clinic_manager", "receptionist", "doctor"],
+    roles: ["receptionist", "doctor"],
   },
   {
     label: "Servicios",
@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
     label: "Productos",
     href: "/products",
     icon: Package,
-    roles: ["clinic_manager", "receptionist", "doctor"],
+    roles: ["clinic_manager", "receptionist"],
   },
   {
     label: "Facturación",
