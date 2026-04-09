@@ -1,8 +1,11 @@
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useEffect } from "react";
+
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { Button } from "@/components/ui/button";
@@ -167,6 +170,17 @@ export function PatientForm({
     queryFn: getHealthInsurances,
     staleTime: 5 * 60 * 1000,
   });
+
+  // When editing, re-sync the health_insurance_id once we have both
+  // initialData and the list of healthInsurances loaded.
+  // This prevents the Select from showing empty because the list
+  // hadn't loaded yet when defaultValues were first set.
+  useEffect(() => {
+    if (initialData?.health_insurance_id !== undefined) {
+      setValue("health_insurance_id", initialData.health_insurance_id ?? null);
+    }
+  }, [initialData?.health_insurance_id, setValue]);
+
 
   return (
     <Card className="max-w-3xl mx-auto border-border/50 shadow-sm overflow-hidden">
