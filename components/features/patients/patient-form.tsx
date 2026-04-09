@@ -16,10 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ARGENTINE_PROVINCES } from "@/constants/provinces";
-import { INSURANCE_PROVIDERS } from "@/constants/insurance-providers";
 import type { Patient } from "@/types";
 import { Loader2, MapPin, User, Phone, Building } from "lucide-react";
 import { getPatients } from "@/services/patients";
+import { getHealthInsurances } from "@/services/health-insurances";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * Validation schema based on StorePatientRequest.php backend rules
@@ -56,6 +57,9 @@ const patientSchemaBase = z.object({
   province: z.string().max(100).optional().nullable().or(z.literal("")),
   zip_code: z.string().max(10).optional().nullable().or(z.literal("")),
   insurance_provider: z.string().max(100).optional().nullable(),
+  health_insurance_id: z.number().nullable().optional(),
+  affiliate_number: z.string().max(100).optional().nullable(),
+
 });
 
 const patientSchema = patientSchemaBase.refine(
@@ -120,6 +124,9 @@ export function PatientForm({
       province: initialData?.province || "",
       zip_code: initialData?.zip_code || "",
       insurance_provider: initialData?.insurance_provider || "",
+      health_insurance_id: initialData?.health_insurance_id ?? null,
+      affiliate_number: initialData?.affiliate_number || "",
+
     },
   });
 
@@ -154,6 +161,12 @@ export function PatientForm({
       }
     }
   };
+
+  const { data: healthInsurances = [] } = useQuery({
+    queryKey: ["health-insurances"],
+    queryFn: getHealthInsurances,
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <Card className="max-w-3xl mx-auto border-border/50 shadow-sm overflow-hidden">
@@ -404,68 +417,49 @@ export function PatientForm({
                 Obra Social
               </h4>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">
-                Obra Social / Prepaga
-              </label>
-              <Controller
-                name="insurance_provider"
-                control={control}
-                render={({ field }) => {
-                  const isCustom =
-                    field.value === "Otra" ||
-                    (field.value &&
-                      !INSURANCE_PROVIDERS.some(
-                        (p) => p.value === field.value,
-                      ));
-                  return (
-                    <div className="space-y-2">
-                      <Select
-                        value={isCustom ? "Otra" : field.value || ""}
-                        onValueChange={(val) => {
-                          if (val === "Otra") {
-                            field.onChange("Otra");
-                          } else {
-                            field.onChange(val);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-full border-border hover:border-[var(--border-hover)] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
-                          <SelectValue placeholder="Seleccionar obra social" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-60">
-                          {INSURANCE_PROVIDERS.map((provider) => (
-                            <SelectItem
-                              key={provider.value}
-                              value={provider.value}
-                            >
-                              {provider.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {isCustom && (
-                        <Input
-                          placeholder="Ingrese el nombre de la obra social"
-                          value={
-                            field.value === "Otra" ? "" : field.value || ""
-                          }
-                          onChange={(e) =>
-                            field.onChange(e.target.value || "Otra")
-                          }
-                        />
-                      )}
-                    </div>
-                  );
-                }}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-foreground">
+                  Obra Social / Prepaga
+                </label>
+                <Controller
+                  name="health_insurance_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value !== null && field.value !== undefined ? String(field.value) : ""}
+                      onValueChange={(val) => {
+                        field.onChange(val ? Number(val) : null);
+                      }}
+                    >
+                      <SelectTrigger className="w-full border-border hover:border-[var(--border-hover)] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                        <SelectValue placeholder="Seleccionar obra social" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {healthInsurances.map((hi) => (
+                          <SelectItem key={hi.id} value={String(hi.id)}>
+                            {hi.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.health_insurance_id?.message && (
+                  <p className="text-xs text-danger font-medium">
+                    {errors.health_insurance_id.message}
+                  </p>
+                )}
+              </div>
+              <Input
+                label="Número de afiliado"
+                placeholder="Ej: 12345678"
+                {...register("affiliate_number")}
+                error={errors.affiliate_number?.message}
               />
-              {errors.insurance_provider?.message && (
-                <p className="text-xs text-danger font-medium">
-                  {errors.insurance_provider.message}
-                </p>
-              )}
             </div>
           </div>
+
         </CardBody>
 
         <CardFooter className="bg-surface-secondary/30 border-t border-border p-4 flex justify-end gap-3">

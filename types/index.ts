@@ -78,6 +78,11 @@ export interface User {
   updated_at: string;
 }
 
+export interface HealthInsurance {
+  id: number;
+  name: string;
+}
+
 export interface Patient {
   id: number;
   first_name: string;
@@ -97,7 +102,10 @@ export interface Patient {
   zip_code: string | null;
   country: string | null;
   full_address: string | null; // Computed by backend
-  insurance_provider: string | null;
+  insurance_provider: string | null; // Populated by backend from health_insurance relation
+  health_insurance_id: number | null;
+  health_insurance?: HealthInsurance | null;
+  affiliate_number: string | null;
   created_at?: string;
 }
 
