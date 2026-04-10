@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { getPatients } from "@/services/patients";
+import { getHealthInsurances } from "@/services/health-insurances";
 import { PatientList } from "@/components/features/patients/patient-list";
 import { BulkImportModal } from "@/components/shared/bulk-import-modal";
 import {
@@ -65,7 +66,7 @@ function PatientsPageInner() {
     Boolean,
   ).length;
 
-  // ── TanStack Query ─────────────────────────────────────────────────────
+  // ── TanStack Queries ───────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
     queryKey: [
       "patients",
@@ -86,14 +87,15 @@ function PatientsPageInner() {
       }),
   });
 
-  // Collect unique insurance providers from current page to populate drawer
-  const insuranceProviders = Array.from(
-    new Set(
-      (data?.data || [])
-        .map((p) => p.insurance_provider)
-        .filter((v): v is string => Boolean(v)),
-    ),
-  ).sort();
+  // Fetch all health insurance providers for the filter dropdown
+  const { data: insurancesData } = useQuery({
+    queryKey: ["health-insurances"],
+    queryFn: getHealthInsurances,
+  });
+
+  const insuranceProviders = (insurancesData || [])
+    .map((ins) => ins.name)
+    .sort();
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
