@@ -116,9 +116,9 @@ export default function DashboardPage() {
   );
   const lowStockCount = lowStockProducts.length;
 
-  // Pending appointments
+  // Pending appointments (including newly created 'scheduled' ones)
   const pendingCount = appointments.filter(
-    (a) => a.status === "pending" || a.status === "confirmed",
+    (a) => a.status === "pending" || a.status === "confirmed" || a.status === "scheduled",
   ).length;
 
   // Doctor KPIs calculation
