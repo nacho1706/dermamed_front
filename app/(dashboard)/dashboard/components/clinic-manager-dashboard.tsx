@@ -265,34 +265,7 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
         {/* Right Column: 33% Quick Actions & Alerts */}
         <div className="space-y-6">
           
-          <Card className="bg-slate-900 text-white overflow-hidden relative">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20"></div>
-            <CardHeader className="pb-2">
-              <h3 className="text-sm font-medium text-slate-300">Acciones de Un Solo Clic</h3>
-            </CardHeader>
-            <CardBody className="p-4 space-y-3 relative z-10">
-              <Link href="/cash-shifts" className="flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors border border-white/5">
-                <div className="p-2 bg-white/10 rounded-lg text-emerald-400"><Wallet className="w-4 h-4" /></div>
-                <span className="text-sm font-medium flex-1">Abrir Caja Diaria</span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </Link>
-              <Link href="/cash-shifts" className="flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors border border-white/5">
-                <div className="p-2 bg-white/10 rounded-lg text-indigo-400"><Receipt className="w-4 h-4" /></div>
-                <span className="text-sm font-medium flex-1">Registrar Gasto</span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </Link>
-              <Link href="/patients" className="flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors border border-white/5">
-                <div className="p-2 bg-white/10 rounded-lg text-sky-400"><UserPlus className="w-4 h-4" /></div>
-                <span className="text-sm font-medium flex-1">Nuevo Paciente</span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </Link>
-              <Link href="/invoices?status=pending" className="flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors border border-white/5">
-                <div className="p-2 bg-white/10 rounded-lg text-amber-400"><FileWarning className="w-4 h-4" /></div>
-                <span className="text-sm font-medium flex-1">Ver Facturas Impagas</span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </Link>
-            </CardBody>
-          </Card>
+
 
           <Card>
             <CardHeader className="border-b border-slate-100 pb-3 flex flex-row items-center justify-between">
