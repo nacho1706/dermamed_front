@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const RoleSchema = z.object({
-  id: z.number(),
-  name: z.enum(["clinic_manager", "doctor", "receptionist"]),
+  id: z.coerce.number(),
+  name: z.string(),
 });
 
 export const UserSchema = z.object({
