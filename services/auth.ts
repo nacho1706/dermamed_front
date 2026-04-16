@@ -48,6 +48,24 @@ export async function verifyToken(token: string): Promise<boolean> {
   }
 }
 
+export async function updateProfile(data: {
+  name?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  specialty?: string | null;
+}): Promise<User> {
+  const response = await api.put<{ data: User }>("/me", data);
+  return response.data.data;
+}
+
+export async function changePassword(data: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  await api.put("/me/password", data);
+}
+
 export async function activateAccount(data: {
   token: string;
   password: string;
