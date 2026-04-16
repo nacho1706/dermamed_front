@@ -12,7 +12,7 @@ export interface DashboardStats {
   predictive_alerts: Array<{ type: string; message: string; product_id: number }>;
 }
 
-export async function getDashboardStats() {
-  const { data } = await api.get<DashboardStats>("/dashboard-stats");
+export async function getDashboardStats(params?: { date_from?: string; date_to?: string; }) {
+  const { data } = await api.get<DashboardStats>("/dashboard-stats", { params });
   return data;
 }

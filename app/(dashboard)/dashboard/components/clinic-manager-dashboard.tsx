@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardStats } from "@/services/dashboard";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Appointment } from "@/types";
+import { format, subDays } from "date-fns";
 import {
   TrendingUp,
   TrendingDown,
@@ -13,13 +14,8 @@ import {
   Users,
   CalendarCheck,
   AlertOctagon,
-  ArrowRight,
-  Wallet,
-  Receipt,
-  UserPlus,
-  FileWarning
+  Filter
 } from "lucide-react";
-import Link from "next/link";
 import {
   AreaChart,
   Area,
@@ -41,12 +37,15 @@ interface ClinicManagerDashboardProps {
 const COLORS = ["#0ea5e9", "#14b8a6", "#6366f1", "#f59e0b", "#f43f5e"];
 
 export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardProps) {
+  const [dateFrom, setDateFrom] = useState(() => format(subDays(new Date(), 6), 'yyyy-MM-dd'));
+  const [dateTo, setDateTo] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: getDashboardStats,
+    queryKey: ["dashboard-stats", dateFrom, dateTo],
+    queryFn: () => getDashboardStats({ date_from: dateFrom, date_to: dateTo }),
   });
 
-  // Calculate live clinic status
+  // Calculate live clinic status (this always corresponds to 'today' regardless of filters, based on appointments passed from parent)
   const statuses = appointments.reduce(
     (acc, apt) => {
       if (apt.status === "completed") acc.atendido++;
@@ -57,34 +56,6 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
     },
     { atendido: 0, en_espera: 0, pendiente: 0, cancelado: 0 }
   );
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-[var(--radius-xl)]" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-[300px] rounded-[var(--radius-xl)]" />
-            <Skeleton className="h-[300px] rounded-[var(--radius-xl)]" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-[200px] rounded-[var(--radius-xl)]" />
-            <Skeleton className="h-[250px] rounded-[var(--radius-xl)]" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return <div className="text-danger p-4">Error cargando las métricas.</div>;
-  }
-
-  const { kpis, income_distribution, weekly_flow, low_stock, predictive_alerts } = data;
 
   const renderKpiValue = (label: string, kpi: { value: number; variation: number }, icon: React.ReactNode, prefix = "") => {
     const isPositive = kpi.variation >= 0;
@@ -113,69 +84,82 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
 
   return (
     <div className="space-y-6">
-      {/* 4 Column KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {renderKpiValue("Ingresos de Hoy", kpis.income, <DollarSign className="w-5 h-5" />, "$ ")}
-        {renderKpiValue("Citas Nuevas", kpis.appointments, <CalendarCheck className="w-5 h-5" />)}
-        {renderKpiValue("Pacientes Nuevos", kpis.new_patients, <Users className="w-5 h-5" />)}
-        
-        {/* Metric 4: Stock Alerts KPI */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardBody className="p-5 flex flex-col justify-between h-full">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm font-medium text-slate-500">Alertas Stock</span>
-              <div className={`p-2 rounded-lg ${low_stock.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                <AlertOctagon className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-end mt-4">
-              <h3 className="text-2xl font-bold text-slate-900">
-                {low_stock.length} <span className="text-sm font-medium text-slate-500">ítems críticos</span>
-              </h3>
-            </div>
-          </CardBody>
-        </Card>
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-4">
+        <div className="flex items-center gap-2 text-slate-600 text-sm font-medium">
+          <Filter className="w-4 h-4 text-slate-400" />
+          Filtros de Análisis
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Desde:</span>
+            <input 
+              type="date" 
+              value={dateFrom} 
+              onChange={(e) => setDateFrom(e.target.value)} 
+              className="text-sm border-slate-200 rounded-lg text-slate-700 bg-slate-50 px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-full sm:w-auto"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Hasta:</span>
+            <input 
+              type="date" 
+              value={dateTo} 
+              onChange={(e) => setDateTo(e.target.value)} 
+              className="text-sm border-slate-200 rounded-lg text-slate-700 bg-slate-50 px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-full sm:w-auto"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Main Grid: 2 Columns Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: 66% Data Visualizations */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Live Clinic Status */}
-          <Card>
-            <CardHeader className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-semibold text-slate-800">Estado de Clínica en Vivo (Hoy)</h3>
-            </CardHeader>
-            <CardBody className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-emerald-50 border border-emerald-100">
-                <span className="text-xs font-medium text-emerald-600 mb-1 uppercase tracking-wider">Atendidos</span>
-                <span className="text-emerald-700 font-bold text-xl">{statuses.atendido}</span>
-              </div>
-              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-blue-50 border border-blue-100">
-                <span className="text-xs font-medium text-blue-600 mb-1 uppercase tracking-wider">En Espera</span>
-                <span className="text-blue-700 font-bold text-xl">{statuses.en_espera}</span>
-              </div>
-              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-amber-50 border border-amber-100">
-                <span className="text-xs font-medium text-amber-600 mb-1 uppercase tracking-wider">Pendientes</span>
-                <span className="text-amber-700 font-bold text-xl">{statuses.pendiente}</span>
-              </div>
-              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-rose-50 border border-rose-100">
-                <span className="text-xs font-medium text-rose-600 mb-1 uppercase tracking-wider">Cancelados</span>
-                <span className="text-rose-700 font-bold text-xl">{statuses.cancelado}</span>
-              </div>
-            </CardBody>
-          </Card>
+      {isLoading ? (
+        <div className="space-y-6 animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-[var(--radius-xl)]" />
+            ))}
+          </div>
+          <Skeleton className="h-[350px] rounded-[var(--radius-xl)]" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-[250px] rounded-[var(--radius-xl)]" />
+            <Skeleton className="h-[250px] rounded-[var(--radius-xl)]" />
+          </div>
+        </div>
+      ) : error || !data ? (
+        <div className="text-danger p-4">Error cargando las métricas.</div>
+      ) : (
+        <>
+          {/* 4 Column KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {renderKpiValue("Ingresos", data.kpis.income, <DollarSign className="w-5 h-5" />, "$ ")}
+            {renderKpiValue("Citas Nuevas", data.kpis.appointments, <CalendarCheck className="w-5 h-5" />)}
+            {renderKpiValue("Pacientes Nuevos", data.kpis.new_patients, <Users className="w-5 h-5" />)}
+            
+            <Card className="hover:shadow-md transition-shadow">
+              <CardBody className="p-5 flex flex-col justify-between h-full">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-sm font-medium text-slate-500">Alertas Stock</span>
+                  <div className={`p-2 rounded-lg ${data.low_stock.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    <AlertOctagon className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="flex items-end mt-4">
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    {data.low_stock.length} <span className="text-sm font-medium text-slate-500">ítems críticos</span>
+                  </h3>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
 
-          {/* Weekly Flow Area Chart */}
+          {/* Area Chart - Full Width */}
           <Card>
             <CardHeader className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-semibold text-slate-800">Flujo Semanal: Agendadas vs Efectivas</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Flujo de Turnos (Agendadas vs Efectivas)</h3>
             </CardHeader>
-            <CardBody className="p-4 h-[300px]">
+            <CardBody className="p-4 h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={[...weekly_flow].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={data.weekly_flow} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorScheduled" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
@@ -200,18 +184,20 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
             </CardBody>
           </Card>
 
-          {/* Income Distribution Donut Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+          {/* 2 Column Layout para el resto */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Element 1: Distribución de Ingresos */}
+            <Card className="flex flex-col">
               <CardHeader className="border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-semibold text-slate-800">Distribución de Ingresos</h3>
               </CardHeader>
-              <CardBody className="p-4 flex justify-center h-[280px]">
-                {income_distribution.length > 0 ? (
+              <CardBody className="p-4 flex flex-1 justify-center min-h-[280px]">
+                {data.income_distribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={income_distribution}
+                        data={data.income_distribution}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -219,7 +205,7 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
                         paddingAngle={5}
                         dataKey="total"
                       >
-                        {income_distribution.map((entry, index) => (
+                        {data.income_distribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -228,69 +214,66 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-sm text-slate-400">Sin datos registrados</div>
+                  <div className="flex items-center justify-center h-full text-sm text-slate-400">Sin datos registrados en el periodo</div>
                 )}
               </CardBody>
             </Card>
 
-            <Card>
-              <CardHeader className="border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-semibold text-slate-800">Estado de Stock (Críticos)</h3>
-              </CardHeader>
-              <CardBody className="p-0 overflow-auto h-[280px]">
-                {low_stock.length > 0 ? (
-                  <ul className="divide-y divide-slate-100">
-                    {low_stock.map((item) => (
-                      <li key={item.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">{item.name}</p>
-                          <p className="text-xs text-rose-500 font-medium mt-0.5">Stock crítico</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-slate-800">{item.stock}</p>
-                          <p className="text-xs text-slate-400">Min: {item.min_stock}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-sm text-slate-400">Todo el stock en orden</div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
+            {/* Element 2: Estado de Stock y Alertas Conjuntas */}
+            <div className="space-y-6 flex flex-col">
+              
+              {/* Alertas Predictivas */}
+              <Card>
+                <CardHeader className="border-b border-slate-100 pb-3 flex flex-row items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800">Alertas Predictivas de Insumos</h3>
+                  {data.predictive_alerts.length > 0 && <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></div>}
+                </CardHeader>
+                <CardBody className="p-4 space-y-3 max-h-[160px] overflow-auto">
+                  {data.predictive_alerts.length > 0 ? (
+                    data.predictive_alerts.map((alert, idx) => (
+                      <div key={idx} className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3">
+                        <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <p className="text-sm text-rose-800 font-medium leading-relaxed">{alert.message}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-500 p-4 text-center bg-slate-50 rounded-xl border border-slate-100">
+                      No hay alertas predictivas críticas activas en este momento.
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
 
-        </div>
-
-        {/* Right Column: 33% Quick Actions & Alerts */}
-        <div className="space-y-6">
-          
-
-
-          <Card>
-            <CardHeader className="border-b border-slate-100 pb-3 flex flex-row items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Alertas Predictivas</h3>
-              <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></div>
-            </CardHeader>
-            <CardBody className="p-4 space-y-3">
-              {predictive_alerts.length > 0 ? (
-                predictive_alerts.map((alert, idx) => (
-                  <div key={idx} className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3">
-                    <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                    <p className="text-sm text-rose-800 font-medium leading-relaxed">{alert.message}</p>
+              {/* Live Clinic Status (siempre de hoy) */}
+              <Card className="flex-1">
+                <CardHeader className="border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-semibold text-slate-800">Estado de Clínica (Hoy, {format(new Date(), 'dd/MM/yy')})</h3>
+                </CardHeader>
+                <CardBody className="p-4 grid grid-cols-2 gap-4 h-full">
+                  <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+                    <span className="text-xs font-medium text-emerald-600 mb-1 tracking-wider">Atendidos</span>
+                    <span className="text-emerald-700 font-bold text-xl">{statuses.atendido}</span>
                   </div>
-                ))
-              ) : (
-                <div className="text-sm text-slate-500 p-4 text-center bg-slate-50 rounded-xl border border-slate-100">
-                  No hay alertas críticas que requieran atención en este momento.
-                </div>
-              )}
-            </CardBody>
-          </Card>
+                  <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+                    <span className="text-xs font-medium text-blue-600 mb-1 tracking-wider">En Espera</span>
+                    <span className="text-blue-700 font-bold text-xl">{statuses.en_espera}</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-amber-50 border border-amber-100">
+                    <span className="text-xs font-medium text-amber-600 mb-1 tracking-wider">Pendientes</span>
+                    <span className="text-amber-700 font-bold text-xl">{statuses.pendiente}</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-rose-50 border border-rose-100">
+                    <span className="text-xs font-medium text-rose-600 mb-1 tracking-wider">Cancelados</span>
+                    <span className="text-rose-700 font-bold text-xl">{statuses.cancelado}</span>
+                  </div>
+                </CardBody>
+              </Card>
+            
+            </div>
 
-        </div>
-
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
