@@ -37,8 +37,12 @@ interface ClinicManagerDashboardProps {
 const COLORS = ["#0ea5e9", "#14b8a6", "#6366f1", "#f59e0b", "#f43f5e"];
 
 export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardProps) {
-  const [dateFrom, setDateFrom] = useState(() => format(subDays(new Date(), 6), 'yyyy-MM-dd'));
-  const [dateTo, setDateTo] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const lastWeek = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+  const lastMonth = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+
+  const [dateFrom, setDateFrom] = useState(() => lastWeek);
+  const [dateTo, setDateTo] = useState(() => today);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-stats", dateFrom, dateTo],
@@ -90,7 +94,34 @@ export function ClinicManagerDashboard({ appointments }: ClinicManagerDashboardP
           <Filter className="w-4 h-4 text-slate-400" />
           Filtros de Análisis
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        
+        <div className="flex flex-wrap items-center justify-end gap-4 w-full sm:w-auto">
+          {/* Quick Preset Buttons */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg">
+            <button 
+              onClick={() => { setDateFrom(today); setDateTo(today); }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${dateFrom === today && dateTo === today ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Diaria
+            </button>
+            <button 
+              onClick={() => { setDateFrom(lastWeek); setDateTo(today); }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${dateFrom === lastWeek && dateTo === today ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Semanal
+            </button>
+            <button 
+              onClick={() => { setDateFrom(lastMonth); setDateTo(today); }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${dateFrom === lastMonth && dateTo === today ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Mensual
+            </button>
+          </div>
+
+          <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
+
+          {/* Manual Date Inputs */}
+          <div className="flex items-center gap-3">
           <div className="flex flex-col sm:flex-row items-center gap-2">
             <span className="text-xs text-slate-400 font-medium">Desde:</span>
             <input 
