@@ -53,6 +53,7 @@ import {
 import { KpiCard } from "./components/kpi-card";
 import { QuickAction } from "./components/quick-action";
 import { AppointmentRow } from "./components/appointment-row";
+import { ClinicManagerDashboard } from "./components/clinic-manager-dashboard";
 
 // ─── Dashboard Page ─────────────────────────────────────────────────────────
 
@@ -231,9 +232,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {isDoctor ? (
+      {isClinicManager ? (
+        <ClinicManagerDashboard appointments={appointments} />
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {isDoctor ? (
           <>
             <KpiCard
               label="Pacientes en Espera"
@@ -498,6 +503,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       <ImmediateAttentionModal
         isOpen={isImmediateModalOpen}
