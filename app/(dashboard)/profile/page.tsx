@@ -193,57 +193,67 @@ export default function ProfilePage() {
 
       {/* ── Avatar + Summary Card ────────────────────────────────── */}
       <div
-        className="rounded-[var(--radius-xl)] overflow-hidden border border-border"
-        style={{ background: "var(--surface)" }}
+        className="rounded-[var(--radius-xl)] border border-brand-700/20 shadow-md overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 55%, #a78bfa 100%)",
+        }}
       >
-        {/* Gradient banner */}
-        <div
-          className="h-24 w-full"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-400) 60%, #a78bfa 100%)",
-          }}
-        />
-        <div className="px-6 pb-5 -mt-10 flex flex-col sm:flex-row sm:items-end gap-4">
+        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4">
           {/* Avatar */}
           <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-lg shrink-0"
+            className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg shrink-0"
             style={{
-              background:
-                "linear-gradient(135deg, var(--color-brand-500), var(--color-brand-800))",
+              background: "rgba(255,255,255,0.18)",
+              border: "1.5px solid rgba(255,255,255,0.35)",
+              backdropFilter: "blur(4px)",
             }}
           >
             {getInitials(user.name)}
           </div>
 
           {/* User info */}
-          <div className="flex-1 sm:pb-1">
-            <h2 className="text-lg font-bold text-foreground leading-tight">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-white leading-tight">
               {user.name}
             </h2>
-            <p className="text-sm text-muted">{user.email}</p>
+            <p className="text-sm text-white/70 truncate">{user.email}</p>
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {user.roles.map((role) => {
-                const cfg = ROLE_LABELS[role.name];
-                return (
-                  <span
-                    key={role.id}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg?.color ?? "bg-neutral-100 text-neutral-700 border-neutral-200"}`}
-                  >
-                    <Shield className="w-3 h-3" />
-                    {cfg?.label ?? role.name}
-                  </span>
-                );
-              })}
-
-              {/* Account status badge */}
+              {user.roles.map((role) => (
+                <span
+                  key={role.id}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    color: "white",
+                  }}
+                >
+                  <Shield className="w-3 h-3" />
+                  {ROLE_LABELS[role.name]?.label ?? role.name}
+                </span>
+              ))}
               {user.is_active ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: "rgba(52,211,153,0.25)",
+                    border: "1px solid rgba(52,211,153,0.4)",
+                    color: "white",
+                  }}
+                >
                   <CheckCircle className="w-3 h-3" />
                   Activo
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: "rgba(251,191,36,0.25)",
+                    border: "1px solid rgba(251,191,36,0.4)",
+                    color: "white",
+                  }}
+                >
                   <AlertCircle className="w-3 h-3" />
                   Pendiente
                 </span>
@@ -252,12 +262,12 @@ export default function ProfilePage() {
           </div>
 
           {/* Quick meta */}
-          <div className="hidden md:flex flex-col items-end gap-1 text-xs text-muted self-start mt-10 sm:mt-0 sm:self-end pb-1">
-            <span className="flex items-center gap-1">
+          <div className="hidden md:flex flex-col items-end gap-1.5 text-xs text-white/70 shrink-0">
+            <span className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
               Miembro desde {formatDate(user.created_at)}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5" />
               {user.email}
             </span>
