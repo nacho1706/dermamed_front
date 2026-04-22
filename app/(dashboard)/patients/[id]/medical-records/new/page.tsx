@@ -139,6 +139,7 @@ function MedicalRecordFormContent() {
     },
     onError: (error: any) => {
       const responseData = error.response?.data;
+      const status = error.response?.status;
       let desc = "Hubo un problema al crear el registro médico.";
 
       if (responseData?.errors) {
@@ -148,8 +149,11 @@ function MedicalRecordFormContent() {
         desc = responseData.message;
       }
 
+      // DEBUG: Agregar la respuesta cruda para ver qué devuelve el backend
+      const debugInfo = `Status: ${status}. Data: ${JSON.stringify(responseData)}`;
+
       toast.error("Error al guardar", {
-        description: desc,
+        description: `${desc} | Detalle técnico: ${debugInfo}`,
       });
     },
   });
