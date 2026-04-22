@@ -155,6 +155,9 @@ function MedicalRecordFormContent() {
   });
 
   useEffect(() => {
+    form.register("patient_id");
+    form.register("doctor_id");
+    form.register("appointment_id");
     if (user?.id) {
       form.setValue("doctor_id", user.id);
     }
@@ -183,7 +186,14 @@ function MedicalRecordFormContent() {
   }, [contentValue, draftKey]);
 
   const onSubmit = (data: MedicalRecordFormValues) => {
-    createRecordMutation.mutate(data);
+    // Ensure hidden values are correctly present even if unregistered
+    const payload = {
+      ...data,
+      patient_id: patientId,
+      doctor_id: user?.id || data.doctor_id || 0,
+      appointment_id: appointmentId,
+    };
+    createRecordMutation.mutate(payload);
   };
 
   const handleCancelClick = () => {
@@ -345,7 +355,10 @@ function MedicalRecordFormContent() {
             </CardHeader>
             <CardBody className="p-6">
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit(onSubmit, (errs) => {
+                  console.error("Form errors:", errs);
+                  toast.error("Error de validación en el formulario", { description: JSON.stringify(errs) });
+                })}
                 className="space-y-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
