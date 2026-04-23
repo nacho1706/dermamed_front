@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { FullPageSpinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { useAppointmentRealtime } from "@/hooks/useAppointmentRealtime";
 
 // Routes that require the doctor role (PHI / medical records).
 // Pattern: /patients/<id>/medical-records (and any sub-path).
@@ -21,6 +22,8 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useAppointmentRealtime();
 
   // ── Auth redirect ──────────────────────────────────────────────────────
   useEffect(() => {
